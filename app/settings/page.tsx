@@ -1,0 +1,48 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import Nav from "@/components/Nav";
+import SettingsPanels from "@/components/SettingsPanels";
+import { supabaseServer } from "@/lib/supabase/server";
+import { getStripe } from "@/lib/stripe";
+export default async function Settings() {
+  const sb = await supabaseServer();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) redirect("/login");
+  const { data: p } = await sb.from("profiles").select("*").eq("id", user.id).single();
+  let card: { brand: string; last4: string; exp: string } | null = null;
+  if (p?.stripe_customer_id) {
+    try {
+      const pms = await getStripe().paymentMethods.list({ customer: p.stripe_customer_id, type: "card", limit: 1 });
+      const c = pms.data[0]?.card;
+      if (c) card = { brand: c.brand, last4: c.last4, exp: `${String(c.exp_month).padStart(2, "0")}/${c.exp_year}` };
+    } catch { /* show no card rather than failing the page */ }
+  }
+  const billing = (
+    <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+      <h2 className="text-xl font-bold">Subscription and billing</h2>
+      <dl className="mt-4 space-y-3">
+        <div><dt className="text-sm text-zinc-400">Plan</dt><dd className="font-bold">{p?.is_paid ? "ArtistPilot Pro, $15/month" : "No active plan"}</dd></div>
+        <div><dt className="text-sm text-zinc-400">Payment method</dt>
+          <dd className="font-bold">{card ? <span className="capitalize">{card.brand} ending in {card.last4}, expires {card.exp}</span> : p?.stripe_customer_id ? "No card on file" : p?.is_paid ? "None on file (demo access)" : "None yet"}</dd></div>
+      </dl>
+      <div className="mt-5 flex flex-wrap gap-3">
+        {p?.stripe_customer_id && (
+          <form action="/api/portal" method="post"><button className="rounded-lg border border-zinc-700 px-4 py-2.5 font-bold hover:border-violet-500">Update payment method, invoices or cancel</button></form>
+        )}
+        {!p?.is_paid && <Link href="/dashboard" className="rounded-lg bg-gradient-to-r from-violet-500 to-blue-500 px-4 py-2.5 font-bold">Get ArtistPilot Pro</Link>}
+      </div>
+      <p className="mt-3 text-sm text-zinc-500">Payments are handled by Stripe. ArtistPilot never sees or stores your full card number.</p>
+    </section>
+  );
+  return (<>
+    <Nav signedIn />
+    <main className="mx-auto max-w-2xl px-5 py-12">
+      <h1 className="text-3xl font-extrabold">Settings</h1>
+      <p className="mb-6 mt-1 text-zinc-400">Signed in as {user.email}</p>
+      <SettingsPanels billing={billing} init={{
+        displayName: p?.display_name ?? "", instrument: p?.main_instrument ?? "Guitar", bpm: p?.default_bpm ?? 92, goal: p?.weekly_goal ?? 5,
+        reminders: !!p?.notify_reminders, news: !!p?.notify_news, isDemo: user.email === "demo@demo.com",
+      }} />
+    </main>
+  </>);
+}
