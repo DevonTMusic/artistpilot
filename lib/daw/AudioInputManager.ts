@@ -54,7 +54,6 @@ export class AudioInputManager {
         echoCancellation: false,
         noiseSuppression: false,
         autoGainControl: false,
-        latency: 0,
       },
     };
 
