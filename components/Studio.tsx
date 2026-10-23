@@ -1,14 +1,16 @@
+// components/Studio.tsx
 "use client";
 import React, { useEffect, useRef, useState } from "react";
-import { AudioEngine, TrackData, AudioRegion } from "@/lib/daw/AudioEngine";
+import { AudioEngine } from "@/lib/daw/AudioEngine";
+import { TrackData, AudioRegion } from "@/lib/daw/types";
 import { ClipRegion } from "@/components/daw/ClipRegion";
 
 const INSTRUMENT_PRESETS = [
-  { name: "Vocals / Mic", type: "audio" as const, color: "bg-[#2563eb]", icon: "🎙️" },
-  { name: "Acoustic Guitar", type: "audio" as const, color: "bg-[#d97706]", icon: "🎸" },
-  { name: "Grand Piano", type: "midi" as const, color: "bg-[#059669]", icon: "🎹" },
-  { name: "Electric Bass", type: "midi" as const, color: "bg-[#7c3aed]", icon: "🎸" },
-  { name: "Drum Machine", type: "drum" as const, color: "bg-[#dc2626]", icon: "🥁" },
+  { name: "Audio / Microphone", category: "audio" as const, color: "bg-[#2563eb]", icon: "🎙️", desc: "Vocals, guitars, or live hardware" },
+  { name: "Acoustic Grand Piano", category: "midi" as const, color: "bg-[#059669]", icon: "🎹", desc: "Dynamic velocity-sensitive keys" },
+  { name: "Electric Guitar Clean", category: "audio" as const, color: "bg-[#d97706]", icon: "🎸", desc: "Clean combo amp direct input" },
+  { name: "Classic Bass Guitar", category: "midi" as const, color: "bg-[#7c3aed]", icon: "🎸", desc: "Warm punchy low-end bass" },
+  { name: "Drum Machine Beatmaker", category: "drum" as const, color: "bg-[#dc2626]", icon: "🥁", desc: "Electronic 808/909 step sequencer" },
 ];
 
 export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
@@ -17,8 +19,8 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     {
       id: 1,
       name: "Lead Vocal",
-      type: "audio",
-      instrument: "Vocals / Mic",
+      category: "audio",
+      instrument: "Audio / Microphone",
       color: "bg-[#2563eb]",
       volume: 0.85,
       pan: 0,
@@ -29,10 +31,10 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     },
     {
       id: 2,
-      name: "Acoustic Guitar",
-      type: "audio",
-      instrument: "Acoustic Guitar",
-      color: "bg-[#d97706]",
+      name: "Grand Piano",
+      category: "midi",
+      instrument: "Acoustic Grand Piano",
+      color: "bg-[#059669]",
       volume: 0.8,
       pan: 0,
       mute: false,
@@ -47,7 +49,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const [isRecording, setIsRecording] = useState(false);
   const [playheadSec, setPlayheadSec] = useState(0);
   const [selectedTrackId, setSelectedTrackId] = useState(1);
-  const [pixelsPerSecond, setPixelsPerSecond] = useState(40);
+  const [pixelsPerSecond, setPixelsPerSecond] = useState(42);
   const [trackModalOpen, setTrackModalOpen] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
 
@@ -58,7 +60,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const recChunks = useRef<Blob[]>([]);
   const recStartTime = useRef(0);
 
-  // Keep transport ticking
   const updatePlaybackPosition = () => {
     const elapsed = (performance.now() - playStartTime.current) / 1000;
     setPlayheadSec(playheadAnchor.current + elapsed);
@@ -74,7 +75,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     } else {
       playStartTime.current = performance.now();
       playheadAnchor.current = playheadSec;
-      engine.current.scheduleTrackPlayback(tracks, playheadSec, () => setIsPlaying(false));
+      engine.current.schedulePlayback(tracks, playheadSec);
       animFrame.current = requestAnimationFrame(updatePlaybackPosition);
       setIsPlaying(true);
     }
@@ -92,7 +93,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     playheadAnchor.current = 0;
   };
 
-  // Recording Engine
   const handleRecord = async () => {
     if (isRecording) {
       handleStop();
@@ -118,6 +118,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             startTime: recStartTime.current,
             duration: buffer.duration,
             offset: 0,
+            gain: 1.0,
           };
           setTracks((prev) =>
             prev.map((t) =>
@@ -125,7 +126,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             )
           );
         } catch {
-          setStatusMsg("Error decoding recorded audio.");
+          setStatusMsg("Failed to decode audio data.");
         }
       };
 
@@ -134,25 +135,24 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       setIsRecording(true);
       if (!isPlaying) handlePlay();
     } catch {
-      setStatusMsg("Microphone permission denied.");
+      setStatusMsg("Microphone access was denied. Please allow it in browser settings.");
     }
   };
 
-  // WAV Exporter
   const handleExport = async () => {
-    setStatusMsg("Rendering master WAV mix...");
+    setStatusMsg("Rendering master WAV mixdown...");
     const totalDuration = Math.max(
-      8,
+      6,
       ...tracks.flatMap((t) => t.regions.map((r) => r.startTime + r.duration))
     );
-    const blob = await engine.current.exportMixToWav(tracks, totalDuration);
+    const blob = await engine.current.exportMasterWav(tracks, totalDuration);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `ArtistPilot-Master-${Date.now()}.wav`;
     a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
-    setStatusMsg("Mix successfully exported!");
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    setStatusMsg("Export complete! Download started.");
   };
 
   const updateTrack = (id: number, patch: Partial<TrackData>) => {
@@ -194,7 +194,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         const r2: AudioRegion = {
           ...reg,
           id: `reg-${Date.now()}`,
-          name: `${reg.name} (Part 2)`,
+          name: `${reg.name} (B)`,
           startTime: splitTimeSec,
           offset: reg.offset + firstDuration,
           duration: secondDuration,
@@ -212,7 +212,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       {
         id,
         name: `${preset.name} ${prev.length + 1}`,
-        type: preset.type,
+        category: preset.category,
         instrument: preset.name,
         color: preset.color,
         volume: 0.8,
@@ -227,7 +227,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     setTrackModalOpen(false);
   };
 
-  // Convert seconds to Bars.Beats
   const totalBeats = (playheadSec * bpm) / 60;
   const currentBar = Math.floor(totalBeats / 4) + 1;
   const currentBeat = (Math.floor(totalBeats) % 4) + 1;
@@ -246,7 +245,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           </button>
         </div>
 
-        {/* Center: Controls + Timecode */}
+        {/* Center: Controls + GarageBand LCD */}
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <button onClick={handleStop} className="h-8 w-8 rounded text-zinc-300 hover:text-white">◼</button>
@@ -268,7 +267,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             </button>
           </div>
 
-          {/* LCD Timecode */}
           <div className="flex h-9 items-center divide-x divide-zinc-800 rounded border border-zinc-800 bg-[#0d0e11] px-3 font-mono text-cyan-400">
             <div className="pr-3 text-center">
               <span className="text-sm font-bold tracking-widest text-white">
@@ -341,8 +339,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
 
       {/* 3. MULTI-TRACK ARRANGER (Main Grid) */}
       <div className="flex-1 overflow-y-auto divide-y divide-[#22242a] bg-[#131417] relative">
-        
-        {/* Playhead Vertical Line */}
         <div
           style={{ left: `${256 + playheadSec * pixelsPerSecond}px` }}
           className="absolute top-0 bottom-0 w-[1.5px] bg-red-500 z-30 pointer-events-none"
@@ -358,7 +354,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               onClick={() => setSelectedTrackId(track.id)}
               className={`flex h-20 transition ${isSelected ? "bg-[#202228]" : "bg-[#18191d] hover:bg-[#1c1d22]"}`}
             >
-              {/* Left Track Inspector Column */}
               <div className="w-64 flex-none border-r border-[#262830] p-2 flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -384,7 +379,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                   )}
                 </div>
 
-                {/* Track Controls: Mute, Solo, Volume */}
                 <div className="flex items-center justify-between text-[10px] pt-1">
                   <div className="flex items-center gap-1">
                     <button
@@ -426,7 +420,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                 </div>
               </div>
 
-              {/* Right Arranger Lane (Region Workspace) */}
               <div className="flex-1 relative overflow-hidden">
                 {track.regions.map((region) => (
                   <ClipRegion
@@ -445,12 +438,12 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         })}
       </div>
 
-      {/* 4. TRACK SELECTION MODAL */}
+      {/* 4. TRACK MODAL */}
       {trackModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
           <div className="w-full max-w-xl rounded-xl border border-zinc-700 bg-[#22242a] p-6 shadow-2xl">
             <h2 className="text-lg font-bold text-white mb-1">New Track</h2>
-            <p className="text-xs text-zinc-400 mb-5">Choose an instrument to add to your session.</p>
+            <p className="text-xs text-zinc-400 mb-5">Select an instrument or audio track to add to your session.</p>
 
             <div className="grid grid-cols-2 gap-3">
               {INSTRUMENT_PRESETS.map((p) => (
@@ -464,7 +457,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                   </div>
                   <div>
                     <h3 className="text-xs font-bold text-white">{p.name}</h3>
-                    <p className="text-[10px] text-zinc-400 uppercase tracking-wider">{p.type}</p>
+                    <p className="text-[10px] text-zinc-400">{p.desc}</p>
                   </div>
                 </button>
               ))}
