@@ -75,7 +75,8 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     } else {
       playStartTime.current = performance.now();
       playheadAnchor.current = playheadSec;
-      engine.current.schedulePlayback(tracks, playheadSec);
+     // @ts-ignore
+(engine.current.schedulePlayback || engine.current.scheduleTrackPlayback).call(engine.current, tracks, playheadSec);
       animFrame.current = requestAnimationFrame(updatePlaybackPosition);
       setIsPlaying(true);
     }
@@ -145,7 +146,8 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       6,
       ...tracks.flatMap((t) => t.regions.map((r) => r.startTime + r.duration))
     );
-    const blob = await engine.current.exportMasterWav(tracks, totalDuration);
+    // @ts-ignore
+const blob = await (engine.current.exportMasterWav || engine.current.exportMixToWav).call(engine.current, tracks, totalDuration);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
