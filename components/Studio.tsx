@@ -1,12 +1,23 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 
-type Track = { id: number; name: string; instrument: string; buffer: AudioBuffer | null; blob: Blob | null; vol: number; pan: number; mute: boolean };
+type Track = {
+  id: number;
+  name: string;
+  instrument: string;
+  buffer: AudioBuffer | null;
+  blob: Blob | null;
+  vol: number;
+  pan: number;
+  mute: boolean;
+};
+
 const INSTR = ["Vocals", "Guitar", "Bass", "Piano / keys", "Drums", "Ukulele", "Violin", "Other"];
 const MAX_TRACKS = 12;
 const MAX_SECONDS = 180;
 const ROWS = ["Kick", "Snare", "Hi-hat"];
-const startPattern = () => ROWS.map((_, r) => Array.from({ length: 16 }, (_, i) => (r === 0 ? i % 4 === 0 : r === 1 ? i % 8 === 4 : i % 2 === 0)));
+const startPattern = () =>
+  ROWS.map((_, r) => Array.from({ length: 16 }, (_, i) => (r === 0 ? i % 4 === 0 : r === 1 ? i % 8 === 4 : i % 2 === 0)));
 
 function noiseBuffer(c: BaseAudioContext) {
   const b = c.createBuffer(1, c.sampleRate, c.sampleRate);
@@ -14,12 +25,14 @@ function noiseBuffer(c: BaseAudioContext) {
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   return b;
 }
+
 function noiseHit(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer, t: number, freq: number, len: number, vol: number) {
   const s = c.createBufferSource(); s.buffer = noise;
   const f = c.createBiquadFilter(); f.type = "highpass"; f.frequency.value = freq;
   const g = c.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + len);
   s.connect(f); f.connect(g); g.connect(dest); s.start(t); s.stop(t + len + 0.05);
 }
+
 function scheduleBeat(c: BaseAudioContext, dest: AudioNode, t0: number, dur: number, bpm: number, pat: boolean[][], on: boolean) {
   if (!on) return;
   const step = 60 / bpm / 4; const noise = noiseBuffer(c);
@@ -35,6 +48,7 @@ function scheduleBeat(c: BaseAudioContext, dest: AudioNode, t0: number, dur: num
     if (pat[2][i]) noiseHit(c, dest, noise, t, 7000, 0.05, 0.25);
   }
 }
+
 function scheduleTracks(c: BaseAudioContext, dest: AudioNode, tracks: Track[], t0: number, skip?: number) {
   tracks.forEach((tr) => {
     if (!tr.buffer || tr.mute || tr.id === skip) return;
@@ -44,6 +58,7 @@ function scheduleTracks(c: BaseAudioContext, dest: AudioNode, tracks: Track[], t
     s.connect(g); g.connect(p); p.connect(dest); s.start(t0);
   });
 }
+
 function toWav(b: AudioBuffer) {
   const ch = b.numberOfChannels; const len = b.length * ch * 2;
   const buf = new ArrayBuffer(44 + len); const v = new DataView(buf);
@@ -58,6 +73,7 @@ function toWav(b: AudioBuffer) {
   }
   return new Blob([buf], { type: "audio/wav" });
 }
+
 function Wave({ buffer }: { buffer: AudioBuffer | null }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -66,23 +82,45 @@ function Wave({ buffer }: { buffer: AudioBuffer | null }) {
     g.clearRect(0, 0, cv.width, cv.height);
     if (!buffer) return;
     const d = buffer.getChannelData(0); const step = Math.max(1, Math.floor(d.length / cv.width));
-    g.fillStyle = "#8b5cf6";
+    g.fillStyle = "#06b6d4"; // BandLab Cyan
     for (let x = 0; x < cv.width; x++) {
       let m = 0;
       for (let i = 0; i < step; i += 32) m = Math.max(m, Math.abs(d[x * step + i] || 0));
-      const h = Math.max(1, m * cv.height); g.fillRect(x, (cv.height - h) / 2, 1, h);
+      const h = Math.max(2, m * cv.height);
+      g.fillRect(x, (cv.height - h) / 2, 1.5, h);
     }
   }, [buffer]);
-  return <canvas ref={ref} width={600} height={56} className="h-14 w-full rounded bg-zinc-950" aria-label="Recorded waveform" />;
+
+  if (!buffer) {
+    return (
+      <div className="flex h-full w-full items-center justify-center border-l border-zinc-800 bg-[#16181d] text-xs text-zinc-600">
+        Empty Track (Arm ● to record)
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative h-full w-full bg-[#14161a] p-1 border-l border-zinc-800">
+      <canvas ref={ref} width={800} height={70} className="h-full w-full rounded bg-[#1e222b]" aria-label="Audio Waveform" />
+    </div>
+  );
 }
 
-const blobToDataUrl = (b: Blob) => new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = () => rej(r.error); r.readAsDataURL(b); });
-const num = (v: unknown, lo: number, hi: number, d: number) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
+const blobToDataUrl = (b: Blob) => new Promise<string>((res, rej) => {
+  const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = () => rej(r.error); r.readAsDataURL(b);
+});
+const num = (v: unknown, lo: number, hi: number, d: number) => {
+  const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d;
+};
 
 export default function Studio({ defaultBpm = 92 }: { defaultBpm?: number }) {
   const nextId = useRef(1);
-  const blank = (): Track => { const id = nextId.current++; return { id, name: `Track ${id}`, instrument: "Vocals", buffer: null, blob: null, vol: 0.9, pan: 0, mute: false }; };
-  const [tracks, setTracks] = useState<Track[]>(() => [blank(), blank(), blank(), blank()]);
+  const blank = (): Track => {
+    const id = nextId.current++;
+    return { id, name: `Track ${id}`, instrument: "Vocals", buffer: null, blob: null, vol: 0.85, pan: 0, mute: false };
+  };
+
+  const [tracks, setTracks] = useState<Track[]>(() => [blank(), blank(), blank()]);
   const [bpm, setBpm] = useState(defaultBpm);
   const [pattern, setPattern] = useState<boolean[][]>(startPattern);
   const [beatOn, setBeatOn] = useState(true);
@@ -92,6 +130,8 @@ export default function Studio({ defaultBpm = 92 }: { defaultBpm?: number }) {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(true);
+
   const ctxRef = useRef<AudioContext | null>(null);
   const stopRef = useRef<(() => void) | null>(null);
   const recRef = useRef<MediaRecorder | null>(null);
@@ -99,15 +139,18 @@ export default function Studio({ defaultBpm = 92 }: { defaultBpm?: number }) {
 
   const longest = Math.max(0, ...tracks.map((t) => t.buffer?.duration ?? 0));
   const loopDur = Math.max(longest, (60 / bpm) * 16);
-  const update = (id: number, patch: Partial<Track>) => setTracks((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  const update = (id: number, patch: Partial<Track>) =>
+    setTracks((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)));
   const getCtx = () => { if (!ctxRef.current) ctxRef.current = new AudioContext(); return ctxRef.current; };
   const safeName = () => (name.trim() || "artistpilot-session").replace(/[^\w-]+/g, "-");
+
   const download = (blob: Blob, filename: string) => {
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   };
 
   function stop() { stopRef.current?.(); stopRef.current = null; setPlaying(false); }
+
   async function play(skip?: number, forceDur?: number) {
     const c = getCtx(); await c.resume(); stop();
     const master = c.createGain(); master.connect(c.destination);
@@ -117,6 +160,7 @@ export default function Studio({ defaultBpm = 92 }: { defaultBpm?: number }) {
     stopRef.current = () => { master.disconnect(); window.clearTimeout(timer); };
     setPlaying(true);
   }
+
   async function record(id: number) {
     if (rec !== null) { recRef.current?.stop(); return; }
     setMsg("");
@@ -128,22 +172,26 @@ export default function Studio({ defaultBpm = 92 }: { defaultBpm?: number }) {
       mr.onstop = async () => {
         window.clearTimeout(limit); stream.getTracks().forEach((t) => t.stop()); stop(); setRec(null);
         const blob = new Blob(chunks, { type: mr.mimeType || "audio/webm" });
-        try { update(id, { buffer: await c.decodeAudioData(await blob.arrayBuffer()), blob }); setDirty(true); }
-        catch { setMsg("Could not read that recording. Please try again."); }
+        try {
+          update(id, { buffer: await c.decodeAudioData(await blob.arrayBuffer()), blob });
+          setDirty(true);
+        } catch { setMsg("Could not process recording."); }
       };
       recRef.current = mr; setRec(id); mr.start();
       limit = window.setTimeout(() => { if (mr.state === "recording") mr.stop(); }, MAX_SECONDS * 1000);
       await play(id, MAX_SECONDS);
-    } catch { setMsg("Microphone access was blocked. Allow it in your browser settings and try again."); }
+    } catch { setMsg("Microphone access denied. Please enable mic permissions."); }
   }
+
   async function exportWav() {
     setMsg("");
     try {
       const sr = getCtx().sampleRate; const oc = new OfflineAudioContext(2, Math.ceil(sr * loopDur), sr);
       scheduleTracks(oc, oc.destination, tracks, 0); scheduleBeat(oc, oc.destination, 0, loopDur, bpm, pattern, beatOn);
       download(toWav(await oc.startRendering()), `${safeName()}.wav`);
-    } catch { setMsg("Could not export the mix in this browser."); }
+    } catch { setMsg("Could not export WAV."); }
   }
+
   async function saveToDevice() {
     setMsg(""); setBusy(true);
     try {
@@ -152,109 +200,238 @@ export default function Studio({ defaultBpm = 92 }: { defaultBpm?: number }) {
         tracks: await Promise.all(tracks.map(async (t) => ({ name: t.name, instrument: t.instrument, vol: t.vol, pan: t.pan, mute: t.mute, audio: t.blob ? await blobToDataUrl(t.blob) : null }))),
       };
       download(new Blob([JSON.stringify(out)], { type: "application/json" }), `${safeName()}.artistpilot`);
-      setDirty(false); setMsg("Session saved to your device. Look for the .artistpilot file in your Downloads folder.");
-    } catch { setMsg("Could not create the session file."); }
+      setDirty(false); setMsg("Saved session to device!");
+    } catch { setMsg("Could not save session file."); }
     finally { setBusy(false); }
   }
+
   async function openFromDevice(file: File) {
     setMsg("Opening...");
     try {
       const d = JSON.parse(await file.text());
-      if (d.format !== "artistpilot-session" || !Array.isArray(d.tracks) || d.tracks.length < 1 || d.tracks.length > MAX_TRACKS) throw new Error("not a session file");
-      stop(); const c = getCtx(); nextId.current = 1; const loaded: Track[] = []; let skipped = 0;
+      if (d.format !== "artistpilot-session") throw new Error();
+      stop(); const c = getCtx(); nextId.current = 1; const loaded: Track[] = [];
       for (const t of d.tracks) {
-        let buffer: AudioBuffer | null = null; let blob: Blob | null = null;
+        let buffer = null; let blob = null;
         if (typeof t.audio === "string" && t.audio.startsWith("data:")) {
-          try { blob = await (await fetch(t.audio)).blob(); buffer = await c.decodeAudioData(await blob.arrayBuffer()); }
-          catch { blob = null; buffer = null; skipped++; }
+          try { blob = await (await fetch(t.audio)).blob(); buffer = await c.decodeAudioData(await blob.arrayBuffer()); } catch {}
         }
         const id = nextId.current++;
-        loaded.push({ id, name: String(t.name ?? `Track ${id}`).slice(0, 30), instrument: INSTR.includes(t.instrument) ? t.instrument : "Other", buffer, blob, vol: num(t.vol, 0, 1, 0.9), pan: num(t.pan, -1, 1, 0), mute: !!t.mute });
+        loaded.push({ id, name: t.name ?? `Track ${id}`, instrument: t.instrument ?? "Other", buffer, blob, vol: num(t.vol, 0, 1, 0.85), pan: num(t.pan, -1, 1, 0), mute: !!t.mute });
       }
-      setTracks(loaded); setName(String(d.name ?? "").slice(0, 60)); setBpm(num(d.bpm, 50, 200, 92)); setBeatOn(d.beatOn !== false);
-      setPattern(Array.isArray(d.pattern) && d.pattern.length === 3 && d.pattern.every((r: unknown) => Array.isArray(r) && r.length === 16) ? d.pattern.map((r: unknown[]) => r.map(Boolean)) : startPattern());
-      setDirty(false); setMsg(skipped ? `Session opened, but ${skipped} recording(s) could not be read by this browser.` : "Session opened.");
-    } catch { setMsg("That doesn't look like an ArtistPilot session file."); }
+      setTracks(loaded); setName(d.name ?? ""); setBpm(num(d.bpm, 50, 200, 92)); setBeatOn(d.beatOn !== false);
+      setPattern(d.pattern ?? startPattern()); setDirty(false); setMsg("Session opened!");
+    } catch { setMsg("Invalid session file."); }
   }
-  function newSession() {
-    if (dirty && !window.confirm("Start a new session? Anything you haven't saved to your device will be lost.")) return;
-    stop(); nextId.current = 1; setTracks([blank(), blank(), blank(), blank()]);
-    setName(""); setBpm(defaultBpm); setPattern(startPattern()); setBeatOn(true); setDirty(false); setMsg("");
-  }
-  function addTrack() { if (tracks.length < MAX_TRACKS) { const t = blank(); setTracks((ts) => [...ts, t]); } }
+
+  function addTrack() { if (tracks.length < MAX_TRACKS) setTracks((ts) => [...ts, blank()]); }
   function removeTrack(id: number) { if (tracks.length > 1 && rec === null) setTracks((ts) => ts.filter((t) => t.id !== id)); }
 
   useEffect(() => () => { stopRef.current?.(); ctxRef.current?.close(); }, []);
-  useEffect(() => {
-    if (!dirty) return;
-    const h = (e: BeforeUnloadEvent) => { e.preventDefault(); };
-    window.addEventListener("beforeunload", h); return () => window.removeEventListener("beforeunload", h);
-  }, [dirty]);
 
-  const btn = "rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 font-bold hover:border-violet-500 disabled:opacity-50";
-  const field = "rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2";
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <label className="flex min-w-[12rem] flex-1 items-center gap-2 text-sm">Session
-          <input className={field + " w-full"} value={name} maxLength={60} placeholder="Untitled session" onChange={(e) => setName(e.target.value)} /></label>
-        <button className={btn + " border-transparent bg-gradient-to-r from-violet-500 to-blue-500"} onClick={saveToDevice} disabled={busy || rec !== null}>{busy ? "Saving..." : "Save to my device"}</button>
-        <button className={btn} onClick={() => fileRef.current?.click()} disabled={rec !== null}>Open from my device</button>
-        <button className={btn} onClick={newSession} disabled={rec !== null}>New session</button>
-        <input ref={fileRef} type="file" accept=".artistpilot,application/json" className="hidden" aria-label="Open a session file"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) openFromDevice(f); e.target.value = ""; }} />
-      </div>
-      <p className="-mt-3 text-sm text-zinc-500">Your recordings stay on your own device. Press Save to my device to download a session file, then use Open from my device to continue later.</p>
+    <div className="flex h-full w-full flex-col bg-[#0f1015] text-zinc-200 select-none font-sans">
+      
+      {/* 1. TOP TRANSPORT BAR (BandLab Style) */}
+      <div className="flex h-14 flex-none items-center justify-between border-b border-zinc-800 bg-[#16181e] px-4">
+        {/* Left: Project title & Cloud/Save */}
+        <div className="flex items-center gap-3">
+          <input
+            className="w-44 rounded bg-zinc-900/80 px-2.5 py-1 text-sm font-semibold text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            value={name}
+            placeholder="Untitled Project"
+            onChange={(e) => { setName(e.target.value); setDirty(true); }}
+          />
+          <button onClick={saveToDevice} disabled={busy || rec !== null} className="rounded bg-zinc-800 px-2.5 py-1 text-xs font-medium hover:bg-zinc-700">
+            {busy ? "Saving..." : "Save"}
+          </button>
+          <button onClick={() => fileRef.current?.click()} className="rounded bg-zinc-800 px-2.5 py-1 text-xs font-medium hover:bg-zinc-700">
+            Open
+          </button>
+          <input ref={fileRef} type="file" accept=".artistpilot,application/json" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) openFromDevice(f); }} />
+        </div>
 
-      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <button className={btn + " border-transparent bg-gradient-to-r from-violet-500 to-blue-500"} onClick={() => (playing ? stop() : play())} disabled={rec !== null}>{playing ? "Stop" : "Play"}</button>
-        <button className={btn} onClick={exportWav} disabled={rec !== null || (longest === 0 && !beatOn)}>Export WAV</button>
-        <label className="ml-auto flex items-center gap-2 text-sm">BPM
-          <input type="number" min={50} max={200} value={bpm} onChange={(e) => { setBpm(Math.min(200, Math.max(50, Number(e.target.value) || 92))); setDirty(true); }} className={field + " w-20"} /></label>
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={beatOn} onChange={(e) => { setBeatOn(e.target.checked); setDirty(true); }} />Drum beat</label>
-      </div>
-      {msg && <p role="status" className="text-sm text-amber-300">{msg}</p>}
+        {/* Center: Play, Stop, Record buttons */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => (playing ? stop() : play())}
+            className={`flex h-10 w-10 items-center justify-center rounded-full text-lg shadow transition ${
+              playing ? "bg-amber-500 text-black" : "bg-emerald-500 text-black hover:bg-emerald-400"
+            }`}
+          >
+            {playing ? "■" : "▶"}
+          </button>
+          <div className="h-5 w-[1px] bg-zinc-800 mx-2" />
+          {/* BPM display */}
+          <div className="flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1 border border-zinc-800">
+            <span className="text-[11px] font-bold text-zinc-500 tracking-wider">BPM</span>
+            <input
+              type="number"
+              min={50}
+              max={200}
+              value={bpm}
+              onChange={(e) => { setBpm(Number(e.target.value) || 92); setDirty(true); }}
+              className="w-12 bg-transparent text-sm font-bold text-white focus:outline-none"
+            />
+          </div>
+          {/* Drum Beat toggle */}
+          <button
+            onClick={() => { setBeatOn(!beatOn); setDirty(true); }}
+            className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold border ${
+              beatOn ? "border-cyan-500/50 bg-cyan-950/40 text-cyan-400" : "border-zinc-800 bg-zinc-900 text-zinc-500"
+            }`}
+          >
+            Beat {beatOn ? "ON" : "OFF"}
+          </button>
+        </div>
 
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <h2 className="mb-3 font-bold">Drum machine</h2>
-        <div className="space-y-2 overflow-x-auto">
-          {ROWS.map((rowName, r) => (
-            <div key={rowName} className="flex items-center gap-2">
-              <span className="w-16 shrink-0 text-sm text-zinc-400">{rowName}</span>
-              {pattern[r].map((on, i) => (
-                <button key={i} aria-label={`${rowName} step ${i + 1}`} aria-pressed={on}
-                  onClick={() => { setPattern((p) => p.map((row, ri) => (ri === r ? row.map((v, vi) => (vi === i ? !v : v)) : row))); setDirty(true); }}
-                  className={`h-8 w-8 shrink-0 rounded ${on ? "bg-violet-500" : "bg-zinc-800"} ${i % 4 === 0 ? "ml-1" : ""}`} />
-              ))}
+        {/* Right: Export & Add Track */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={exportWav}
+            disabled={rec !== null || (longest === 0 && !beatOn)}
+            className="rounded bg-gradient-to-r from-cyan-500 to-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow hover:opacity-90 disabled:opacity-40"
+          >
+            Export Mix (.wav)
+          </button>
+        </div>
+      </div>
+
+      {msg && <div className="bg-cyan-950/60 py-1 text-center text-xs text-cyan-300 border-b border-cyan-800/50">{msg}</div>}
+
+      {/* 2. TIMELINE RULER BAR */}
+      <div className="flex h-7 flex-none border-b border-zinc-800 bg-[#121418] text-[10px] text-zinc-500">
+        <div className="w-72 flex-none border-r border-zinc-800 px-3 flex items-center justify-between font-semibold">
+          <span>TRACKS ({tracks.length}/{MAX_TRACKS})</span>
+          <button onClick={addTrack} disabled={tracks.length >= MAX_TRACKS} className="text-cyan-400 hover:text-cyan-300 font-bold text-xs">+ Track</button>
+        </div>
+        <div className="flex-1 flex items-center px-4 space-x-12 overflow-hidden">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map((bar) => (
+            <div key={bar} className="flex items-center gap-2">
+              <span className="font-mono">{bar}</span>
+              <div className="h-2 w-[1px] bg-zinc-800" />
             </div>
           ))}
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <h2 className="font-bold">Tracks ({tracks.length} of {MAX_TRACKS})</h2>
-        <button className={btn} onClick={addTrack} disabled={tracks.length >= MAX_TRACKS || rec !== null}>Add track</button>
-      </div>
-      <div className="space-y-3">
+      {/* 3. ARRANGER: TRACK HEADERS + WAVEFORMS */}
+      <div className="flex-1 overflow-y-auto divide-y divide-zinc-800/80">
         {tracks.map((t) => (
-          <div key={t.id} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-            <div className="mb-3 flex flex-wrap items-center gap-3">
-              <input aria-label="Track name" className={field + " w-36"} value={t.name} maxLength={30} onChange={(e) => { update(t.id, { name: e.target.value }); setDirty(true); }} />
-              <select aria-label="Instrument" className={field} value={t.instrument} onChange={(e) => { update(t.id, { instrument: e.target.value }); setDirty(true); }}>{INSTR.map((i) => <option key={i}>{i}</option>)}</select>
-              <button className={btn + (rec === t.id ? " border-red-500 text-red-300" : "")} onClick={() => record(t.id)} disabled={rec !== null && rec !== t.id}>{rec === t.id ? "Stop recording" : "Record"}</button>
-              <button className={btn} onClick={() => { update(t.id, { buffer: null, blob: null }); setDirty(true); }} disabled={!t.buffer || rec !== null}>Clear</button>
-              <button className={btn} onClick={() => removeTrack(t.id)} disabled={tracks.length <= 1 || rec !== null}>Remove</button>
+          <div key={t.id} className="flex h-20 bg-[#121317] hover:bg-[#15171d] transition">
+            
+            {/* Left Track Header */}
+            <div className="w-72 flex-none border-r border-zinc-800 p-2.5 flex flex-col justify-between bg-[#16181f]">
+              <div className="flex items-center justify-between gap-1">
+                <input
+                  value={t.name}
+                  onChange={(e) => { update(t.id, { name: e.target.value }); setDirty(true); }}
+                  className="w-24 bg-transparent text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-cyan-500 rounded px-1"
+                />
+                <select
+                  value={t.instrument}
+                  onChange={(e) => { update(t.id, { instrument: e.target.value }); setDirty(true); }}
+                  className="bg-zinc-900 border border-zinc-800 text-[10px] text-zinc-300 rounded px-1 py-0.5"
+                >
+                  {INSTR.map((i) => <option key={i}>{i}</option>)}
+                </select>
+                <button onClick={() => removeTrack(t.id)} className="text-zinc-600 hover:text-red-400 text-xs px-1">✕</button>
+              </div>
+
+              {/* Mute, Record Arm, Vol, Pan */}
+              <div className="flex items-center justify-between text-xs pt-1">
+                <div className="flex items-center gap-1.5">
+                  {/* Record button */}
+                  <button
+                    onClick={() => record(t.id)}
+                    className={`h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs ${
+                      rec === t.id ? "bg-red-500 text-white animate-pulse" : "bg-zinc-800 text-red-500 hover:bg-zinc-700"
+                    }`}
+                  >
+                    ●
+                  </button>
+                  {/* Mute button */}
+                  <button
+                    onClick={() => { update(t.id, { mute: !t.mute }); setDirty(true); }}
+                    className={`h-6 w-6 rounded text-[11px] font-black ${
+                      t.mute ? "bg-amber-500 text-black" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                    }`}
+                  >
+                    M
+                  </button>
+                </div>
+
+                {/* Volume & Pan faders */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={t.vol}
+                    onChange={(e) => { update(t.id, { vol: Number(e.target.value) }); setDirty(true); }}
+                    className="w-16 accent-cyan-500 h-1 bg-zinc-700 rounded-lg cursor-pointer"
+                    title="Volume"
+                  />
+                  <input
+                    type="range"
+                    min={-1}
+                    max={1}
+                    step={0.1}
+                    value={t.pan}
+                    onChange={(e) => { update(t.id, { pan: Number(e.target.value) }); setDirty(true); }}
+                    className="w-10 accent-indigo-500 h-1 bg-zinc-700 rounded-lg cursor-pointer"
+                    title="Pan"
+                  />
+                </div>
+              </div>
             </div>
-            <div className="mb-3 flex flex-wrap items-center gap-4">
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={t.mute} onChange={(e) => { update(t.id, { mute: e.target.checked }); setDirty(true); }} />Mute</label>
-              <label className="flex items-center gap-2 text-sm">Volume<input type="range" min={0} max={1} step={0.05} value={t.vol} onChange={(e) => { update(t.id, { vol: Number(e.target.value) }); setDirty(true); }} /></label>
-              <label className="flex items-center gap-2 text-sm">Pan<input type="range" min={-1} max={1} step={0.1} value={t.pan} onChange={(e) => { update(t.id, { pan: Number(e.target.value) }); setDirty(true); }} /></label>
+
+            {/* Right Waveform Display */}
+            <div className="flex-1 relative">
+              <Wave buffer={t.buffer} />
             </div>
-            <Wave buffer={t.buffer} />
           </div>
         ))}
       </div>
-      <p className="text-sm text-zinc-500">Each take can be up to {MAX_SECONDS / 60} minutes. Volume, pan and mute changes apply the next time you press Play. Export WAV gives you a finished audio file of the whole mix.</p>
+
+      {/* 4. BOTTOM DRAWER (BandLab Style Step Sequencer / Beatmaker) */}
+      <div className="flex-none border-t border-zinc-800 bg-[#16181f]">
+        <div className="flex items-center justify-between px-4 py-1.5 border-b border-zinc-800/60 bg-[#121318]">
+          <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">🥁 16-Step Drum Machine</span>
+          <button
+            onClick={() => setDrawerOpen(!drawerOpen)}
+            className="text-xs text-zinc-400 hover:text-white"
+          >
+            {drawerOpen ? "Hide ▼" : "Show ▲"}
+          </button>
+        </div>
+
+        {drawerOpen && (
+          <div className="p-3 max-h-48 overflow-x-auto space-y-1.5">
+            {ROWS.map((rowName, r) => (
+              <div key={rowName} className="flex items-center gap-1.5">
+                <span className="w-16 text-right pr-2 text-xs font-medium text-zinc-400">{rowName}</span>
+                <div className="flex items-center gap-1">
+                  {pattern[r].map((on, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        setPattern((p) => p.map((row, ri) => (ri === r ? row.map((v, vi) => (vi === i ? !v : v)) : row)));
+                        setDirty(true);
+                      }}
+                      className={`h-7 w-7 rounded transition ${
+                        on ? "bg-cyan-500 shadow-sm shadow-cyan-500/50" : "bg-zinc-800/80 hover:bg-zinc-700"
+                      } ${i % 4 === 0 ? "ml-1.5 border-l-2 border-zinc-600" : ""}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
