@@ -13,6 +13,7 @@ import { AudioSettingsModal } from "@/components/daw/AudioSettingsModal";
 import { TrackControlsPanel } from "@/components/daw/TrackControlsPanel";
 import { ProcessingSettings, DEFAULT_TRACK_SETTINGS } from "@/lib/daw/TrackProcessor";
 import { saveSessionFile, openSessionFile, sourceBlobs } from "@/lib/daw/sessionFile";
+import { PianoStudioModal } from "@/components/daw/PianoStudioModal";
 
 export type TrackCompatibilityType = "vocal" | "guitar-bass" | "midi" | "drum";
 
@@ -91,7 +92,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
   const [pixelsPerSecond, setPixelsPerSecond] = useState(50);
   const [masterVolume, setMasterVolume] = useState(0.85);
 
-  // Playhead scrubbing & looping
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
   const [loopStartSec, setLoopStartSec] = useState(0);
@@ -119,8 +119,9 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     trackModal: { open: false, x: 320, y: 120 },
   });
 
-  const [activeDragWindow, setActiveDragWindow] = useState<keyof typeof windowState | null>(null);
-  const dragOffset = useRef({ x: 0, y: 0 });
+  const [trackNotes, setTrackNotes] = useState<Record<number, MidiNote[]>>({
+    1: [],
+  });
 
   const animFrame = useRef<number | null>(null);
   const playStartTime = useRef(0);
@@ -133,7 +134,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
   const timelineContainerRef = useRef<HTMLDivElement>(null);
   const lastMetronomeBeat = useRef<number>(-1);
 
-  // REAL WORKING METRONOME CLICK AUDIO
   const triggerMetronomeClick = useCallback((isDownbeat: boolean) => {
     try {
       const c = engine.current.init();
@@ -182,39 +182,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
 
     return () => unsubscribe();
   }, [activeInputId]);
-
-  const startDragWindow = (key: keyof typeof windowState, e: React.MouseEvent) => {
-    setActiveDragWindow(key);
-    dragOffset.current = {
-      x: e.clientX - windowState[key].x,
-      y: e.clientY - windowState[key].y,
-    };
-  };
-
-  useEffect(() => {
-    const onMouseMove = (e: MouseEvent) => {
-      if (activeDragWindow) {
-        setWindowState((prev) => ({
-          ...prev,
-          [activeDragWindow]: {
-            ...prev[activeDragWindow],
-            x: Math.max(10, e.clientX - dragOffset.current.x),
-            y: Math.max(10, e.clientY - dragOffset.current.y),
-          },
-        }));
-      }
-    };
-    const onMouseUp = () => setActiveDragWindow(null);
-
-    if (activeDragWindow) {
-      window.addEventListener("mousemove", onMouseMove);
-      window.addEventListener("mouseup", onMouseUp);
-    }
-    return () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-  }, [activeDragWindow]);
 
   useEffect(() => {
     const onScrubMove = (e: MouseEvent) => {
@@ -407,12 +374,10 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     deleteClipUnderPlayhead,
   ]);
 
-  // MASTER CLOCK & ACTIVE LOOPING & METRONOME ENGINE
   const updatePlaybackPosition = () => {
     const elapsed = (performance.now() - playStartTime.current) / 1000;
     let currentSec = playheadAnchor.current + elapsed;
 
-    // REAL AUDIBLE LOOP CYCLE RESTART
     if (isLooping && currentSec >= loopEndSec) {
       currentSec = loopStartSec;
       playStartTime.current = performance.now();
@@ -420,7 +385,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
       engine.current.schedulePlayback(tracks, loopStartSec);
     }
 
-    // REAL-TIME METRONOME TICKER
     if (metronomeActive) {
       const beatIdx = Math.floor((currentSec * bpm) / 60);
       if (beatIdx !== lastMetronomeBeat.current) {
@@ -501,7 +465,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     draw();
   };
 
-  // 4-BEAT AUDIBLE COUNT-IN RECORDING
   const handleRecord = async () => {
     if (isRecording) {
       handleStop();
@@ -526,7 +489,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
         currentTrack?.monitoring ?? monitoringEnabled
       );
 
-      // AUDIBLE 4-BEAT COUNT-IN
       if (countInActive) {
         handleStop();
         const beatMs = (60 / bpm) * 1000;
@@ -711,8 +673,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
       
       {/* 1. TOP TRANSPORT BAR */}
       <header className="flex h-12 flex-none items-center justify-between border-b border-[#1b1c20] bg-[#3a3c44] px-4 shadow-md z-30">
-        
-        {/* Left: Window Dots & Tools Drawer */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <div className="h-3 w-3 rounded-full bg-[#ff5f56] border border-[#e0443e]" />
@@ -738,139 +698,53 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
           </button>
         </div>
 
-        {/* Center: Transport + GarageBand LCD Box */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 text-zinc-300">
-            <button
-              onClick={() => { handleStop(); setPlayheadSec(0); }}
-              className="h-7 w-7 rounded flex items-center justify-center hover:text-white hover:bg-zinc-700/60"
-              title="Rewind (Enter)"
-            >
-              ◀◀
-            </button>
-            <button
-              onClick={() => setPlayheadSec(playheadSec + (60 / bpm) * 4)}
-              className="h-7 w-7 rounded flex items-center justify-center hover:text-white hover:bg-zinc-700/60"
-              title="Forward 1 Bar"
-            >
-              ▶▶
-            </button>
-            <button
-              onClick={handleStop}
-              className="h-7 w-7 rounded flex items-center justify-center hover:text-white hover:bg-zinc-700/60"
-              title="Stop (Space)"
-            >
-              ◼
-            </button>
-            <button
-              onClick={() => handlePlay()}
-              className={`h-8 w-10 rounded font-bold flex items-center justify-center transition shadow ${
-                isPlaying ? "bg-[#3b82f6] text-white" : "bg-[#4a4d56] hover:bg-[#565964] text-white"
-              }`}
-              title="Play (Space)"
-            >
-              ▶
-            </button>
-            <button
-              onClick={handleRecord}
-              className={`h-8 w-8 rounded-full border border-red-950 flex items-center justify-center ml-1 ${
-                isRecording ? "bg-red-500 animate-pulse text-white shadow-[0_0_12px_#ef4444]" : "bg-[#a82222] hover:bg-red-600"
-              }`}
-              title="Record (R)"
-            >
+            <button onClick={() => { handleStop(); setPlayheadSec(0); }} className="h-7 w-7 rounded flex items-center justify-center hover:text-white hover:bg-zinc-700/60" title="Rewind (Enter)">◀◀</button>
+            <button onClick={() => setPlayheadSec(playheadSec + (60 / bpm) * 4)} className="h-7 w-7 rounded flex items-center justify-center hover:text-white hover:bg-zinc-700/60" title="Forward 1 Bar">▶▶</button>
+            <button onClick={handleStop} className="h-7 w-7 rounded flex items-center justify-center hover:text-white hover:bg-zinc-700/60" title="Stop (Space)">◼</button>
+            <button onClick={() => handlePlay()} className={`h-8 w-10 rounded font-bold flex items-center justify-center transition shadow ${isPlaying ? "bg-[#3b82f6] text-white" : "bg-[#4a4d56] hover:bg-[#565964] text-white"}`} title="Play (Space)">▶</button>
+            <button onClick={handleRecord} className={`h-8 w-8 rounded-full border border-red-950 flex items-center justify-center ml-1 ${isRecording ? "bg-red-500 animate-pulse text-white shadow-[0_0_12px_#ef4444]" : "bg-[#a82222] hover:bg-red-600"}`} title="Record (R)">
               <div className="h-3 w-3 rounded-full bg-white shadow-sm" />
             </button>
             
-            {/* Real Loop Toggle */}
-            <button
-              onClick={() => setIsLooping(!isLooping)}
-              className={`h-7 px-2 rounded flex items-center gap-1 text-xs font-bold transition ml-1 ${
-                isLooping ? "bg-amber-500/25 text-amber-300 border border-amber-500/60" : "text-zinc-400 hover:text-white"
-              }`}
-              title="Cycle Loop Range (C)"
-            >
+            <button onClick={() => setIsLooping(!isLooping)} className={`h-7 px-2 rounded flex items-center gap-1 text-xs font-bold transition ml-1 ${isLooping ? "bg-amber-500/25 text-amber-300 border border-amber-500/60" : "text-zinc-400 hover:text-white"}`} title="Cycle Loop Range (C)">
               🔁 <span className="text-[10px]">Loop</span>
             </button>
           </div>
 
-          {/* GarageBand LCD Display Box */}
           <div className="flex h-9 items-center divide-x divide-zinc-800 rounded-md border border-[#1b1c20] bg-[#141518] px-3 font-mono text-zinc-300 shadow-inner">
             <div className="pr-3 text-center">
-              <span className="text-sm font-bold tracking-widest text-zinc-100">
-                00{currentBar}.{currentBeat}
-              </span>
+              <span className="text-sm font-bold tracking-widest text-zinc-100">00{currentBar}.{currentBeat}</span>
               <p className="text-[7px] text-zinc-500 uppercase">Bar . Beat</p>
             </div>
             <div className="px-3 text-center">
-              <input
-                type="number"
-                value={bpm}
-                onChange={(e) => setBpm(Number(e.target.value) || 118)}
-                className="w-8 bg-transparent text-xs font-bold text-zinc-100 focus:outline-none"
-              />
+              <input type="number" value={bpm} onChange={(e) => setBpm(Number(e.target.value) || 118)} className="w-8 bg-transparent text-xs font-bold text-zinc-100 focus:outline-none" />
               <p className="text-[7px] text-zinc-500 uppercase">Tempo</p>
             </div>
             <div className="pl-3 flex items-center gap-1">
-              <select
-                value={projectKey}
-                onChange={(e) => setProjectKey(e.target.value)}
-                className="bg-transparent text-xs font-bold text-sky-400 focus:outline-none cursor-pointer"
-              >
+              <select value={projectKey} onChange={(e) => setProjectKey(e.target.value)} className="bg-transparent text-xs font-bold text-sky-400 focus:outline-none cursor-pointer">
                 {KEYS.map((k) => <option key={k} value={k} className="bg-zinc-900 text-white">{k}</option>)}
               </select>
               <span className="text-xs font-bold text-zinc-400">{projectScale}</span>
             </div>
           </div>
 
-          {/* 4-Beat Count-In (1234) & Metronome Click Buttons */}
           <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setCountInActive(!countInActive)}
-              className={`h-7 px-2.5 rounded text-[11px] font-bold transition ${
-                countInActive ? "bg-[#7c3aed] text-white shadow-[0_0_8px_#7c3aed]" : "bg-[#2d2f36] text-zinc-500 hover:text-white"
-              }`}
-              title="4-Beat Count-In before Recording"
-            >
-              1234
-            </button>
-            <button
-              onClick={() => setMetronomeActive(!metronomeActive)}
-              className={`h-7 px-2 rounded border text-xs font-bold transition ${
-                metronomeActive ? "border-amber-400 bg-amber-400/20 text-amber-300 shadow-[0_0_8px_#f59e0b]" : "border-zinc-700 bg-[#2d2f36] text-zinc-500"
-              }`}
-              title="Audible Metronome Click (K)"
-            >
-              🔔
-            </button>
+            <button onClick={() => setCountInActive(!countInActive)} className={`h-7 px-2.5 rounded text-[11px] font-bold transition ${countInActive ? "bg-[#7c3aed] text-white shadow-[0_0_8px_#7c3aed]" : "bg-[#2d2f36] text-zinc-500 hover:text-white"}`} title="4-Beat Count-In before Recording">1234</button>
+            <button onClick={() => setMetronomeActive(!metronomeActive)} className={`h-7 px-2 rounded border text-xs font-bold transition ${metronomeActive ? "border-amber-400 bg-amber-400/20 text-amber-300 shadow-[0_0_8px_#f59e0b]" : "border-zinc-700 bg-[#2d2f36] text-zinc-500"}`} title="Audible Metronome Click (K)">🔔</button>
           </div>
         </div>
 
-        {/* Right: Master Output Volume Fader & Multi-Format Exporter */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-zinc-400">🔈</span>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={masterVolume}
-              onChange={(e) => setMasterVolume(Number(e.target.value))}
-              className="w-20 accent-[#3572b0] h-1.5 bg-[#1e2025] rounded cursor-pointer"
-            />
+            <input type="range" min={0} max={1} step={0.05} value={masterVolume} onChange={(e) => setMasterVolume(Number(e.target.value))} className="w-20 accent-[#3572b0] h-1.5 bg-[#1e2025] rounded cursor-pointer" />
           </div>
 
           <div className="flex items-center gap-1">
-            <button
-              onClick={() => handleExportFormat("wav")}
-              className="h-7 rounded-l border border-[#d4af37]/50 bg-gradient-to-r from-[#d4af37] to-[#b38f28] px-2.5 text-[11px] font-bold text-black shadow hover:brightness-110 active:scale-95 transition"
-            >
-              Export
-            </button>
-            <select
-              onChange={(e) => handleExportFormat(e.target.value as any)}
-              className="h-7 rounded-r border-y border-r border-[#d4af37]/50 bg-[#16171d] px-1 text-[10px] font-bold text-[#d4af37] focus:outline-none cursor-pointer"
-            >
+            <button onClick={() => handleExportFormat("wav")} className="h-7 rounded-l border border-[#d4af37]/50 bg-gradient-to-r from-[#d4af37] to-[#b38f28] px-2.5 text-[11px] font-bold text-black shadow hover:brightness-110 active:scale-95 transition">Export</button>
+            <select onChange={(e) => handleExportFormat(e.target.value as any)} className="h-7 rounded-r border-y border-r border-[#d4af37]/50 bg-[#16171d] px-1 text-[10px] font-bold text-[#d4af37] focus:outline-none cursor-pointer">
               <option value="wav">WAV</option>
               <option value="mp3">MP3</option>
               <option value="midi">GarageBand (.mid)</option>
@@ -879,475 +753,141 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
         </div>
       </header>
 
-      {statusMsg && (
-        <div className="bg-[#121319] py-1 text-center text-[11px] text-sky-300 border-b border-zinc-800">
-          {statusMsg}
-        </div>
-      )}
+      {statusMsg && <div className="bg-[#121319] py-1 text-center text-[11px] text-sky-300 border-b border-zinc-800">{statusMsg}</div>}
 
       {/* 2. BODY */}
       <div className="flex-1 flex overflow-hidden">
-        
-        {/* Left Tools Menu Drawer */}
         {toolsDrawerOpen && (
           <aside className="w-52 flex-none border-r border-[#1e2026] bg-[#1d1f25] p-3 flex flex-col justify-between z-20">
             <div className="space-y-4">
               <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Tools</span>
-
               <div className="space-y-1 text-xs">
-                <button
-                  onClick={() => toggleModal("trackModal")}
-                  className="w-full text-left p-2 rounded hover:bg-[#282a32] flex items-center gap-2 font-semibold text-zinc-200"
-                >
-                  <span>+</span> New Track
-                </button>
-                <button
-                  onClick={() => setAudioSettingsOpen(!audioSettingsOpen)}
-                  className="w-full text-left p-2 rounded hover:bg-[#282a32] flex items-center gap-2 font-semibold text-sky-400"
-                >
-                  <span>🎙️</span> Audio Interface Setup
-                </button>
-                <button
-                  onClick={() => toggleModal("piano")}
-                  className={`w-full text-left p-2 rounded flex items-center gap-2 font-semibold ${
-                    windowState.piano.open ? "bg-[#387ec7] text-white" : "hover:bg-[#282a32] text-zinc-200"
-                  }`}
-                >
-                  <span>🎹</span> Piano Roll
-                </button>
-                <button
-                  onClick={() => toggleModal("amp")}
-                  className={`w-full text-left p-2 rounded flex items-center gap-2 font-semibold ${
-                    windowState.amp.open ? "bg-amber-600 text-white" : "hover:bg-[#282a32] text-zinc-200"
-                  }`}
-                >
-                  <span>🎸</span> Amp & Pedals
-                </button>
-                <button
-                  onClick={() => toggleModal("eq")}
-                  className={`w-full text-left p-2 rounded flex items-center gap-2 font-semibold ${
-                    windowState.eq.open ? "bg-sky-600 text-white" : "hover:bg-[#282a32] text-zinc-200"
-                  }`}
-                >
-                  <span>🎛️</span> Visual EQ
-                </button>
-                <button
-                  onClick={() => toggleModal("ai")}
-                  className={`w-full text-left p-2 rounded flex items-center gap-2 font-semibold ${
-                    windowState.ai.open ? "bg-purple-600 text-white" : "hover:bg-[#282a32] text-zinc-200"
-                  }`}
-                >
-                  <span>✨</span> AI Coach
-                </button>
+                <button onClick={() => toggleModal("trackModal")} className="w-full text-left p-2 rounded hover:bg-[#282a32] flex items-center gap-2 font-semibold text-zinc-200"><span>+</span> New Track</button>
+                <button onClick={() => setAudioSettingsOpen(!audioSettingsOpen)} className="w-full text-left p-2 rounded hover:bg-[#282a32] flex items-center gap-2 font-semibold text-sky-400"><span>🎙️</span> Audio Interface Setup</button>
+                <button onClick={() => toggleModal("piano")} className={`w-full text-left p-2 rounded flex items-center gap-2 font-semibold ${windowState.piano.open ? "bg-[#387ec7] text-white" : "hover:bg-[#282a32] text-zinc-200"}`}><span>🎹</span> Piano Roll</button>
+                <button onClick={() => toggleModal("amp")} className={`w-full text-left p-2 rounded flex items-center gap-2 font-semibold ${windowState.amp.open ? "bg-amber-600 text-white" : "hover:bg-[#282a32] text-zinc-200"}`}><span>🎸</span> Amp & Pedals</button>
+                <button onClick={() => toggleModal("eq")} className={`w-full text-left p-2 rounded flex items-center gap-2 font-semibold ${windowState.eq.open ? "bg-sky-600 text-white" : "hover:bg-[#282a32] text-zinc-200"}`}><span>🎛️</span> Visual EQ</button>
+                <button onClick={() => toggleModal("ai")} className={`w-full text-left p-2 rounded flex items-center gap-2 font-semibold ${windowState.ai.open ? "bg-purple-600 text-white" : "hover:bg-[#282a32] text-zinc-200"}`}><span>✨</span> AI Coach</button>
               </div>
 
-              {/* Save & Open from Device */}
               <div className="space-y-1 text-xs">
-                <button
-                  onClick={handleSaveSession}
-                  className="w-full text-left p-2 rounded hover:bg-[#282a32] flex items-center gap-2 font-semibold text-emerald-400"
-                >
-                  <span>💾</span> Save to my device
-                </button>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full text-left p-2 rounded hover:bg-[#282a32] flex items-center gap-2 font-semibold text-zinc-200"
-                >
-                  <span>📂</span> Open from my device
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".artistpilot,application/json"
-                  className="hidden"
-                  aria-label="Open a session file"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleOpenSession(f);
-                    e.target.value = "";
-                  }}
-                />
+                <button onClick={handleSaveSession} className="w-full text-left p-2 rounded hover:bg-[#282a32] flex items-center gap-2 font-semibold text-emerald-400"><span>💾</span> Save to my device</button>
+                <button onClick={() => fileInputRef.current?.click()} className="w-full text-left p-2 rounded hover:bg-[#282a32] flex items-center gap-2 font-semibold text-zinc-200"><span>📂</span> Open from my device</button>
+                <input ref={fileInputRef} type="file" accept=".artistpilot,application/json" className="hidden" aria-label="Open a session file" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleOpenSession(f); e.target.value = ""; }} />
               </div>
 
-              {/* Shortcuts Legend */}
               <div className="pt-2 border-t border-zinc-800 space-y-1">
                 <span className="text-[9px] uppercase font-bold text-zinc-500">Keybinds</span>
                 <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">Space</kbd> Play / Pause</p>
                 <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">R</kbd> Record</p>
-                <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">K</kbd> Metronome Click</p>
-                <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">C</kbd> Loop Range</p>
+                <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">K</kbd> Metronome</p>
+                <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">C</kbd> Loop</p>
                 <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">Cmd+C/V</kbd> Copy / Paste</p>
               </div>
             </div>
 
-            <button
-              onClick={() => setSmartControlsOpen(!smartControlsOpen)}
-              className="text-[10px] text-zinc-400 hover:text-white py-1 border-t border-zinc-800 text-center"
-            >
-              {smartControlsOpen ? "Hide Controls ▼" : "Show Controls ▲"}
-            </button>
+            <button onClick={() => setSmartControlsOpen(!smartControlsOpen)} className="text-[10px] text-zinc-400 hover:text-white py-1 border-t border-zinc-800 text-center">{smartControlsOpen ? "Hide Controls ▼" : "Show Controls ▲"}</button>
           </aside>
         )}
 
-        {/* Timeline Tracks Section */}
         <div className="flex-1 flex flex-col overflow-hidden bg-[#18191f]">
-          
           <div className="flex-1 flex overflow-hidden">
-            
-            {/* Left Track Headers */}
             <div className="w-64 flex-none border-r border-[#1a1b20] bg-[#22242a] flex flex-col z-10 shadow-lg">
-              <div className="h-7 border-b border-[#1a1b20] px-3 flex items-center justify-between font-bold text-zinc-400 text-[10px]">
-                <span>TRACKS</span>
-              </div>
-
+              <div className="h-7 border-b border-[#1a1b20] px-3 flex items-center justify-between font-bold text-zinc-400 text-[10px]"><span>TRACKS</span></div>
               <div className="flex-1 overflow-y-auto divide-y divide-[#1b1c22]">
                 {tracks.map((track) => (
-                  <div
-                    key={track.id}
-                    onClick={() => {
-                      setSelectedTrackId(track.id);
-                      setIsMasterMode(false);
-                    }}
-                    className={`h-20 p-2 flex flex-col justify-between transition ${
-                      selectedTrackId === track.id && !isMasterMode ? "bg-[#33363f]" : "bg-[#282a30] hover:bg-[#2d3038]"
-                    }`}
-                  >
+                  <div key={track.id} onClick={() => { setSelectedTrackId(track.id); setIsMasterMode(false); }} className={`h-20 p-2 flex flex-col justify-between transition ${selectedTrackId === track.id && !isMasterMode ? "bg-[#33363f]" : "bg-[#282a30] hover:bg-[#2d3038]"}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
-                        <div className="h-6 w-6 rounded bg-[#3572b0] flex items-center justify-center text-xs text-white">
-                          🎙️
-                        </div>
-                        <input
-                          value={track.name}
-                          onChange={(e) => setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, name: e.target.value } : t))}
-                          className="w-24 bg-transparent text-xs font-bold text-white focus:outline-none rounded px-1"
-                        />
+                        <div className="h-6 w-6 rounded bg-[#3572b0] flex items-center justify-center text-xs text-white">🎙️</div>
+                        <input value={track.name} onChange={(e) => setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, name: e.target.value } : t))} className="w-24 bg-transparent text-xs font-bold text-white focus:outline-none rounded px-1" />
                       </div>
-                      
                       <div className="flex items-center gap-1">
                         <span className="text-[8px] uppercase font-mono text-zinc-500">{track.trackType}</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteTrack(track.id);
-                          }}
-                          className="h-5 w-5 rounded hover:bg-red-500 text-zinc-400 hover:text-white flex items-center justify-center font-bold text-xs"
-                          title="Delete Track"
-                        >
-                          ✕
-                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); deleteTrack(track.id); }} className="h-5 w-5 rounded hover:bg-red-500 text-zinc-400 hover:text-white flex items-center justify-center font-bold text-xs" title="Delete Track">✕</button>
                       </div>
                     </div>
-
                     <div className="flex items-center justify-between text-[10px] pt-1">
                       <div className="flex items-center gap-1">
                         {track.category === "audio" && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, armed: !t.armed } : t));
-                            }}
-                            className={`h-4.5 w-4.5 rounded-full flex items-center justify-center font-bold text-[8px] ${
-                              track.armed ? "bg-red-500 text-white animate-pulse" : "bg-[#3a3d46] text-red-400"
-                            }`}
-                          >
-                            ●
-                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, armed: !t.armed } : t)); }} className={`h-4.5 w-4.5 rounded-full flex items-center justify-center font-bold text-[8px] ${track.armed ? "bg-red-500 text-white animate-pulse" : "bg-[#3a3d46] text-red-400"}`}>●</button>
                         )}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, mute: !t.mute } : t));
-                          }}
-                          className={`h-4.5 px-1.5 rounded text-[9px] font-bold ${track.mute ? "bg-blue-500 text-white" : "bg-[#3a3d46] text-zinc-400"}`}
-                        >
-                          M
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, solo: !t.solo } : t));
-                          }}
-                          className={`h-4.5 px-1.5 rounded text-[9px] font-bold ${track.solo ? "bg-amber-500 text-black" : "bg-[#3a3d46] text-zinc-400"}`}
-                        >
-                          S
-                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, mute: !t.mute } : t)); }} className={`h-4.5 px-1.5 rounded text-[9px] font-bold ${track.mute ? "bg-blue-500 text-white" : "bg-[#3a3d46] text-zinc-400"}`}>M</button>
+                        <button onClick={(e) => { e.stopPropagation(); setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, solo: !t.solo } : t)); }} className={`h-4.5 px-1.5 rounded text-[9px] font-bold ${track.solo ? "bg-amber-500 text-black" : "bg-[#3a3d46] text-zinc-400"}`}>S</button>
                       </div>
-
-                      <input
-                        type="range"
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        value={track.volume}
-                        onChange={(e) => setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, volume: Number(e.target.value) } : t))}
-                        className="w-16 accent-[#3572b0] h-1 bg-[#1a1b20] rounded cursor-pointer"
-                      />
+                      <input type="range" min={0} max={1} step={0.05} value={track.volume} onChange={(e) => setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, volume: Number(e.target.value) } : t))} className="w-16 accent-[#3572b0] h-1 bg-[#1a1b20] rounded cursor-pointer" />
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Scrollable Arranger Grid with REAL YELLOW LOOP REGION */}
-            <div
-              ref={timelineContainerRef}
-              className="flex-1 overflow-x-auto overflow-y-hidden flex flex-col bg-[#14151a] relative select-none"
-            >
-              {/* Ruler */}
-              <div
-                onMouseDown={(e) => {
-                  setIsScrubbing(true);
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const scrollLeft = timelineContainerRef.current?.scrollLeft || 0;
-                  const newSec = Math.max(0, (e.clientX - rect.left + scrollLeft) / pixelsPerSecond);
-                  setPlayheadSec(newSec);
-                  playheadAnchor.current = newSec;
-                }}
-                style={{ width: "3200px" }}
-                className="h-7 border-b border-[#1b1c22] bg-[#1a1c22] relative cursor-ew-resize flex-none"
-              >
-                {/* Yellow GarageBand Loop Cycle Marker */}
+            <div ref={timelineContainerRef} className="flex-1 overflow-x-auto overflow-y-hidden flex flex-col bg-[#14151a] relative select-none">
+              <div onMouseDown={(e) => { setIsScrubbing(true); const rect = e.currentTarget.getBoundingClientRect(); const scrollLeft = timelineContainerRef.current?.scrollLeft || 0; const newSec = Math.max(0, (e.clientX - rect.left + scrollLeft) / pixelsPerSecond); setPlayheadSec(newSec); playheadAnchor.current = newSec; }} style={{ width: "3200px" }} className="h-7 border-b border-[#1b1c22] bg-[#1a1c22] relative cursor-ew-resize flex-none">
                 {isLooping && (
-                  <div
-                    style={{
-                      left: `${loopStartSec * pixelsPerSecond}px`,
-                      width: `${Math.max(20, (loopEndSec - loopStartSec) * pixelsPerSecond)}px`,
-                    }}
-                    className="absolute top-0 bottom-0 bg-amber-400/35 border-y-2 border-amber-400 pointer-events-none z-20 flex items-center justify-between px-1"
-                  >
+                  <div style={{ left: `${loopStartSec * pixelsPerSecond}px`, width: `${Math.max(20, (loopEndSec - loopStartSec) * pixelsPerSecond)}px` }} className="absolute top-0 bottom-0 bg-amber-400/35 border-y-2 border-amber-400 pointer-events-none z-20 flex items-center justify-between px-1">
                     <span className="text-[8px] font-black text-amber-300">LOOP</span>
                     <span className="text-[8px] font-mono text-amber-300">{loopEndSec - loopStartSec}s</span>
                   </div>
                 )}
-
                 {Array.from({ length: 64 }, (_, i) => (
-                  <div
-                    key={i}
-                    style={{ left: `${(i * 4 * 60 * pixelsPerSecond) / bpm}px` }}
-                    className="absolute flex items-center gap-2 text-zinc-500 top-1 text-[9px] font-mono pointer-events-none"
-                  >
+                  <div key={i} style={{ left: `${(i * 4 * 60 * pixelsPerSecond) / bpm}px` }} className="absolute flex items-center gap-2 text-zinc-500 top-1 text-[9px] font-mono pointer-events-none">
                     <span className="font-semibold text-zinc-400">{i + 1}</span>
                     <div className="h-3 w-[1px] bg-zinc-700" />
                   </div>
                 ))}
               </div>
 
-              {/* Arranger Track Lanes */}
               <div style={{ width: "3200px" }} className="flex-1 relative divide-y divide-[#1e2028]">
-                
-                {/* INTERACTIVE DRAGGABLE PLAYHEAD LINE */}
-                <div
-                  onMouseDown={(e) => {
-                    e.stopPropagation();
-                    setIsScrubbing(true);
-                  }}
-                  style={{ left: `${playheadSec * pixelsPerSecond}px` }}
-                  className="absolute top-0 bottom-0 w-[2px] bg-[#d4af37] z-40 cursor-ew-resize shadow-[0_0_8px_#d4af37]"
-                >
+                <div onMouseDown={(e) => { e.stopPropagation(); setIsScrubbing(true); }} style={{ left: `${playheadSec * pixelsPerSecond}px` }} className="absolute top-0 bottom-0 w-[2px] bg-[#d4af37] z-40 cursor-ew-resize shadow-[0_0_8px_#d4af37]">
                   <div className="h-4 w-4 -ml-[7px] bg-[#d4af37] rotate-45 shadow-lg cursor-grab active:cursor-grabbing" />
                 </div>
 
                 {tracks.map((track) => (
-                  <div
-                    key={track.id}
-                    onClick={() => setSelectedTrackId(track.id)}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => handleClipDropBetweenTracks(e, track)}
-                    className={`h-20 relative flex items-center transition ${
-                      selectedTrackId === track.id ? "bg-[#1d1f27]" : "bg-[#14151a]"
-                    }`}
-                  >
+                  <div key={track.id} onClick={() => setSelectedTrackId(track.id)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleClipDropBetweenTracks(e, track)} className={`h-20 relative flex items-center transition ${selectedTrackId === track.id ? "bg-[#1d1f27]" : "bg-[#14151a]"}`}>
                     {isRecording && track.armed && track.category === "audio" && (
-                      <div
-                        style={{
-                          left: `${recStartTime.current * pixelsPerSecond}px`,
-                          width: `${Math.max(20, (playheadSec - recStartTime.current) * pixelsPerSecond)}px`,
-                        }}
-                        className="absolute top-1 bottom-1 bg-[#3572b0]/80 border border-sky-400 rounded z-30 overflow-hidden"
-                      >
+                      <div style={{ left: `${recStartTime.current * pixelsPerSecond}px`, width: `${Math.max(20, (playheadSec - recStartTime.current) * pixelsPerSecond)}px` }} className="absolute top-1 bottom-1 bg-[#3572b0]/80 border border-sky-400 rounded z-30 overflow-hidden">
                         <canvas ref={liveCanvasRef} width={400} height={70} className="h-full w-full opacity-90" />
                       </div>
                     )}
-
                     {track.regions.map((region) => (
-                      <ClipRegion
-                        key={region.id}
-                        // @ts-ignore
-                        region={region as any}
-                        pixelsPerSecond={pixelsPerSecond}
-                        trackColor={track.color}
-                        trackId={track.id}
-                        onCopy={(reg) => {
-                          setCopiedClip(reg);
-                          setStatusMsg(`Copied "${reg.name}" (Cmd+C)`);
-                        }}
-                        onUpdate={(patch) =>
-                          setTracks((prev) =>
-                            prev.map((t) =>
-                              t.id === track.id
-                                ? { ...t, regions: t.regions.map((r) => r.id === region.id ? { ...r, ...patch } : r) }
-                                : t
-                            )
-                          )
-                        }
-                        onSplit={() => splitClipAtPlayhead()}
-                        onDelete={() =>
-                          setTracks((prev) =>
-                            prev.map((t) =>
-                              t.id === track.id ? { ...t, regions: t.regions.filter((r) => r.id !== region.id) } : t
-                            )
-                          )
-                        }
-                      />
+                      <ClipRegion key={region.id} region={region as any} pixelsPerSecond={pixelsPerSecond} trackColor={track.color} trackId={track.id} onCopy={(reg) => { setCopiedClip(reg); setStatusMsg(`Copied "${reg.name}" (Cmd+C)`); }} onUpdate={(patch) => setTracks((prev) => prev.map((t) => t.id === track.id ? { ...t, regions: t.regions.map((r) => r.id === region.id ? { ...r, ...patch } : r) } : t))} onSplit={() => splitClipAtPlayhead()} onDelete={() => setTracks((prev) => prev.map((t) => t.id === track.id ? { ...t, regions: t.regions.filter((r) => r.id !== region.id) } : t))} />
                     ))}
                   </div>
                 ))}
               </div>
-
             </div>
           </div>
 
-          {/* 3. BOTTOM DOCK: TRACK CONTROLS & DYNAMICS CONSOLE */}
           {smartControlsOpen && (
-            <TrackControlsPanel
-              trackName={selectedTrack?.name ?? "Track"}
-              isMasterMode={isMasterMode}
-              onToggleMasterMode={(isMaster) => setIsMasterMode(isMaster)}
-              devices={devices}
-              activeDeviceId={selectedTrack?.inputDevice || activeInputId}
-              onSelectDevice={(devId) => {
-                setTracks((ts) => ts.map((t) => t.id === selectedTrackId ? { ...t, inputDevice: devId } : t));
-                setActiveInputId(devId);
-              }}
-              isMonitoring={selectedTrack?.monitoring ?? monitoringEnabled}
-              onToggleMonitoring={() => {
-                const next = !selectedTrack?.monitoring;
-                setTracks((ts) => ts.map((t) => t.id === selectedTrackId ? { ...t, monitoring: next } : t));
-                deviceManager.current.setMonitoring(engine.current.init(), next);
-                setMonitoringEnabled(next);
-              }}
-              currentSettings={isMasterMode ? masterSettings : selectedTrack?.settings ?? DEFAULT_TRACK_SETTINGS}
-              onUpdateSettings={(updated) => {
-                if (isMasterMode) {
-                  setMasterSettings(updated);
-                } else {
-                  setTracks((ts) => ts.map((t) => t.id === selectedTrackId ? { ...t, settings: updated } : t));
-                }
-              }}
-              onOpenAdvancedEq={() => toggleModal("eq")}
-              onClosePanel={() => setSmartControlsOpen(false)}
-            />
+            <TrackControlsPanel trackName={selectedTrack?.name ?? "Track"} isMasterMode={isMasterMode} onToggleMasterMode={(isMaster) => setIsMasterMode(isMaster)} devices={devices} activeDeviceId={selectedTrack?.inputDevice || activeInputId} onSelectDevice={(devId) => { setTracks((ts) => ts.map((t) => t.id === selectedTrackId ? { ...t, inputDevice: devId } : t)); setActiveInputId(devId); }} isMonitoring={selectedTrack?.monitoring ?? monitoringEnabled} onToggleMonitoring={() => { const next = !selectedTrack?.monitoring; setTracks((ts) => ts.map((t) => t.id === selectedTrackId ? { ...t, monitoring: next } : t)); deviceManager.current.setMonitoring(engine.current.init(), next); setMonitoringEnabled(next); }} currentSettings={isMasterMode ? masterSettings : selectedTrack?.settings ?? DEFAULT_TRACK_SETTINGS} onUpdateSettings={(updated) => { if (isMasterMode) { setMasterSettings(updated); } else { setTracks((ts) => ts.map((t) => t.id === selectedTrackId ? { ...t, settings: updated } : t)); } }} onOpenAdvancedEq={() => toggleModal("eq")} onClosePanel={() => setSmartControlsOpen(false)} />
           )}
-
         </div>
       </div>
 
       {/* 4. MODALS & POP-UPS */}
-      <AudioSettingsModal
-        isOpen={audioSettingsOpen}
-        onClose={() => setAudioSettingsOpen(false)}
-        ctx={engine.current.ctx}
-        activeInputDeviceName={activeInputLabel}
-        onSelectInputDevice={(devId, label) => {
-          setActiveInputId(devId);
-          setActiveInputLabel(label);
-        }}
-        onSelectOutputDevice={(devId) => deviceManager.current.setOutputDevice(engine.current.init(), devId)}
-        isMonitoring={monitoringEnabled}
-        onToggleMonitoring={(en) => {
-          setMonitoringEnabled(en);
-          deviceManager.current.setMonitoring(engine.current.init(), en);
-        }}
+      <AudioSettingsModal isOpen={audioSettingsOpen} onClose={() => setAudioSettingsOpen(false)} ctx={engine.current.ctx} activeInputDeviceName={activeInputLabel} onSelectInputDevice={(devId, label) => { setActiveInputId(devId); setActiveInputLabel(label); }} onSelectOutputDevice={(devId) => deviceManager.current.setOutputDevice(engine.current.init(), devId)} isMonitoring={monitoringEnabled} onToggleMonitoring={(en) => { setMonitoringEnabled(en); deviceManager.current.setMonitoring(engine.current.init(), en); }} />
+      <ChannelEqModal isOpen={windowState.eq.open} onClose={() => toggleModal("eq")} trackName={selectedTrack?.name ?? "Track"} />
+      <GuitarAmpModal isOpen={windowState.amp.open} onClose={() => toggleModal("amp")} trackName={selectedTrack?.name ?? "Guitar Track"} />
+      <AiCoachModal isOpen={windowState.ai.open} onClose={() => toggleModal("ai")} currentKey={projectKey} bpm={bpm} />
+
+      {/* NEW COMPLETE 88-KEY PIANO STUDIO MODAL */}
+      <PianoStudioModal
+        isOpen={windowState.piano.open}
+        onClose={() => toggleModal("piano")}
+        ctx={engine.current.init()}
+        trackName={selectedTrack?.name ?? "Grand Piano"}
       />
 
-      <ChannelEqModal
-        isOpen={windowState.eq.open}
-        onClose={() => toggleModal("eq")}
-        trackName={selectedTrack?.name ?? "Track"}
-      />
-
-      <GuitarAmpModal
-        isOpen={windowState.amp.open}
-        onClose={() => toggleModal("amp")}
-        trackName={selectedTrack?.name ?? "Guitar Track"}
-      />
-
-      <AiCoachModal
-        isOpen={windowState.ai.open}
-        onClose={() => toggleModal("ai")}
-        currentKey={projectKey}
-        bpm={bpm}
-      />
-
-      {/* Draggable Piano Roll */}
-      {windowState.piano.open && (
-        <div
-          style={{ left: `${windowState.piano.x}px`, top: `${windowState.piano.y}px` }}
-          className="fixed z-50 w-[660px] h-[360px] rounded-xl border-2 border-[#1c1d22] bg-[#14151b] shadow-2xl flex flex-col overflow-hidden"
-        >
-          <div
-            onMouseDown={(e) => startDragWindow("piano", e)}
-            className="flex h-9 items-center justify-between border-b border-zinc-800 bg-[#282a32] px-4 cursor-grab active:cursor-grabbing"
-          >
-            <span className="text-xs font-bold text-white">🎹 Piano Roll Editor</span>
-            <button onClick={() => toggleModal("piano")} className="text-zinc-400 hover:text-white text-xs">✕</button>
-          </div>
-          <div className="flex-1 overflow-hidden">
-            <PianoRoll
-              notes={[]}
-              instrumentName={selectedTrack?.instrument ?? "Grand Piano"}
-              onPreviewNote={() => {}}
-              onAddNote={() => {}}
-              onDeleteNote={() => {}}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Draggable New Track Modal */}
       {windowState.trackModal.open && (
-        <div
-          style={{ left: `${windowState.trackModal.x}px`, top: `${windowState.trackModal.y}px` }}
-          className="fixed z-50 w-96 rounded-xl border border-zinc-700 bg-[#22242a] p-4 shadow-2xl"
-        >
-          <div
-            onMouseDown={(e) => startDragWindow("trackModal", e)}
-            className="flex items-center justify-between pb-2 border-b border-zinc-800 cursor-grab active:cursor-grabbing mb-3"
-          >
+        <div style={{ left: `${windowState.trackModal.x}px`, top: `${windowState.trackModal.y}px` }} className="fixed z-50 w-96 rounded-xl border border-zinc-700 bg-[#22242a] p-4 shadow-2xl">
+          <div className="flex items-center justify-between pb-2 border-b border-zinc-800 mb-3">
             <span className="text-xs font-bold text-white">Add New Track</span>
             <button onClick={() => toggleModal("trackModal")} className="text-zinc-400 hover:text-white text-xs">✕</button>
           </div>
           <div className="space-y-1.5">
             {INSTRUMENT_LIBRARY.map((item) => (
-              <button
-                key={item.name}
-                onClick={() => {
-                  const id = Date.now();
-                  setTracks((prev) => [
-                    ...prev,
-                    {
-                      id,
-                      name: `${item.name.split(" ")[0]} ${prev.length + 1}`,
-                      category: item.category,
-                      trackType: item.trackType,
-                      instrument: item.name,
-                      color: item.color,
-                      volume: 0.8,
-                      pan: 0,
-                      mute: false,
-                      solo: false,
-                      armed: false,
-                      monitoring: false,
-                      settings: { ...DEFAULT_TRACK_SETTINGS },
-                      regions: [],
-                    },
-                  ]);
-                  setSelectedTrackId(id);
-                  toggleModal("trackModal");
-                }}
-                className="w-full text-left p-2 rounded bg-[#18191f] hover:bg-[#2c2e37] border border-zinc-800 flex items-center gap-2.5 text-xs text-white"
-              >
+              <button key={item.name} onClick={() => { const id = Date.now(); setTracks((prev) => [ ...prev, { id, name: `${item.name.split(" ")[0]} ${prev.length + 1}`, category: item.category, trackType: item.trackType, instrument: item.name, color: item.color, volume: 0.8, pan: 0, mute: false, solo: false, armed: false, monitoring: false, settings: { ...DEFAULT_TRACK_SETTINGS }, regions: [] } ]); setSelectedTrackId(id); toggleModal("trackModal"); }} className="w-full text-left p-2 rounded bg-[#18191f] hover:bg-[#2c2e37] border border-zinc-800 flex items-center gap-2.5 text-xs text-white">
                 <span>{item.icon}</span>
                 <span className="font-semibold">{item.name}</span>
               </button>
@@ -1355,7 +895,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
           </div>
         </div>
       )}
-
     </div>
   );
 }
