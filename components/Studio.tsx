@@ -11,7 +11,7 @@ import { ChannelEqModal } from "@/components/daw/ChannelEqModal";
 import { AudioDeviceManager } from "@/lib/daw/AudioDeviceManager";
 import { AudioSettingsModal } from "@/components/daw/AudioSettingsModal";
 import { TrackControlsPanel } from "@/components/daw/TrackControlsPanel";
-import { ProcessingSettings, DEFAULT_TRACK_SETTINGS, TrackAudioNodeChain } from "@/lib/daw/TrackProcessor";
+import { ProcessingSettings, DEFAULT_TRACK_SETTINGS } from "@/lib/daw/TrackProcessor";
 
 export type TrackCompatibilityType = "vocal" | "guitar-bass" | "midi" | "drum";
 
@@ -112,7 +112,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
   const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
 
-  // Draggable Windows
+  // Draggable Windows (Toggle on / off)
   const [windowState, setWindowState] = useState({
     piano: { open: false, x: 260, y: 120 },
     amp: { open: false, x: 300, y: 100 },
@@ -124,6 +124,13 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
   const [activeDragWindow, setActiveDragWindow] = useState<keyof typeof windowState | null>(null);
   const dragOffset = useRef({ x: 0, y: 0 });
 
+  const [trackNotes, setTrackNotes] = useState<Record<number, MidiNote[]>>({
+    2: [
+      { id: "1", pitch: 60, startStep: 0, length: 2 },
+      { id: "2", pitch: 64, startStep: 4, length: 2 },
+    ],
+  });
+
   const animFrame = useRef<number | null>(null);
   const playStartTime = useRef(0);
   const playheadAnchor = useRef(0);
@@ -134,11 +141,15 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
   const liveAnimRef = useRef<number | null>(null);
   const timelineContainerRef = useRef<HTMLDivElement>(null);
 
-  // Real Web Audio Node Chains
-  const trackDSPChains = useRef<Record<number, TrackAudioNodeChain>>({});
-  const masterDSPChain = useRef<TrackAudioNodeChain | null>(null);
+  // Toggle helper for modals (Clicking again closes them!)
+  const toggleModal = (key: keyof typeof windowState) => {
+    setWindowState((prev) => ({
+      ...prev,
+      [key]: { ...prev[key], open: !prev[key].open },
+    }));
+  };
 
-  // Enumerate Hardware
+  // Hardware Detection
   useEffect(() => {
     deviceManager.current.refreshDevices().then(({ inputs }) => {
       setDevices(inputs);
@@ -196,7 +207,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     };
   }, [activeDragWindow]);
 
-  // Scrubbing Listeners
+  // Direct Interactive Playhead Scrubbing Listeners
   useEffect(() => {
     const onScrubMove = (e: MouseEvent) => {
       if (isScrubbing && timelineContainerRef.current) {
@@ -446,6 +457,19 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     }
   };
 
+  const deleteTrack = (id: number) => {
+    if (tracks.length <= 1) {
+      setStatusMsg("Must keep at least 1 track in session.");
+      return;
+    }
+    setTracks((prev) => prev.filter((t) => t.id !== id));
+    if (selectedTrackId === id) {
+      const remaining = tracks.filter((t) => t.id !== id);
+      if (remaining.length > 0) setSelectedTrackId(remaining[0].id);
+    }
+    setStatusMsg("Track removed.");
+  };
+
   const selectedTrack = tracks.find((t) => t.id === selectedTrackId);
 
   const totalBeats = (playheadSec * bpm) / 60;
@@ -476,7 +500,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
           </button>
 
           <button
-            onClick={() => setAudioSettingsOpen(true)}
+            onClick={() => setAudioSettingsOpen(!audioSettingsOpen)}
             className="flex items-center gap-1.5 rounded-full border border-zinc-600/80 bg-zinc-900/60 px-2.5 py-1 text-[11px] text-zinc-300 hover:border-sky-400 transition"
           >
             <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]" />
@@ -484,7 +508,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
           </button>
         </div>
 
-        {/* Center: Authentic Transport + GarageBand LCD Box */}
+        {/* Center: Transport + GarageBand LCD Box */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 text-zinc-300">
             <button
@@ -602,38 +626,46 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
 
               <div className="space-y-1 text-xs">
                 <button
-                  onClick={() => setWindowState((w) => ({ ...w, trackModal: { ...w.trackModal, open: true } }))}
+                  onClick={() => toggleModal("trackModal")}
                   className="w-full text-left p-2 rounded hover:bg-[#282a32] flex items-center gap-2 font-semibold text-zinc-200"
                 >
                   <span>+</span> New Track
                 </button>
                 <button
-                  onClick={() => setAudioSettingsOpen(true)}
+                  onClick={() => setAudioSettingsOpen(!audioSettingsOpen)}
                   className="w-full text-left p-2 rounded hover:bg-[#282a32] flex items-center gap-2 font-semibold text-sky-400"
                 >
                   <span>🎙️</span> Audio Interface Setup
                 </button>
                 <button
-                  onClick={() => setWindowState((w) => ({ ...w, piano: { ...w.piano, open: true } }))}
-                  className="w-full text-left p-2 rounded hover:bg-[#282a32] flex items-center gap-2 font-semibold text-zinc-200"
+                  onClick={() => toggleModal("piano")}
+                  className={`w-full text-left p-2 rounded flex items-center gap-2 font-semibold ${
+                    windowState.piano.open ? "bg-[#387ec7] text-white" : "hover:bg-[#282a32] text-zinc-200"
+                  }`}
                 >
                   <span>🎹</span> Piano Roll
                 </button>
                 <button
-                  onClick={() => setWindowState((w) => ({ ...w, amp: { ...w.amp, open: true } }))}
-                  className="w-full text-left p-2 rounded hover:bg-[#282a32] flex items-center gap-2 font-semibold text-zinc-200"
+                  onClick={() => toggleModal("amp")}
+                  className={`w-full text-left p-2 rounded flex items-center gap-2 font-semibold ${
+                    windowState.amp.open ? "bg-amber-600 text-white" : "hover:bg-[#282a32] text-zinc-200"
+                  }`}
                 >
                   <span>🎸</span> Amp & Pedals
                 </button>
                 <button
-                  onClick={() => setWindowState((w) => ({ ...w, eq: { ...w.eq, open: true } }))}
-                  className="w-full text-left p-2 rounded hover:bg-[#282a32] flex items-center gap-2 font-semibold text-zinc-200"
+                  onClick={() => toggleModal("eq")}
+                  className={`w-full text-left p-2 rounded flex items-center gap-2 font-semibold ${
+                    windowState.eq.open ? "bg-sky-600 text-white" : "hover:bg-[#282a32] text-zinc-200"
+                  }`}
                 >
                   <span>🎛️</span> Visual EQ
                 </button>
                 <button
-                  onClick={() => setWindowState((w) => ({ ...w, ai: { ...w.ai, open: true } }))}
-                  className="w-full text-left p-2 rounded hover:bg-[#282a32] flex items-center gap-2 font-semibold text-zinc-200"
+                  onClick={() => toggleModal("ai")}
+                  className={`w-full text-left p-2 rounded flex items-center gap-2 font-semibold ${
+                    windowState.ai.open ? "bg-purple-600 text-white" : "hover:bg-[#282a32] text-zinc-200"
+                  }`}
                 >
                   <span>✨</span> AI Coach
                 </button>
@@ -671,7 +703,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
           
           <div className="flex-1 flex overflow-hidden">
             
-            {/* Left Track Headers */}
+            {/* Left Track Headers with working delete button */}
             <div className="w-64 flex-none border-r border-[#1a1b20] bg-[#22242a] flex flex-col z-10 shadow-lg">
               <div className="h-7 border-b border-[#1a1b20] px-3 flex items-center justify-between font-bold text-zinc-400 text-[10px]">
                 <span>TRACKS</span>
@@ -697,10 +729,24 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
                         <input
                           value={track.name}
                           onChange={(e) => setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, name: e.target.value } : t))}
-                          className="w-28 bg-transparent text-xs font-bold text-white focus:outline-none rounded px-1"
+                          className="w-24 bg-transparent text-xs font-bold text-white focus:outline-none rounded px-1"
                         />
                       </div>
-                      <span className="text-[8px] uppercase font-mono text-zinc-500">{track.trackType}</span>
+                      
+                      {/* Prominent Working Delete Track Button */}
+                      <div className="flex items-center gap-1">
+                        <span className="text-[8px] uppercase font-mono text-zinc-500">{track.trackType}</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteTrack(track.id);
+                          }}
+                          className="h-5 w-5 rounded hover:bg-red-500 text-zinc-400 hover:text-white flex items-center justify-center font-bold text-xs"
+                          title="Delete Track"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-between text-[10px] pt-1">
@@ -783,13 +829,19 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
                 ))}
               </div>
 
-              {/* Arranger Track Lanes */}
+              {/* Arranger Track Lanes with Direct Playhead Handle */}
               <div style={{ width: "3200px" }} className="flex-1 relative divide-y divide-[#1e2028]">
+                
+                {/* INTERACTIVE DRAGGABLE PLAYHEAD LINE */}
                 <div
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    setIsScrubbing(true);
+                  }}
                   style={{ left: `${playheadSec * pixelsPerSecond}px` }}
-                  className="absolute top-0 bottom-0 w-[2px] bg-[#d4af37] z-40 pointer-events-none shadow-[0_0_8px_#d4af37]"
+                  className="absolute top-0 bottom-0 w-[2px] bg-[#d4af37] z-40 cursor-ew-resize shadow-[0_0_8px_#d4af37]"
                 >
-                  <div className="h-3 w-3 -ml-[5px] bg-[#d4af37] rotate-45 shadow-lg" />
+                  <div className="h-4 w-4 -ml-[7px] bg-[#d4af37] rotate-45 shadow-lg cursor-grab active:cursor-grabbing" />
                 </div>
 
                 {tracks.map((track) => (
@@ -852,7 +904,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
             </div>
           </div>
 
-          {/* 3. PROFESSIONAL TRACK CONTROLS & DYNAMICS CONSOLE (AS REQUESTED) */}
+          {/* 3. BOTTOM DOCK: TRACK CONTROLS & DYNAMICS CONSOLE */}
           {smartControlsOpen && (
             <TrackControlsPanel
               trackName={selectedTrack?.name ?? "Track"}
@@ -879,7 +931,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
                   setTracks((ts) => ts.map((t) => t.id === selectedTrackId ? { ...t, settings: updated } : t));
                 }
               }}
-              onOpenAdvancedEq={() => setWindowState((w) => ({ ...w, eq: { ...w.eq, open: true } }))}
+              onOpenAdvancedEq={() => toggleModal("eq")}
               onClosePanel={() => setSmartControlsOpen(false)}
             />
           )}
@@ -887,7 +939,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
         </div>
       </div>
 
-      {/* 4. MODALS */}
+      {/* 4. MODALS & POP-UPS (With click-to-close toggle!) */}
       <AudioSettingsModal
         isOpen={audioSettingsOpen}
         onClose={() => setAudioSettingsOpen(false)}
@@ -907,19 +959,19 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
 
       <ChannelEqModal
         isOpen={windowState.eq.open}
-        onClose={() => setWindowState((w) => ({ ...w, eq: { ...w.eq, open: false } }))}
+        onClose={() => toggleModal("eq")}
         trackName={selectedTrack?.name ?? "Track"}
       />
 
       <GuitarAmpModal
         isOpen={windowState.amp.open}
-        onClose={() => setWindowState((w) => ({ ...w, amp: { ...w.amp, open: false } }))}
+        onClose={() => toggleModal("amp")}
         trackName={selectedTrack?.name ?? "Guitar Track"}
       />
 
       <AiCoachModal
         isOpen={windowState.ai.open}
-        onClose={() => setWindowState((w) => ({ ...w, ai: { ...w.ai, open: false } }))}
+        onClose={() => toggleModal("ai")}
         currentKey={projectKey}
         bpm={bpm}
       />
@@ -935,7 +987,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
             className="flex h-9 items-center justify-between border-b border-zinc-800 bg-[#282a32] px-4 cursor-grab active:cursor-grabbing"
           >
             <span className="text-xs font-bold text-white">🎹 Piano Roll Editor</span>
-            <button onClick={() => setWindowState((w) => ({ ...w, piano: { ...w.piano, open: false } }))} className="text-zinc-400 hover:text-white text-xs">✕</button>
+            <button onClick={() => toggleModal("piano")} className="text-zinc-400 hover:text-white text-xs">✕</button>
           </div>
           <div className="flex-1 overflow-hidden">
             <PianoRoll
@@ -960,7 +1012,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
             className="flex items-center justify-between pb-2 border-b border-zinc-800 cursor-grab active:cursor-grabbing mb-3"
           >
             <span className="text-xs font-bold text-white">Add New Track</span>
-            <button onClick={() => setWindowState((w) => ({ ...w, trackModal: { ...w.trackModal, open: false } }))} className="text-zinc-400 hover:text-white text-xs">✕</button>
+            <button onClick={() => toggleModal("trackModal")} className="text-zinc-400 hover:text-white text-xs">✕</button>
           </div>
           <div className="space-y-1.5">
             {INSTRUMENT_LIBRARY.map((item) => (
@@ -988,7 +1040,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
                     },
                   ]);
                   setSelectedTrackId(id);
-                  setWindowState((w) => ({ ...w, trackModal: { ...w.trackModal, open: false } }));
+                  toggleModal("trackModal");
                 }}
                 className="w-full text-left p-2 rounded bg-[#18191f] hover:bg-[#2c2e37] border border-zinc-800 flex items-center gap-2.5 text-xs text-white"
               >
