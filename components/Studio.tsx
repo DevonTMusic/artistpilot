@@ -183,9 +183,13 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
       navigator.requestMIDIAccess?.().then((access) => {
         setMidiConnected(access.inputs.size > 0);
         access.onstatechange = () => setMidiConnected(access.inputs.size > 0);
-        for (const input of access.inputs.values()) {
-          input.onmidimessage = (msg) => {
-            const [status, noteNumber, velocity] = msg.data;
+       for (const input of access.inputs.values()) {
+          // @ts-ignore
+          input.onmidimessage = (msg: any) => {
+            if (!msg?.data) return;
+            const status = msg.data[0];
+            const noteNumber = msg.data[1];
+            const velocity = msg.data[2];
             if (status >= 144 && status <= 159 && velocity > 0) {
               const currentTrack = tracks.find((tr) => tr.id === selectedTrack);
               playInstrumentSound(midiToFreq(noteNumber), currentTrack?.instrument ?? "Grand Piano");
