@@ -7,14 +7,11 @@ export default async function StudioPage() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#121316] text-white">
-      {/* Top Header / Nav */}
       <header className="flex-none border-b border-zinc-800 bg-[#18191d]">
         <Nav signedIn />
       </header>
-
-      {/* Full Screen BandLab Studio Container */}
-      <main className="flex-1 w-full h-[calc(100vh-64px)] overflow-hidden">
-        <Studio defaultBpm={profile?.default_bpm ?? 92} />
+      <main className="min-h-0 flex-1 w-full overflow-hidden">
+        <Studio defaultBpm={profile?.default_bpm ?? 118} />
       </main>
     </div>
   );
