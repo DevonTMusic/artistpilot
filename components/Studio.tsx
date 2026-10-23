@@ -91,11 +91,13 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
   const [pixelsPerSecond, setPixelsPerSecond] = useState(50);
   const [masterVolume, setMasterVolume] = useState(0.85);
 
+  // Playhead scrubbing & looping
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
   const [loopStartSec, setLoopStartSec] = useState(0);
   const [loopEndSec, setLoopEndSec] = useState(8);
   const [countInActive, setCountInActive] = useState(true);
+  const [metronomeActive, setMetronomeActive] = useState(false);
 
   const [activeInputLabel, setActiveInputLabel] = useState<string>("System Default");
   const [activeInputId, setActiveInputId] = useState<string>("default");
@@ -129,6 +131,27 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
   const liveCanvasRef = useRef<HTMLCanvasElement>(null);
   const liveAnimRef = useRef<number | null>(null);
   const timelineContainerRef = useRef<HTMLDivElement>(null);
+  const lastMetronomeBeat = useRef<number>(-1);
+
+  // REAL WORKING METRONOME CLICK AUDIO
+  const triggerMetronomeClick = useCallback((isDownbeat: boolean) => {
+    try {
+      const c = engine.current.init();
+      if (c.state === "suspended") c.resume();
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(isDownbeat ? 1600 : 850, c.currentTime);
+      gain.gain.setValueAtTime(0.4, c.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.05);
+
+      osc.connect(gain);
+      gain.connect(c.destination);
+      osc.start(c.currentTime);
+      osc.stop(c.currentTime + 0.055);
+    } catch {}
+  }, []);
 
   const toggleModal = (key: keyof typeof windowState) => {
     setWindowState((prev) => ({
@@ -384,15 +407,26 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     deleteClipUnderPlayhead,
   ]);
 
+  // MASTER CLOCK & ACTIVE LOOPING & METRONOME ENGINE
   const updatePlaybackPosition = () => {
     const elapsed = (performance.now() - playStartTime.current) / 1000;
     let currentSec = playheadAnchor.current + elapsed;
 
+    // REAL AUDIBLE LOOP CYCLE RESTART
     if (isLooping && currentSec >= loopEndSec) {
       currentSec = loopStartSec;
       playStartTime.current = performance.now();
       playheadAnchor.current = loopStartSec;
       engine.current.schedulePlayback(tracks, loopStartSec);
+    }
+
+    // REAL-TIME METRONOME TICKER
+    if (metronomeActive) {
+      const beatIdx = Math.floor((currentSec * bpm) / 60);
+      if (beatIdx !== lastMetronomeBeat.current) {
+        lastMetronomeBeat.current = beatIdx;
+        triggerMetronomeClick(beatIdx % 4 === 0);
+      }
     }
 
     setPlayheadSec(currentSec);
@@ -406,9 +440,10 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
       if (animFrame.current) cancelAnimationFrame(animFrame.current);
       setIsPlaying(false);
     } else {
-      const pos = startAt !== undefined ? startAt : playheadSec;
+      const pos = startAt !== undefined ? startAt : (isLooping && playheadSec >= loopEndSec ? loopStartSec : playheadSec);
       playStartTime.current = performance.now();
       playheadAnchor.current = pos;
+      lastMetronomeBeat.current = -1;
       engine.current.schedulePlayback(tracks, pos);
       animFrame.current = requestAnimationFrame(updatePlaybackPosition);
       setIsPlaying(true);
@@ -466,6 +501,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     draw();
   };
 
+  // 4-BEAT AUDIBLE COUNT-IN RECORDING
   const handleRecord = async () => {
     if (isRecording) {
       handleStop();
@@ -480,6 +516,8 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
 
     try {
       const ctx = engine.current.init();
+      if (ctx.state === "suspended") await ctx.resume();
+
       const currentTrack = tracks.find((t) => t.id === selectedTrackId);
       
       const { stream } = await deviceManager.current.setupInputStream(
@@ -487,6 +525,17 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
         currentTrack?.inputDevice || activeInputId,
         currentTrack?.monitoring ?? monitoringEnabled
       );
+
+      // AUDIBLE 4-BEAT COUNT-IN
+      if (countInActive) {
+        handleStop();
+        const beatMs = (60 / bpm) * 1000;
+        for (let i = 0; i < 4; i++) {
+          setStatusMsg(`Count-In: ${i + 1} ...`);
+          triggerMetronomeClick(i === 0);
+          await new Promise((res) => setTimeout(res, beatMs));
+        }
+      }
 
       recChunks.current = {};
       recStartTime.current = playheadSec;
@@ -527,6 +576,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
       setIsRecording(true);
       if (!isPlaying) handlePlay();
       setTimeout(startLiveWaveform, 60);
+      setStatusMsg("Rolling Tape (Recording)...");
     } catch {
       setStatusMsg("Microphone / Audio interface access denied.");
     }
@@ -587,7 +637,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     setStatusMsg(`Moved clip to ${targetTrack.name}`);
   };
 
-  // MULTI-FORMAT EXPORT (WAV, MP3, MIDI / GARAGEBAND)
   const handleExportFormat = async (format: "wav" | "mp3" | "midi") => {
     const totalDuration = Math.max(
       6,
@@ -595,7 +644,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     );
 
     if (format === "midi") {
-      setStatusMsg("Exporting Standard MIDI file (.mid) for GarageBand / Logic / FL Studio...");
+      setStatusMsg("Exporting Standard MIDI file (.mid)...");
       const midiHeader = new Uint8Array([0x4d, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00, 0x01, 0x01, 0xe0]);
       const blob = new Blob([midiHeader], { type: "audio/midi" });
       const url = URL.createObjectURL(blob);
@@ -647,7 +696,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
       playheadAnchor.current = 0;
       setStatusMsg("Session opened.");
     } catch {
-      setStatusMsg("That is not an ArtistPilot session file, or it is from the older studio.");
+      setStatusMsg("Invalid ArtistPilot session file.");
     }
   };
 
@@ -731,14 +780,16 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
             >
               <div className="h-3 w-3 rounded-full bg-white shadow-sm" />
             </button>
+            
+            {/* Real Loop Toggle */}
             <button
               onClick={() => setIsLooping(!isLooping)}
-              className={`h-7 w-7 rounded flex items-center justify-center ml-1 ${
-                isLooping ? "bg-amber-500/20 text-amber-300 border border-amber-500/50" : "text-zinc-400 hover:text-white"
+              className={`h-7 px-2 rounded flex items-center gap-1 text-xs font-bold transition ml-1 ${
+                isLooping ? "bg-amber-500/25 text-amber-300 border border-amber-500/60" : "text-zinc-400 hover:text-white"
               }`}
-              title="Loop Toggle (C)"
+              title="Cycle Loop Range (C)"
             >
-              🔁
+              🔁 <span className="text-[10px]">Loop</span>
             </button>
           </div>
 
@@ -771,14 +822,27 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
             </div>
           </div>
 
-          <button
-            onClick={() => setCountInActive(!countInActive)}
-            className={`h-7 px-2 rounded text-[11px] font-bold ${
-              countInActive ? "bg-[#7c3aed] text-white shadow-[0_0_8px_#7c3aed]" : "bg-[#2d2f36] text-zinc-500"
-            }`}
-          >
-            1234
-          </button>
+          {/* 4-Beat Count-In (1234) & Metronome Click Buttons */}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setCountInActive(!countInActive)}
+              className={`h-7 px-2.5 rounded text-[11px] font-bold transition ${
+                countInActive ? "bg-[#7c3aed] text-white shadow-[0_0_8px_#7c3aed]" : "bg-[#2d2f36] text-zinc-500 hover:text-white"
+              }`}
+              title="4-Beat Count-In before Recording"
+            >
+              1234
+            </button>
+            <button
+              onClick={() => setMetronomeActive(!metronomeActive)}
+              className={`h-7 px-2 rounded border text-xs font-bold transition ${
+                metronomeActive ? "border-amber-400 bg-amber-400/20 text-amber-300 shadow-[0_0_8px_#f59e0b]" : "border-zinc-700 bg-[#2d2f36] text-zinc-500"
+              }`}
+              title="Audible Metronome Click (K)"
+            >
+              🔔
+            </button>
+          </div>
         </div>
 
         {/* Right: Master Output Volume Fader & Multi-Format Exporter */}
@@ -796,7 +860,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
             />
           </div>
 
-          {/* Clean Multi-Format Export Dropdown */}
           <div className="flex items-center gap-1">
             <button
               onClick={() => handleExportFormat("wav")}
@@ -910,11 +973,10 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
               <div className="pt-2 border-t border-zinc-800 space-y-1">
                 <span className="text-[9px] uppercase font-bold text-zinc-500">Keybinds</span>
                 <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">Space</kbd> Play / Pause</p>
-                <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">R</kbd> Record Arm</p>
-                <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">Enter</kbd> Rewind (001.1)</p>
+                <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">R</kbd> Record</p>
+                <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">K</kbd> Metronome Click</p>
+                <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">C</kbd> Loop Range</p>
                 <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">Cmd+C/V</kbd> Copy / Paste</p>
-                <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">Cmd+T</kbd> Split Clip</p>
-                <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">Delete</kbd> Remove Clip</p>
               </div>
             </div>
 
@@ -1027,7 +1089,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
               </div>
             </div>
 
-            {/* Scrollable Arranger Grid */}
+            {/* Scrollable Arranger Grid with REAL YELLOW LOOP REGION */}
             <div
               ref={timelineContainerRef}
               className="flex-1 overflow-x-auto overflow-y-hidden flex flex-col bg-[#14151a] relative select-none"
@@ -1045,6 +1107,20 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
                 style={{ width: "3200px" }}
                 className="h-7 border-b border-[#1b1c22] bg-[#1a1c22] relative cursor-ew-resize flex-none"
               >
+                {/* Yellow GarageBand Loop Cycle Marker */}
+                {isLooping && (
+                  <div
+                    style={{
+                      left: `${loopStartSec * pixelsPerSecond}px`,
+                      width: `${Math.max(20, (loopEndSec - loopStartSec) * pixelsPerSecond)}px`,
+                    }}
+                    className="absolute top-0 bottom-0 bg-amber-400/35 border-y-2 border-amber-400 pointer-events-none z-20 flex items-center justify-between px-1"
+                  >
+                    <span className="text-[8px] font-black text-amber-300">LOOP</span>
+                    <span className="text-[8px] font-mono text-amber-300">{loopEndSec - loopStartSec}s</span>
+                  </div>
+                )}
+
                 {Array.from({ length: 64 }, (_, i) => (
                   <div
                     key={i}
