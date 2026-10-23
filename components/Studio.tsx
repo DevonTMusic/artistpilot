@@ -6,6 +6,7 @@ import { TrackData, AudioRegion } from "@/lib/AudioEngine";
 import { ClipRegion } from "@/components/daw/ClipRegion";
 import { PianoRoll, MidiNote } from "@/components/daw/PianoRoll";
 import { GuitarAmpModal } from "@/components/daw/GuitarAmpModal";
+import { AiCoachModal } from "@/components/daw/AiCoachModal";
 
 const INSTRUMENT_PRESETS = [
   { name: "Vocals / Mic", category: "audio" as const, color: "bg-[#2563eb]", icon: "🎙️", desc: "Vocals, guitars, or live hardware" },
@@ -62,6 +63,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const [instrumentWindowOpen, setInstrumentWindowOpen] = useState(false);
   const [instrumentTab, setInstrumentTab] = useState<"pianoroll" | "keyboard">("keyboard");
   const [ampModalOpen, setAmpModalOpen] = useState(false);
+  const [aiCoachOpen, setAiCoachOpen] = useState(false);
 
   const [trackNotes, setTrackNotes] = useState<Record<number, MidiNote[]>>({
     2: [
@@ -255,7 +257,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             <span>+</span> Track
           </button>
 
-          {/* Pop-up Toggle: Piano & Keys */}
+          {/* Keys Toggle */}
           <button
             onClick={() => setInstrumentWindowOpen(!instrumentWindowOpen)}
             className={`flex h-8 items-center gap-1.5 rounded border px-3 text-xs font-bold transition shadow ${
@@ -267,12 +269,20 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             <span>🎹</span> {instrumentWindowOpen ? "Hide Keys" : "Keys & Piano Roll"}
           </button>
 
-          {/* Pop-up Toggle: Amp & Pedals */}
+          {/* Amp & Pedals Toggle */}
           <button
             onClick={() => setAmpModalOpen(true)}
             className="flex h-8 items-center gap-1.5 rounded border border-amber-600/60 bg-amber-950/40 px-3 text-xs font-bold text-amber-300 hover:bg-amber-900/50 shadow"
           >
             <span>🎸</span> Amp & Pedals
+          </button>
+
+          {/* AI Coach & Theory Toggle */}
+          <button
+            onClick={() => setAiCoachOpen(true)}
+            className="flex h-8 items-center gap-1.5 rounded border border-indigo-600/60 bg-indigo-950/40 px-3 text-xs font-bold text-indigo-300 hover:bg-indigo-900/50 shadow"
+          >
+            <span>✨</span> AI Coach & Theory
           </button>
           
           <div className="flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-900/60 px-2.5 py-1 text-[11px]">
@@ -463,7 +473,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         })}
       </div>
 
-      {/* 4. FLOATING POP-UP: PIANO ROLL & KEYS */}
+      {/* 4. POP-UP: PIANO ROLL & KEYS */}
       {instrumentWindowOpen && (
         <div className="absolute bottom-6 right-8 z-40 w-[640px] h-[340px] rounded-xl border border-zinc-700 bg-[#1e2027] shadow-2xl flex flex-col overflow-hidden">
           <div className="flex h-9 items-center justify-between border-b border-zinc-800 bg-[#2b2d36] px-3 select-none">
@@ -552,7 +562,15 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         trackName={selectedTrack?.name ?? "Guitar Track"}
       />
 
-      {/* 6. NEW TRACK MODAL */}
+      {/* 6. AI COACH & THEORY MODAL */}
+      <AiCoachModal
+        isOpen={aiCoachOpen}
+        onClose={() => setAiCoachOpen(false)}
+        currentKey="C"
+        bpm={bpm}
+      />
+
+      {/* 7. NEW TRACK MODAL */}
       {trackModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
           <div className="w-full max-w-xl rounded-xl border border-zinc-700 bg-[#22242a] p-6 shadow-2xl">
