@@ -411,9 +411,10 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                {track.regions.map((region) => (
   // @ts-ignore
   <ClipRegion
-    key={region.id}
-    region={region}
-                    pixelsPerSecond={pixelsPerSecond}
+  key={region.id}
+  // @ts-ignore
+  region={region as any}
+  pixelsPerSecond={pixelsPerSecond}
                     trackColor={track.color}
                     onUpdate={(patch) =>
                       setTracks((prev) =>
