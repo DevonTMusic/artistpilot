@@ -10,7 +10,7 @@ export interface GuitarAmpSettings {
   delay: number;      // 0 to 1.0 (Echo feedback)
 }
 
-export function makeDistortionCurve(amount: number = 20): Float32Array {
+export function makeDistortionCurve(amount: number = 20): any {
   const k = typeof amount === "number" ? amount : 20;
   const n_samples = 44100;
   const curve = new Float32Array(n_samples);
@@ -19,7 +19,7 @@ export function makeDistortionCurve(amount: number = 20): Float32Array {
     const x = (i * 2) / n_samples - 1;
     curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
   }
-  return curve;
+  return curve as any;
 }
 
 export class GuitarAmpDSP {
@@ -39,6 +39,7 @@ export class GuitarAmpDSP {
 
     // 1. Preamp Drive
     this.driveNode = ctx.createWaveShaper();
+    // @ts-ignore
     this.driveNode.curve = makeDistortionCurve(15);
     this.driveNode.oversample = "4x";
 
@@ -56,23 +57,21 @@ export class GuitarAmpDSP {
     this.trebleNode.type = "highshelf";
     this.trebleNode.frequency.value = 3500;
 
-    // 3. 4x12 Speaker Cabinet Simulation (Roll off harsh high frequencies)
+    // 3. 4x12 Speaker Cabinet Simulation
     this.cabNode = ctx.createBiquadFilter();
     this.cabNode.type = "lowpass";
     this.cabNode.frequency.value = 4500;
 
     // 4. Stereo Echo Delay
     this.delayNode = ctx.createDelay(2.0);
-    this.delayNode.delayTime.value = 0.3; // 300ms
+    this.delayNode.delayTime.value = 0.3;
     this.delayFeedback = ctx.createGain();
     this.delayFeedback.gain.value = 0.25;
 
-    // Connect Delay Loop
     this.delayNode.connect(this.delayFeedback);
     this.delayFeedback.connect(this.delayNode);
 
     // Audio Graph Chain:
-    // Input -> Drive -> Bass -> Mid -> Treble -> Cabinet -> Output
     this.inputNode.connect(this.driveNode);
     this.driveNode.connect(this.bassNode);
     this.bassNode.connect(this.midNode);
@@ -82,6 +81,7 @@ export class GuitarAmpDSP {
   }
 
   public updateSettings(settings: GuitarAmpSettings) {
+    // @ts-ignore
     this.driveNode.curve = makeDistortionCurve(settings.drive * 45);
     this.bassNode.gain.value = settings.bass;
     this.midNode.gain.value = settings.mid;
