@@ -4,7 +4,9 @@ export type PianoPresetType =
   | "Concert Grand"
   | "Studio Upright"
   | "Felt Piano"
-  | "Classic Tine EP";
+  | "Classic Tine EP"
+  | "FM Digital Piano"
+  | "Ambient Cinematic Piano";
 
 export interface ActiveVoice {
   nodes: AudioNode[];
