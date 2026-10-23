@@ -9,6 +9,7 @@ import { GuitarAmpModal } from "@/components/daw/GuitarAmpModal";
 import { AiCoachModal } from "@/components/daw/AiCoachModal";
 import { AudioInputManager } from "@/lib/daw/AudioInputManager";
 import { RecordingSettingsModal } from "@/components/daw/RecordingSettingsModal";
+import { ChannelEqModal } from "@/components/daw/ChannelEqModal";
 
 const INSTRUMENT_LIBRARY = [
   { name: "Vocals / Acoustic Mic", category: "audio" as const, color: "bg-[#2563eb]", icon: "🎙️", desc: "Studio vocal chain & live hardware" },
@@ -68,13 +69,13 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const [loopStartSec, setLoopStartSec] = useState(0);
   const [loopEndSec, setLoopEndSec] = useState(8);
   const [countInActive, setCountInActive] = useState(true);
-  const [metronomeActive, setMetronomeActive] = useState(false);
 
-  // Modals & Panels
+  // Modals & Windows
   const [instrumentWindowOpen, setInstrumentWindowOpen] = useState(false);
   const [instrumentTab, setInstrumentTab] = useState<"pianoroll" | "keyboard">("keyboard");
   const [ampModalOpen, setAmpModalOpen] = useState(false);
   const [aiCoachOpen, setAiCoachOpen] = useState(false);
+  const [eqModalOpen, setEqModalOpen] = useState(false);
   const [mixerOpen, setMixerOpen] = useState(false);
   const [recModalOpen, setRecModalOpen] = useState(false);
   const [monitoringEnabled, setMonitoringEnabled] = useState(false);
@@ -97,7 +98,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const recChunks = useRef<Blob[]>([]);
   const recStartTime = useRef(0);
 
-  // Play audio click for metronome
   const clickSound = (high: boolean) => {
     const c = engine.current.init();
     const osc = c.createOscillator();
@@ -111,7 +111,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     osc.stop(c.currentTime + 0.05);
   };
 
-  // Sound Engine
   const playSynthesizerVoice = (pitch: number, instrument: string) => {
     const c = engine.current.init();
     const t = c.currentTime;
@@ -139,7 +138,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     }
   };
 
-  // Web MIDI listener
   useEffect(() => {
     if (typeof navigator !== "undefined" && "requestMIDIAccess" in navigator) {
       // @ts-ignore
@@ -160,7 +158,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     }
   }, [tracks, selectedTrackId]);
 
-  // Master Clock & Loop Watcher
   const updatePlaybackPosition = () => {
     const elapsed = (performance.now() - playStartTime.current) / 1000;
     let currentSec = playheadAnchor.current + elapsed;
@@ -214,7 +211,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     playheadAnchor.current = nextBar;
   };
 
-  // Split Clip at current playhead position (Command + T style)
   const splitClipAtPlayhead = () => {
     const track = tracks.find((t) => t.id === selectedTrackId);
     if (!track) return;
@@ -247,7 +243,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     setStatusMsg(`Split clip at ${playheadSec.toFixed(2)}s`);
   };
 
-  // Recording with 4-Beat Count-In
   const handleRecord = async () => {
     if (isRecording) {
       handleStop();
@@ -262,7 +257,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         monitoringEnabled
       );
 
-      // 4-Beat Count-In before rolling tape
       if (countInActive) {
         setStatusMsg("Count-in: 1... 2... 3... 4...");
         const beatIntervalMs = (60 / bpm) * 1000;
@@ -310,7 +304,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     }
   };
 
-  // Drag and Drop Audio File Import
   const handleDropAudio = async (e: React.DragEvent, trackId: number) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
@@ -387,9 +380,15 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           <button
             onClick={() => setRecModalOpen(true)}
             className="flex h-7 items-center gap-1.5 rounded border border-zinc-800 bg-[#17181f] px-2.5 text-[11px] font-semibold text-sky-400 hover:border-sky-500/60 shadow-sm"
-            title="Configure Scarlett / Input device & Direct Monitoring"
           >
-            <span>🎙️</span> Inputs & Monitor
+            <span>🎙️</span> Inputs
+          </button>
+
+          <button
+            onClick={() => setEqModalOpen(true)}
+            className="flex h-7 items-center gap-1.5 rounded border border-zinc-800 bg-[#17181f] px-2.5 text-[11px] font-semibold text-zinc-400 hover:border-sky-500/60 hover:text-sky-400 transition"
+          >
+            <span>🎛️</span> Visual EQ
           </button>
 
           <button
@@ -405,7 +404,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             onClick={() => setAmpModalOpen(true)}
             className="flex h-7 items-center gap-1.5 rounded border border-zinc-800 bg-[#17181f] px-2.5 text-[11px] font-semibold text-zinc-400 hover:border-amber-500/60 hover:text-amber-400 transition"
           >
-            <span>🎸</span> Amp & FX
+            <span>🎸</span> Amp Rig
           </button>
 
           <button
@@ -416,7 +415,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           </button>
         </div>
 
-        {/* Center Section: GarageBand Transport Controls + Timecode */}
+        {/* Center Section: GarageBand Transport Controls */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1">
             <button onClick={handleRewind} title="Return to Beginning" className="h-7 w-7 rounded flex items-center justify-center text-zinc-400 hover:text-white text-xs">⏮</button>
@@ -432,7 +431,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             </button>
             <button onClick={handleForward} title="Forward 1 Bar" className="h-7 w-7 rounded flex items-center justify-center text-zinc-400 hover:text-white text-xs">⏭</button>
             
-            {/* Big Red Record Arm */}
             <button
               onClick={handleRecord}
               title="Record to Selected Track"
@@ -444,7 +442,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             </button>
           </div>
 
-          {/* GarageBand LCD Display Box */}
+          {/* LCD Timecode */}
           <div className="flex h-8 items-center divide-x divide-zinc-800/80 rounded border border-zinc-800/90 bg-[#08090b] px-3 font-mono text-zinc-300 shadow-inner">
             <div className="pr-2.5 text-center">
               <span className="text-xs font-bold tracking-widest text-[#d4af37]">
@@ -465,7 +463,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             </div>
           </div>
 
-          {/* Cycle / Loop & Count-In Toggles */}
           <div className="flex items-center gap-1">
             <button
               onClick={() => setIsLooping(!isLooping)}
@@ -481,7 +478,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               className={`h-7 px-2 rounded border text-[10px] font-mono font-bold transition ${
                 countInActive ? "border-[#d4af37] bg-[#d4af37]/20 text-[#d4af37]" : "border-zinc-800 bg-[#16171d] text-zinc-500"
               }`}
-              title="4-Beat Count-in before Recording"
+              title="4-Beat Count-in"
             >
               1234
             </button>
@@ -493,7 +490,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           <button
             onClick={splitClipAtPlayhead}
             className="h-7 px-2.5 rounded border border-zinc-700 bg-zinc-800/90 text-[11px] font-bold text-white hover:bg-zinc-700 shadow"
-            title="Split Clip at Current Playhead (Command+T)"
+            title="Split Clip at Playhead"
           >
             ✂ Split
           </button>
@@ -541,7 +538,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           <span className="text-[8px] font-sans text-zinc-500">Click to scrub</span>
         </div>
 
-        {/* Yellow Loop Cycle Region */}
         {isLooping && (
           <div
             style={{
@@ -568,8 +564,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
 
       {/* 3. MULTI-TRACK ARRANGER */}
       <div className="flex-1 overflow-y-auto divide-y divide-[#171820] bg-[#0c0d10] relative">
-        
-        {/* Playhead Vertical Line */}
         <div
           style={{ left: `${256 + playheadSec * pixelsPerSecond}px` }}
           className="absolute top-0 bottom-0 w-[1.5px] bg-[#d4af37] z-30 pointer-events-none"
@@ -633,6 +627,16 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                     >
                       S
                     </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedTrackId(track.id);
+                        setEqModalOpen(true);
+                      }}
+                      className="h-4.5 px-1.5 rounded text-[9px] font-bold bg-[#1e2028] text-zinc-400 hover:text-sky-400 hover:border-sky-500/50 border border-transparent"
+                    >
+                      EQ
+                    </button>
                   </div>
 
                   <div className="flex items-center gap-1.5">
@@ -690,7 +694,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         })}
       </div>
 
-      {/* 4. DRAGGABLE MODALS (Recording Inputs, Piano Roll, Amp, AI Coach) */}
+      {/* 4. MODALS & WINDOWS */}
       <RecordingSettingsModal
         isOpen={recModalOpen}
         onClose={() => setRecModalOpen(false)}
@@ -701,6 +705,12 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           inputManager.current.setMonitoring(engine.current.init(), en);
         }}
         monitoringEnabled={monitoringEnabled}
+      />
+
+      <ChannelEqModal
+        isOpen={eqModalOpen}
+        onClose={() => setEqModalOpen(false)}
+        trackName={selectedTrack?.name ?? "Track"}
       />
 
       {instrumentWindowOpen && (
