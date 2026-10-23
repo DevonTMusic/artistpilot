@@ -91,30 +91,24 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
   const [pixelsPerSecond, setPixelsPerSecond] = useState(50);
   const [masterVolume, setMasterVolume] = useState(0.85);
 
-  // Playhead scrubbing & looping
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
   const [loopStartSec, setLoopStartSec] = useState(0);
   const [loopEndSec, setLoopEndSec] = useState(8);
   const [countInActive, setCountInActive] = useState(true);
-  const [metronomeActive, setMetronomeActive] = useState(false);
 
-  // Hardware Interface Selection
   const [activeInputLabel, setActiveInputLabel] = useState<string>("System Default");
   const [activeInputId, setActiveInputId] = useState<string>("default");
   const [monitoringEnabled, setMonitoringEnabled] = useState(false);
   const [devices, setDevices] = useState<any[]>([]);
 
-  // Clipboard for Copy / Paste clips
   const [copiedClip, setCopiedClip] = useState<AudioRegion | null>(null);
 
-  // Drawers & Modals
   const [toolsDrawerOpen, setToolsDrawerOpen] = useState(true);
   const [smartControlsOpen, setSmartControlsOpen] = useState(true);
   const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
 
-  // Draggable Windows (Toggle on / off)
   const [windowState, setWindowState] = useState({
     piano: { open: false, x: 260, y: 120 },
     amp: { open: false, x: 300, y: 100 },
@@ -143,7 +137,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     }));
   };
 
-  // Hardware Detection
   useEffect(() => {
     deviceManager.current.refreshDevices().then(({ inputs }) => {
       setDevices(inputs);
@@ -167,7 +160,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     return () => unsubscribe();
   }, [activeInputId]);
 
-  // Universal Draggable Pointer Listeners
   const startDragWindow = (key: keyof typeof windowState, e: React.MouseEvent) => {
     setActiveDragWindow(key);
     dragOffset.current = {
@@ -201,7 +193,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     };
   }, [activeDragWindow]);
 
-  // Direct Interactive Playhead Scrubbing Listeners
   useEffect(() => {
     const onScrubMove = (e: MouseEvent) => {
       if (isScrubbing && timelineContainerRef.current) {
@@ -224,7 +215,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     };
   }, [isScrubbing, pixelsPerSecond]);
 
-  // Split Clip Function
   const splitClipAtPlayhead = useCallback(() => {
     const track = tracks.find((t) => t.id === selectedTrackId);
     if (!track) return;
@@ -257,7 +247,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     setStatusMsg(`Split clip at ${playheadSec.toFixed(2)}s`);
   }, [tracks, selectedTrackId, playheadSec]);
 
-  // Paste Clip Function
   const pasteClipAtPlayhead = useCallback(() => {
     if (!copiedClip) return;
     const targetTrack = tracks.find((t) => t.id === selectedTrackId);
@@ -281,7 +270,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     setStatusMsg(`Pasted clip at ${playheadSec.toFixed(2)}s`);
   }, [copiedClip, tracks, selectedTrackId, playheadSec]);
 
-  // Delete Clip Function
   const deleteClipUnderPlayhead = useCallback(() => {
     const track = tracks.find((t) => t.id === selectedTrackId);
     if (!track) return;
@@ -301,7 +289,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     setStatusMsg(`Deleted "${clip.name}"`);
   }, [tracks, selectedTrackId, playheadSec]);
 
-  // Full Professional Keybinds Engine
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeEl = document.activeElement;
@@ -335,12 +322,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
       if (e.key === "c" && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
         setIsLooping((prev) => !prev);
-        return;
-      }
-
-      if (e.key === "k" || e.key === "K") {
-        e.preventDefault();
-        setMetronomeActive((prev) => !prev);
         return;
       }
 
@@ -403,7 +384,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     deleteClipUnderPlayhead,
   ]);
 
-  // Master Clock
   const updatePlaybackPosition = () => {
     const elapsed = (performance.now() - playStartTime.current) / 1000;
     let currentSec = playheadAnchor.current + elapsed;
@@ -565,7 +545,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     setStatusMsg("Track removed.");
   };
 
-  // Drag and drop between compatible tracks
   const handleClipDropBetweenTracks = (e: React.DragEvent, targetTrack: ExtendedTrackData) => {
     e.preventDefault();
     const sourceTrackId = Number(e.dataTransfer.getData("sourceTrackId"));
@@ -608,7 +587,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     setStatusMsg(`Moved clip to ${targetTrack.name}`);
   };
 
-  // Save / Open .artistpilot session to user's device
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSaveSession = async () => {
@@ -917,4 +895,339 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
                       setIsMasterMode(false);
                     }}
                     className={`h-20 p-2 flex flex-col justify-between transition ${
-                      selectedTrackId === track.id && !isMaste
+                      selectedTrackId === track.id && !isMasterMode ? "bg-[#33363f]" : "bg-[#282a30] hover:bg-[#2d3038]"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-6 w-6 rounded bg-[#3572b0] flex items-center justify-center text-xs text-white">
+                          🎙️
+                        </div>
+                        <input
+                          value={track.name}
+                          onChange={(e) => setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, name: e.target.value } : t))}
+                          className="w-24 bg-transparent text-xs font-bold text-white focus:outline-none rounded px-1"
+                        />
+                      </div>
+                      
+                      <div className="flex items-center gap-1">
+                        <span className="text-[8px] uppercase font-mono text-zinc-500">{track.trackType}</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteTrack(track.id);
+                          }}
+                          className="h-5 w-5 rounded hover:bg-red-500 text-zinc-400 hover:text-white flex items-center justify-center font-bold text-xs"
+                          title="Delete Track"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px] pt-1">
+                      <div className="flex items-center gap-1">
+                        {track.category === "audio" && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, armed: !t.armed } : t));
+                            }}
+                            className={`h-4.5 w-4.5 rounded-full flex items-center justify-center font-bold text-[8px] ${
+                              track.armed ? "bg-red-500 text-white animate-pulse" : "bg-[#3a3d46] text-red-400"
+                            }`}
+                          >
+                            ●
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, mute: !t.mute } : t));
+                          }}
+                          className={`h-4.5 px-1.5 rounded text-[9px] font-bold ${track.mute ? "bg-blue-500 text-white" : "bg-[#3a3d46] text-zinc-400"}`}
+                        >
+                          M
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, solo: !t.solo } : t));
+                          }}
+                          className={`h-4.5 px-1.5 rounded text-[9px] font-bold ${track.solo ? "bg-amber-500 text-black" : "bg-[#3a3d46] text-zinc-400"}`}
+                        >
+                          S
+                        </button>
+                      </div>
+
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={track.volume}
+                        onChange={(e) => setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, volume: Number(e.target.value) } : t))}
+                        className="w-16 accent-[#3572b0] h-1 bg-[#1a1b20] rounded cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Scrollable Arranger Grid */}
+            <div
+              ref={timelineContainerRef}
+              className="flex-1 overflow-x-auto overflow-y-hidden flex flex-col bg-[#14151a] relative select-none"
+            >
+              {/* Ruler */}
+              <div
+                onMouseDown={(e) => {
+                  setIsScrubbing(true);
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const scrollLeft = timelineContainerRef.current?.scrollLeft || 0;
+                  const newSec = Math.max(0, (e.clientX - rect.left + scrollLeft) / pixelsPerSecond);
+                  setPlayheadSec(newSec);
+                  playheadAnchor.current = newSec;
+                }}
+                style={{ width: "3200px" }}
+                className="h-7 border-b border-[#1b1c22] bg-[#1a1c22] relative cursor-ew-resize flex-none"
+              >
+                {Array.from({ length: 64 }, (_, i) => (
+                  <div
+                    key={i}
+                    style={{ left: `${(i * 4 * 60 * pixelsPerSecond) / bpm}px` }}
+                    className="absolute flex items-center gap-2 text-zinc-500 top-1 text-[9px] font-mono pointer-events-none"
+                  >
+                    <span className="font-semibold text-zinc-400">{i + 1}</span>
+                    <div className="h-3 w-[1px] bg-zinc-700" />
+                  </div>
+                ))}
+              </div>
+
+              {/* Arranger Track Lanes */}
+              <div style={{ width: "3200px" }} className="flex-1 relative divide-y divide-[#1e2028]">
+                
+                {/* INTERACTIVE DRAGGABLE PLAYHEAD LINE */}
+                <div
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    setIsScrubbing(true);
+                  }}
+                  style={{ left: `${playheadSec * pixelsPerSecond}px` }}
+                  className="absolute top-0 bottom-0 w-[2px] bg-[#d4af37] z-40 cursor-ew-resize shadow-[0_0_8px_#d4af37]"
+                >
+                  <div className="h-4 w-4 -ml-[7px] bg-[#d4af37] rotate-45 shadow-lg cursor-grab active:cursor-grabbing" />
+                </div>
+
+                {tracks.map((track) => (
+                  <div
+                    key={track.id}
+                    onClick={() => setSelectedTrackId(track.id)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => handleClipDropBetweenTracks(e, track)}
+                    className={`h-20 relative flex items-center transition ${
+                      selectedTrackId === track.id ? "bg-[#1d1f27]" : "bg-[#14151a]"
+                    }`}
+                  >
+                    {isRecording && track.armed && track.category === "audio" && (
+                      <div
+                        style={{
+                          left: `${recStartTime.current * pixelsPerSecond}px`,
+                          width: `${Math.max(20, (playheadSec - recStartTime.current) * pixelsPerSecond)}px`,
+                        }}
+                        className="absolute top-1 bottom-1 bg-[#3572b0]/80 border border-sky-400 rounded z-30 overflow-hidden"
+                      >
+                        <canvas ref={liveCanvasRef} width={400} height={70} className="h-full w-full opacity-90" />
+                      </div>
+                    )}
+
+                    {track.regions.map((region) => (
+                      <ClipRegion
+                        key={region.id}
+                        // @ts-ignore
+                        region={region as any}
+                        pixelsPerSecond={pixelsPerSecond}
+                        trackColor={track.color}
+                        trackId={track.id}
+                        onCopy={(reg) => {
+                          setCopiedClip(reg);
+                          setStatusMsg(`Copied "${reg.name}" (Cmd+C)`);
+                        }}
+                        onUpdate={(patch) =>
+                          setTracks((prev) =>
+                            prev.map((t) =>
+                              t.id === track.id
+                                ? { ...t, regions: t.regions.map((r) => r.id === region.id ? { ...r, ...patch } : r) }
+                                : t
+                            )
+                          )
+                        }
+                        onSplit={() => splitClipAtPlayhead()}
+                        onDelete={() =>
+                          setTracks((prev) =>
+                            prev.map((t) =>
+                              t.id === track.id ? { ...t, regions: t.regions.filter((r) => r.id !== region.id) } : t
+                            )
+                          )
+                        }
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+
+            </div>
+          </div>
+
+          {/* 3. BOTTOM DOCK: TRACK CONTROLS & DYNAMICS CONSOLE */}
+          {smartControlsOpen && (
+            <TrackControlsPanel
+              trackName={selectedTrack?.name ?? "Track"}
+              isMasterMode={isMasterMode}
+              onToggleMasterMode={(isMaster) => setIsMasterMode(isMaster)}
+              devices={devices}
+              activeDeviceId={selectedTrack?.inputDevice || activeInputId}
+              onSelectDevice={(devId) => {
+                setTracks((ts) => ts.map((t) => t.id === selectedTrackId ? { ...t, inputDevice: devId } : t));
+                setActiveInputId(devId);
+              }}
+              isMonitoring={selectedTrack?.monitoring ?? monitoringEnabled}
+              onToggleMonitoring={() => {
+                const next = !selectedTrack?.monitoring;
+                setTracks((ts) => ts.map((t) => t.id === selectedTrackId ? { ...t, monitoring: next } : t));
+                deviceManager.current.setMonitoring(engine.current.init(), next);
+                setMonitoringEnabled(next);
+              }}
+              currentSettings={isMasterMode ? masterSettings : selectedTrack?.settings ?? DEFAULT_TRACK_SETTINGS}
+              onUpdateSettings={(updated) => {
+                if (isMasterMode) {
+                  setMasterSettings(updated);
+                } else {
+                  setTracks((ts) => ts.map((t) => t.id === selectedTrackId ? { ...t, settings: updated } : t));
+                }
+              }}
+              onOpenAdvancedEq={() => toggleModal("eq")}
+              onClosePanel={() => setSmartControlsOpen(false)}
+            />
+          )}
+
+        </div>
+      </div>
+
+      {/* 4. MODALS & POP-UPS */}
+      <AudioSettingsModal
+        isOpen={audioSettingsOpen}
+        onClose={() => setAudioSettingsOpen(false)}
+        ctx={engine.current.ctx}
+        activeInputDeviceName={activeInputLabel}
+        onSelectInputDevice={(devId, label) => {
+          setActiveInputId(devId);
+          setActiveInputLabel(label);
+        }}
+        onSelectOutputDevice={(devId) => deviceManager.current.setOutputDevice(engine.current.init(), devId)}
+        isMonitoring={monitoringEnabled}
+        onToggleMonitoring={(en) => {
+          setMonitoringEnabled(en);
+          deviceManager.current.setMonitoring(engine.current.init(), en);
+        }}
+      />
+
+      <ChannelEqModal
+        isOpen={windowState.eq.open}
+        onClose={() => toggleModal("eq")}
+        trackName={selectedTrack?.name ?? "Track"}
+      />
+
+      <GuitarAmpModal
+        isOpen={windowState.amp.open}
+        onClose={() => toggleModal("amp")}
+        trackName={selectedTrack?.name ?? "Guitar Track"}
+      />
+
+      <AiCoachModal
+        isOpen={windowState.ai.open}
+        onClose={() => toggleModal("ai")}
+        currentKey={projectKey}
+        bpm={bpm}
+      />
+
+      {/* Draggable Piano Roll */}
+      {windowState.piano.open && (
+        <div
+          style={{ left: `${windowState.piano.x}px`, top: `${windowState.piano.y}px` }}
+          className="fixed z-50 w-[660px] h-[360px] rounded-xl border-2 border-[#1c1d22] bg-[#14151b] shadow-2xl flex flex-col overflow-hidden"
+        >
+          <div
+            onMouseDown={(e) => startDragWindow("piano", e)}
+            className="flex h-9 items-center justify-between border-b border-zinc-800 bg-[#282a32] px-4 cursor-grab active:cursor-grabbing"
+          >
+            <span className="text-xs font-bold text-white">🎹 Piano Roll Editor</span>
+            <button onClick={() => toggleModal("piano")} className="text-zinc-400 hover:text-white text-xs">✕</button>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <PianoRoll
+              notes={[]}
+              instrumentName={selectedTrack?.instrument ?? "Grand Piano"}
+              onPreviewNote={() => {}}
+              onAddNote={() => {}}
+              onDeleteNote={() => {}}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Draggable New Track Modal */}
+      {windowState.trackModal.open && (
+        <div
+          style={{ left: `${windowState.trackModal.x}px`, top: `${windowState.trackModal.y}px` }}
+          className="fixed z-50 w-96 rounded-xl border border-zinc-700 bg-[#22242a] p-4 shadow-2xl"
+        >
+          <div
+            onMouseDown={(e) => startDragWindow("trackModal", e)}
+            className="flex items-center justify-between pb-2 border-b border-zinc-800 cursor-grab active:cursor-grabbing mb-3"
+          >
+            <span className="text-xs font-bold text-white">Add New Track</span>
+            <button onClick={() => toggleModal("trackModal")} className="text-zinc-400 hover:text-white text-xs">✕</button>
+          </div>
+          <div className="space-y-1.5">
+            {INSTRUMENT_LIBRARY.map((item) => (
+              <button
+                key={item.name}
+                onClick={() => {
+                  const id = Date.now();
+                  setTracks((prev) => [
+                    ...prev,
+                    {
+                      id,
+                      name: `${item.name.split(" ")[0]} ${prev.length + 1}`,
+                      category: item.category,
+                      trackType: item.trackType,
+                      instrument: item.name,
+                      color: item.color,
+                      volume: 0.8,
+                      pan: 0,
+                      mute: false,
+                      solo: false,
+                      armed: false,
+                      monitoring: false,
+                      settings: { ...DEFAULT_TRACK_SETTINGS },
+                      regions: [],
+                    },
+                  ]);
+                  setSelectedTrackId(id);
+                  toggleModal("trackModal");
+                }}
+                className="w-full text-left p-2 rounded bg-[#18191f] hover:bg-[#2c2e37] border border-zinc-800 flex items-center gap-2.5 text-xs text-white"
+              >
+                <span>{item.icon}</span>
+                <span className="font-semibold">{item.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
