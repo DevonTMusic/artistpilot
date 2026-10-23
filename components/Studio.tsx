@@ -408,10 +408,11 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               </div>
 
               <div className="flex-1 relative overflow-hidden">
-                {track.regions.map((region) => (
-                  <ClipRegion
-                    key={region.id}
-                    region={region}
+               {track.regions.map((region) => (
+  // @ts-ignore
+  <ClipRegion
+    key={region.id}
+    region={region}
                     pixelsPerSecond={pixelsPerSecond}
                     trackColor={track.color}
                     onUpdate={(patch) =>
