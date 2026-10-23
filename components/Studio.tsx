@@ -5,6 +5,7 @@ import { AudioEngine } from "@/lib/AudioEngine";
 import { TrackData, AudioRegion } from "@/lib/AudioEngine";
 import { ClipRegion } from "@/components/daw/ClipRegion";
 import { PianoRoll, MidiNote } from "@/components/daw/PianoRoll";
+import { GuitarAmpModal } from "@/components/daw/GuitarAmpModal";
 
 const INSTRUMENT_PRESETS = [
   { name: "Vocals / Mic", category: "audio" as const, color: "bg-[#2563eb]", icon: "🎙️", desc: "Vocals, guitars, or live hardware" },
@@ -57,9 +58,10 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const [statusMsg, setStatusMsg] = useState("");
   const [midiConnected, setMidiConnected] = useState(false);
   
-  // POP-UP WINDOW STATE
-  const [instrumentWindowOpen, setInstrumentWindowOpen] = useState(true);
+  // POP-UP WINDOW STATES
+  const [instrumentWindowOpen, setInstrumentWindowOpen] = useState(false);
   const [instrumentTab, setInstrumentTab] = useState<"pianoroll" | "keyboard">("keyboard");
+  const [ampModalOpen, setAmpModalOpen] = useState(false);
 
   const [trackNotes, setTrackNotes] = useState<Record<number, MidiNote[]>>({
     2: [
@@ -245,7 +247,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       
       {/* 1. TOP TRANSPORT BAR */}
       <div className="flex h-14 flex-none items-center justify-between border-b border-[#2a2c33] bg-[#22242a] px-4 shadow-md z-10">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setTrackModalOpen(true)}
             className="flex h-8 items-center gap-1.5 rounded bg-[#3572b0] px-3 text-xs font-bold text-white shadow hover:bg-[#4182c4]"
@@ -253,7 +255,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             <span>+</span> Track
           </button>
 
-          {/* Pop-up Toggle Button */}
+          {/* Pop-up Toggle: Piano & Keys */}
           <button
             onClick={() => setInstrumentWindowOpen(!instrumentWindowOpen)}
             className={`flex h-8 items-center gap-1.5 rounded border px-3 text-xs font-bold transition shadow ${
@@ -262,12 +264,20 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                 : "border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
             }`}
           >
-            <span>🎹</span> {instrumentWindowOpen ? "Hide Instrument Window" : "Open Instrument / Piano Roll"}
+            <span>🎹</span> {instrumentWindowOpen ? "Hide Keys" : "Keys & Piano Roll"}
+          </button>
+
+          {/* Pop-up Toggle: Amp & Pedals */}
+          <button
+            onClick={() => setAmpModalOpen(true)}
+            className="flex h-8 items-center gap-1.5 rounded border border-amber-600/60 bg-amber-950/40 px-3 text-xs font-bold text-amber-300 hover:bg-amber-900/50 shadow"
+          >
+            <span>🎸</span> Amp & Pedals
           </button>
           
           <div className="flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-900/60 px-2.5 py-1 text-[11px]">
             <span className={`h-2 w-2 rounded-full ${midiConnected ? "bg-emerald-400 shadow-sm shadow-emerald-400" : "bg-zinc-600"}`} />
-            <span className="text-zinc-400 font-medium">{midiConnected ? "Hardware MIDI Active" : "MIDI In Ready"}</span>
+            <span className="text-zinc-400 font-medium">{midiConnected ? "MIDI Active" : "MIDI Ready"}</span>
           </div>
         </div>
 
@@ -350,7 +360,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         </div>
       </div>
 
-      {/* 3. MULTI-TRACK ARRANGER (Takes up all main space comfortably) */}
+      {/* 3. MULTI-TRACK ARRANGER */}
       <div className="flex-1 overflow-y-auto divide-y divide-[#22242a] bg-[#131417] relative">
         <div
           style={{ left: `${256 + playheadSec * pixelsPerSecond}px` }}
@@ -453,10 +463,9 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         })}
       </div>
 
-      {/* 4. GARAGEBAND-STYLE FLOATING POP-UP WINDOW (PIANO ROLL & KEYS) */}
+      {/* 4. FLOATING POP-UP: PIANO ROLL & KEYS */}
       {instrumentWindowOpen && (
         <div className="absolute bottom-6 right-8 z-40 w-[640px] h-[340px] rounded-xl border border-zinc-700 bg-[#1e2027] shadow-2xl flex flex-col overflow-hidden">
-          {/* Pop-up Window Title Bar */}
           <div className="flex h-9 items-center justify-between border-b border-zinc-800 bg-[#2b2d36] px-3 select-none">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-white flex items-center gap-1.5">
@@ -486,7 +495,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             </button>
           </div>
 
-          {/* Window Body: Piano Roll Tab */}
           {instrumentTab === "pianoroll" && (
             <div className="flex-1 overflow-hidden">
               <PianoRoll
@@ -509,31 +517,19 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             </div>
           )}
 
-          {/* Window Body: Playable Keys Tab */}
           {instrumentTab === "keyboard" && (
             <div className="flex-1 bg-[#121316] p-4 flex flex-col items-center justify-center select-none">
               <p className="text-[11px] text-zinc-400 mb-3">
                 Click any key to play notes into <span className="text-sky-400 font-bold">{selectedTrack?.name}</span>:
               </p>
               
-              {/* Playable Keyboard that fits completely in the window */}
               <div className="relative flex h-44 select-none bg-black p-1 rounded-b border border-zinc-800 shadow-2xl">
                 {[
-                  { n: "C3", p: 48, b: false },
-                  { n: "D3", p: 50, b: false },
-                  { n: "E3", p: 52, b: false },
-                  { n: "F3", p: 53, b: false },
-                  { n: "G3", p: 55, b: false },
-                  { n: "A3", p: 57, b: false },
-                  { n: "B3", p: 59, b: false },
-                  { n: "C4", p: 60, b: false },
-                  { n: "D4", p: 62, b: false },
-                  { n: "E4", p: 64, b: false },
-                  { n: "F4", p: 65, b: false },
-                  { n: "G4", p: 67, b: false },
-                  { n: "A4", p: 69, b: false },
-                  { n: "B4", p: 71, b: false },
-                  { n: "C5", p: 72, b: false },
+                  { n: "C3", p: 48 }, { n: "D3", p: 50 }, { n: "E3", p: 52 },
+                  { n: "F3", p: 53 }, { n: "G3", p: 55 }, { n: "A3", p: 57 },
+                  { n: "B3", p: 59 }, { n: "C4", p: 60 }, { n: "D4", p: 62 },
+                  { n: "E4", p: 64 }, { n: "F4", p: 65 }, { n: "G4", p: 67 },
+                  { n: "A4", p: 69 }, { n: "B4", p: 71 }, { n: "C5", p: 72 },
                 ].map((k) => (
                   <button
                     key={k.p}
@@ -549,7 +545,14 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         </div>
       )}
 
-      {/* 5. NEW TRACK MODAL */}
+      {/* 5. GUITAR AMP & PEDALBOARD MODAL */}
+      <GuitarAmpModal
+        isOpen={ampModalOpen}
+        onClose={() => setAmpModalOpen(false)}
+        trackName={selectedTrack?.name ?? "Guitar Track"}
+      />
+
+      {/* 6. NEW TRACK MODAL */}
       {trackModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
           <div className="w-full max-w-xl rounded-xl border border-zinc-700 bg-[#22242a] p-6 shadow-2xl">
@@ -578,7 +581,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                     ]);
                     setSelectedTrackId(id);
                     setTrackModalOpen(false);
-                    setInstrumentWindowOpen(true);
                   }}
                   className="flex items-center gap-3 rounded-lg border border-zinc-700 bg-[#17181c] p-3 text-left hover:border-[#3572b0]"
                 >
