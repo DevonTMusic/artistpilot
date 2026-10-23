@@ -5,14 +5,12 @@ export type PianoPresetType =
   | "Studio Upright"
   | "Felt Piano"
   | "Classic Tine EP"
-  | "Stage Electric Piano"
   | "FM Digital Piano"
   | "Ambient Cinematic Piano";
 
 export interface PianoVoice {
-  osc1: OscillatorNode;
-  osc2: OscillatorNode;
-  filter: BiquadFilterNode;
+  oscillators: OscillatorNode[];
+  filters: BiquadFilterNode[];
   gain: GainNode;
   startTime: number;
 }
@@ -32,109 +30,134 @@ export class PianoEngine {
     return PianoEngine.instance;
   }
 
-  // Trigger Note-On with Velocity & Preset Sound Design
+  // Realistic Acoustic Multi-Harmonic Synthesis
   public noteOn(
     ctx: AudioContext,
     pitch: number,
-    velocity: number = 100, // 1 to 127
+    velocity: number = 105,
     preset: PianoPresetType = "Concert Grand",
     destNode?: AudioNode
   ) {
-    // If voice already active, kill it cleanly first
     this.noteOff(ctx, pitch, true);
 
     const freq = 440 * Math.pow(2, (pitch - 69) / 12);
     const destination = destNode || ctx.destination;
     const t = ctx.currentTime;
-    const velFactor = Math.max(0.1, velocity / 127);
+    const vel = Math.max(0.15, Math.min(1.0, velocity / 127));
 
-    const gain = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
-    const osc1 = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
+    const masterGain = ctx.createGain();
+    const oscs: OscillatorNode[] = [];
+    const filters: BiquadFilterNode[] = [];
 
     if (preset === "Concert Grand") {
-      // Harmonic triangle + warm sine with percussive attack
-      osc1.type = "triangle";
-      osc2.type = "sine";
-      osc1.frequency.setValueAtTime(freq, t);
-      osc2.frequency.setValueAtTime(freq * 2, t);
+      // 1. Hammer Strike Transient (Noise burst simulation)
+      const hammerOsc = ctx.createOscillator();
+      const hammerGain = ctx.createGain();
+      hammerOsc.type = "sine";
+      hammerOsc.frequency.setValueAtTime(freq * 6, t);
+      hammerGain.gain.setValueAtTime(0.3 * vel, t);
+      hammerGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
+      hammerOsc.connect(hammerGain);
+      hammerGain.connect(masterGain);
+      hammerOsc.start(t);
+      hammerOsc.stop(t + 0.05);
 
+      // 2. Fundamental String
+      const fund = ctx.createOscillator();
+      fund.type = "triangle";
+      fund.frequency.setValueAtTime(freq, t);
+
+      // 3. Detuned Coupled String Resonance (Slightly sharp for acoustic chorus)
+      const coupled = ctx.createOscillator();
+      coupled.type = "sine";
+      coupled.frequency.setValueAtTime(freq * 1.0015, t);
+
+      // 4. Harmonic Overtone
+      const overtone = ctx.createOscillator();
+      overtone.type = "triangle";
+      overtone.frequency.setValueAtTime(freq * 2, t);
+
+      // Acoustic Soundboard Low-Pass Filter
+      const soundboard = ctx.createBiquadFilter();
+      soundboard.type = "lowpass";
+      soundboard.frequency.setValueAtTime(1400 + vel * 5500, t);
+      soundboard.frequency.exponentialRampToValueAtTime(650, t + 1.8);
+
+      fund.connect(soundboard);
+      coupled.connect(soundboard);
+      overtone.connect(soundboard);
+      soundboard.connect(masterGain);
+
+      // Dynamic Acoustic Piano Envelope
+      masterGain.gain.setValueAtTime(0.0001, t);
+      masterGain.gain.linearRampToValueAtTime(0.6 * vel, t + 0.006);
+      masterGain.gain.exponentialRampToValueAtTime(0.25 * vel, t + 0.4);
+      masterGain.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
+
+      fund.start(t);
+      coupled.start(t);
+      overtone.start(t);
+
+      oscs.push(fund, coupled, overtone);
+      filters.push(soundboard);
+    } else if (preset === "Studio Upright" || preset === "Felt Piano") {
+      // Muted felt hammer with warm body
+      const fund = ctx.createOscillator();
+      fund.type = "sine";
+      fund.frequency.setValueAtTime(freq, t);
+
+      const felt = ctx.createOscillator();
+      felt.type = "triangle";
+      felt.frequency.setValueAtTime(freq * 1.002, t);
+
+      const filter = ctx.createBiquadFilter();
       filter.type = "lowpass";
-      filter.frequency.setValueAtTime(1200 + velFactor * 4000, t);
-      filter.frequency.exponentialRampToValueAtTime(800, t + 1.2);
+      filter.frequency.setValueAtTime(700 + vel * 1400, t);
 
-      gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.linearRampToValueAtTime(0.5 * velFactor, t + 0.008);
-      gain.gain.exponentialRampToValueAtTime(0.18 * velFactor, t + 0.5);
-    } else if (preset === "Felt Piano" || preset === "Studio Upright") {
-      // Muted felt hammer with quick low-pass roll off
-      osc1.type = "sine";
-      osc2.type = "triangle";
-      osc1.frequency.setValueAtTime(freq, t);
-      osc2.frequency.setValueAtTime(freq * 1.002, t);
+      fund.connect(filter);
+      felt.connect(filter);
+      filter.connect(masterGain);
 
-      filter.type = "lowpass";
-      filter.frequency.setValueAtTime(800 + velFactor * 1200, t);
+      masterGain.gain.setValueAtTime(0.0001, t);
+      masterGain.gain.linearRampToValueAtTime(0.55 * vel, t + 0.012);
+      masterGain.gain.exponentialRampToValueAtTime(0.0001, t + 2.4);
 
-      gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.linearRampToValueAtTime(0.45 * velFactor, t + 0.012);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 2.0);
-    } else if (preset === "Classic Tine EP" || preset === "Stage Electric Piano") {
-      // Bell-like Rhodes electric piano tine
-      osc1.type = "sine";
-      osc2.type = "sine";
-      osc1.frequency.setValueAtTime(freq, t);
-      osc2.frequency.setValueAtTime(freq * 4.02, t); // Metallic bell harmonic
-
-      filter.type = "peaking";
-      filter.frequency.setValueAtTime(2400, t);
-      filter.gain.setValueAtTime(6 * velFactor, t);
-
-      gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.linearRampToValueAtTime(0.4 * velFactor, t + 0.005);
-      gain.gain.exponentialRampToValueAtTime(0.12 * velFactor, t + 0.8);
-    } else if (preset === "FM Digital Piano") {
-      // Crisp 80s FM Digital bells
-      osc1.type = "sawtooth";
-      osc2.type = "sine";
-      osc1.frequency.setValueAtTime(freq, t);
-      osc2.frequency.setValueAtTime(freq * 3, t);
-
-      filter.type = "bandpass";
-      filter.frequency.setValueAtTime(3000, t);
-      filter.Q.value = 1.2;
-
-      gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.linearRampToValueAtTime(0.35 * velFactor, t + 0.004);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 1.8);
+      fund.start(t);
+      felt.start(t);
+      oscs.push(fund, felt);
+      filters.push(filter);
     } else {
-      // Ambient Cinematic Piano with long decay
-      osc1.type = "triangle";
-      osc2.type = "sine";
-      osc1.frequency.setValueAtTime(freq, t);
-      osc2.frequency.setValueAtTime(freq * 1.005, t);
+      // Vintage Electric Piano / Tine
+      const tine = ctx.createOscillator();
+      const body = ctx.createOscillator();
+      tine.type = "sine";
+      body.type = "sine";
+      tine.frequency.setValueAtTime(freq * 4, t);
+      body.frequency.setValueAtTime(freq, t);
 
-      filter.type = "lowpass";
-      filter.frequency.setValueAtTime(2200, t);
+      const tineFilter = ctx.createBiquadFilter();
+      tineFilter.type = "peaking";
+      tineFilter.frequency.value = 2400;
+      tineFilter.gain.value = 6 * vel;
 
-      gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.linearRampToValueAtTime(0.35 * velFactor, t + 0.04);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 4.5);
+      tine.connect(tineFilter);
+      body.connect(tineFilter);
+      tineFilter.connect(masterGain);
+
+      masterGain.gain.setValueAtTime(0.0001, t);
+      masterGain.gain.linearRampToValueAtTime(0.45 * vel, t + 0.005);
+      masterGain.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
+
+      tine.start(t);
+      body.start(t);
+      oscs.push(tine, body);
+      filters.push(tineFilter);
     }
 
-    osc1.connect(filter);
-    osc2.connect(filter);
-    filter.connect(gain);
-    gain.connect(destination);
-
-    osc1.start(t);
-    osc2.start(t);
-
-    this.activeVoices.set(pitch, { osc1, osc2, filter, gain, startTime: t });
+    masterGain.connect(destination);
+    this.activeVoices.set(pitch, { oscillators: oscs, filters, gain: masterGain, startTime: t });
   }
 
-  // Trigger Note-Off (Handles Sustain Pedal state)
   public noteOff(ctx: AudioContext, pitch: number, immediate: boolean = false) {
     if (this.sustainPedalDown && !immediate) {
       this.sustainedNotes.add(pitch);
@@ -145,7 +168,7 @@ export class PianoEngine {
     if (!voice) return;
 
     const t = ctx.currentTime;
-    const releaseTime = immediate ? 0.01 : 0.18;
+    const releaseTime = immediate ? 0.01 : 0.22;
 
     try {
       voice.gain.gain.cancelScheduledValues(t);
@@ -154,35 +177,26 @@ export class PianoEngine {
 
       setTimeout(() => {
         try {
-          voice.osc1.stop();
-          voice.osc2.stop();
-          voice.osc1.disconnect();
-          voice.osc2.disconnect();
+          voice.oscillators.forEach((o) => { o.stop(); o.disconnect(); });
           voice.gain.disconnect();
         } catch {}
-      }, releaseTime * 1000 + 50);
+      }, releaseTime * 1000 + 40);
     } catch {}
 
     this.activeVoices.delete(pitch);
     this.sustainedNotes.delete(pitch);
   }
 
-  // Sustain Pedal Action
   public setSustainPedal(ctx: AudioContext, isDown: boolean) {
     this.sustainPedalDown = isDown;
     if (!isDown) {
-      // Release all sustained notes that were held by pedal
-      this.sustainedNotes.forEach((pitch) => {
-        this.noteOff(ctx, pitch);
-      });
+      this.sustainedNotes.forEach((p) => this.noteOff(ctx, p));
       this.sustainedNotes.clear();
     }
   }
 
   public releaseAllNotes(ctx: AudioContext) {
-    this.activeVoices.forEach((_, pitch) => {
-      this.noteOff(ctx, pitch, true);
-    });
+    this.activeVoices.forEach((_, p) => this.noteOff(ctx, p, true));
     this.activeVoices.clear();
     this.sustainedNotes.clear();
   }
