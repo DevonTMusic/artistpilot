@@ -1,6 +1,6 @@
 // components/Studio.tsx
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { AudioEngine } from "@/lib/AudioEngine";
 import { TrackData, AudioRegion } from "@/lib/AudioEngine";
 import { ClipRegion } from "@/components/daw/ClipRegion";
@@ -96,6 +96,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
   const [loopStartSec, setLoopStartSec] = useState(0);
   const [loopEndSec, setLoopEndSec] = useState(8);
   const [countInActive, setCountInActive] = useState(true);
+  const [metronomeActive, setMetronomeActive] = useState(false);
 
   // Hardware Interface Selection
   const [activeInputLabel, setActiveInputLabel] = useState<string>("System Default");
@@ -222,54 +223,8 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     };
   }, [isScrubbing, pixelsPerSecond]);
 
-  // Copy / Paste / Split keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "c") {
-        const currTrack = tracks.find((t) => t.id === selectedTrackId);
-        const clip = currTrack?.regions.find(
-          (r) => playheadSec >= r.startTime && playheadSec <= r.startTime + r.duration
-        );
-        if (clip) {
-          setCopiedClip(clip);
-          setStatusMsg(`Copied "${clip.name}"`);
-        }
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === "v") {
-        if (copiedClip) pasteClipAtPlayhead();
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === "t") {
-        splitClipAtPlayhead();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedTrackId, playheadSec, copiedClip, tracks]);
-
-  const pasteClipAtPlayhead = () => {
-    if (!copiedClip) return;
-    const targetTrack = tracks.find((t) => t.id === selectedTrackId);
-    if (!targetTrack) return;
-
-    if (targetTrack.category === "midi") {
-      setStatusMsg("Cannot paste audio clips onto MIDI / Piano tracks!");
-      return;
-    }
-
-    const newRegion: AudioRegion = {
-      ...copiedClip,
-      id: `clip-${Date.now()}`,
-      name: `${copiedClip.name} (Copy)`,
-      startTime: playheadSec,
-    };
-
-    setTracks((prev) =>
-      prev.map((t) => (t.id === selectedTrackId ? { ...t, regions: [...t.regions, newRegion] } : t))
-    );
-    setStatusMsg(`Pasted clip at ${playheadSec.toFixed(2)}s`);
-  };
-
-  const splitClipAtPlayhead = () => {
+  // Split Clip Function
+  const splitClipAtPlayhead = useCallback(() => {
     const track = tracks.find((t) => t.id === selectedTrackId);
     if (!track) return;
 
@@ -299,9 +254,167 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
       )
     );
     setStatusMsg(`Split clip at ${playheadSec.toFixed(2)}s`);
-  };
+  }, [tracks, selectedTrackId, playheadSec]);
 
-  // Clock
+  // Paste Clip Function
+  const pasteClipAtPlayhead = useCallback(() => {
+    if (!copiedClip) return;
+    const targetTrack = tracks.find((t) => t.id === selectedTrackId);
+    if (!targetTrack) return;
+
+    if (targetTrack.category === "midi") {
+      setStatusMsg("Cannot paste audio clips onto MIDI / Piano tracks!");
+      return;
+    }
+
+    const newRegion: AudioRegion = {
+      ...copiedClip,
+      id: `clip-${Date.now()}`,
+      name: `${copiedClip.name} (Copy)`,
+      startTime: playheadSec,
+    };
+
+    setTracks((prev) =>
+      prev.map((t) => (t.id === selectedTrackId ? { ...t, regions: [...t.regions, newRegion] } : t))
+    );
+    setStatusMsg(`Pasted clip at ${playheadSec.toFixed(2)}s`);
+  }, [copiedClip, tracks, selectedTrackId, playheadSec]);
+
+  // Delete Clip Function
+  const deleteClipUnderPlayhead = useCallback(() => {
+    const track = tracks.find((t) => t.id === selectedTrackId);
+    if (!track) return;
+
+    const clip = track.regions.find(
+      (r) => playheadSec >= r.startTime && playheadSec <= r.startTime + r.duration
+    );
+    if (!clip) return;
+
+    setTracks((prev) =>
+      prev.map((t) =>
+        t.id === selectedTrackId
+          ? { ...t, regions: t.regions.filter((r) => r.id !== clip.id) }
+          : t
+      )
+    );
+    setStatusMsg(`Deleted "${clip.name}"`);
+  }, [tracks, selectedTrackId, playheadSec]);
+
+  // Full Professional Keybinds Engine
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts if user is typing in a text field
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "SELECT")) {
+        return;
+      }
+
+      // Spacebar: Play / Stop
+      if (e.code === "Space") {
+        e.preventDefault();
+        if (isPlaying) handleStop();
+        else handlePlay();
+        return;
+      }
+
+      // Enter / Return: Rewind to beginning (001.1)
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleStop();
+        setPlayheadSec(0);
+        playheadAnchor.current = 0;
+        return;
+      }
+
+      // R: Record
+      if (e.key === "r" || e.key === "R") {
+        if (!e.metaKey && !e.ctrlKey) {
+          e.preventDefault();
+          handleRecord();
+          return;
+        }
+      }
+
+      // C: Toggle Loop / Cycle
+      if (e.key === "c" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setIsLooping((prev) => !prev);
+        return;
+      }
+
+      // K: Toggle Metronome
+      if (e.key === "k" || e.key === "K") {
+        e.preventDefault();
+        setMetronomeActive((prev) => !prev);
+        return;
+      }
+
+      // M: Mute selected track
+      if (e.key === "m" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setTracks((ts) =>
+          ts.map((t) => (t.id === selectedTrackId ? { ...t, mute: !t.mute } : t))
+        );
+        return;
+      }
+
+      // S: Solo selected track
+      if (e.key === "s" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setTracks((ts) =>
+          ts.map((t) => (t.id === selectedTrackId ? { ...t, solo: !t.solo } : t))
+        );
+        return;
+      }
+
+      // Delete / Backspace: Delete selected clip
+      if (e.key === "Backspace" || e.key === "Delete") {
+        e.preventDefault();
+        deleteClipUnderPlayhead();
+        return;
+      }
+
+      // Cmd+C / Ctrl+C: Copy Clip
+      if ((e.metaKey || e.ctrlKey) && (e.key === "c" || e.key === "C")) {
+        const currTrack = tracks.find((t) => t.id === selectedTrackId);
+        const clip = currTrack?.regions.find(
+          (r) => playheadSec >= r.startTime && playheadSec <= r.startTime + r.duration
+        );
+        if (clip) {
+          setCopiedClip(clip);
+          setStatusMsg(`Copied "${clip.name}"`);
+        }
+        return;
+      }
+
+      // Cmd+V / Ctrl+V: Paste Clip
+      if ((e.metaKey || e.ctrlKey) && (e.key === "v" || e.key === "V")) {
+        pasteClipAtPlayhead();
+        return;
+      }
+
+      // Cmd+T / Ctrl+T: Split Clip
+      if ((e.metaKey || e.ctrlKey) && (e.key === "t" || e.key === "T")) {
+        e.preventDefault();
+        splitClipAtPlayhead();
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    isPlaying,
+    selectedTrackId,
+    playheadSec,
+    copiedClip,
+    tracks,
+    splitClipAtPlayhead,
+    pasteClipAtPlayhead,
+    deleteClipUnderPlayhead,
+  ]);
+
+  // Master Clock
   const updatePlaybackPosition = () => {
     const elapsed = (performance.now() - playStartTime.current) / 1000;
     let currentSec = playheadAnchor.current + elapsed;
@@ -462,7 +575,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     setStatusMsg("Track removed.");
   };
 
-  // Drag and Drop Audio Clip Between Compatible Tracks
+  // Drag and drop between compatible tracks
   const handleClipDropBetweenTracks = (e: React.DragEvent, targetTrack: ExtendedTrackData) => {
     e.preventDefault();
     const sourceTrackId = Number(e.dataTransfer.getData("sourceTrackId"));
@@ -549,18 +662,21 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
             <button
               onClick={() => { handleStop(); setPlayheadSec(0); }}
               className="h-7 w-7 rounded flex items-center justify-center hover:text-white hover:bg-zinc-700/60"
+              title="Rewind (Enter)"
             >
               ◀◀
             </button>
             <button
               onClick={() => setPlayheadSec(playheadSec + (60 / bpm) * 4)}
               className="h-7 w-7 rounded flex items-center justify-center hover:text-white hover:bg-zinc-700/60"
+              title="Forward 1 Bar"
             >
               ▶▶
             </button>
             <button
               onClick={handleStop}
               className="h-7 w-7 rounded flex items-center justify-center hover:text-white hover:bg-zinc-700/60"
+              title="Stop (Space)"
             >
               ◼
             </button>
@@ -569,6 +685,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
               className={`h-8 w-10 rounded font-bold flex items-center justify-center transition shadow ${
                 isPlaying ? "bg-[#3b82f6] text-white" : "bg-[#4a4d56] hover:bg-[#565964] text-white"
               }`}
+              title="Play (Space)"
             >
               ▶
             </button>
@@ -577,6 +694,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
               className={`h-8 w-8 rounded-full border border-red-950 flex items-center justify-center ml-1 ${
                 isRecording ? "bg-red-500 animate-pulse text-white shadow-[0_0_12px_#ef4444]" : "bg-[#a82222] hover:bg-red-600"
               }`}
+              title="Record (R)"
             >
               <div className="h-3 w-3 rounded-full bg-white shadow-sm" />
             </button>
@@ -585,6 +703,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
               className={`h-7 w-7 rounded flex items-center justify-center ml-1 ${
                 isLooping ? "bg-amber-500/20 text-amber-300 border border-amber-500/50" : "text-zinc-400 hover:text-white"
               }`}
+              title="Loop Toggle (C)"
             >
               🔁
             </button>
@@ -706,21 +825,15 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
                 </button>
               </div>
 
+              {/* Shortcuts Legend */}
               <div className="pt-2 border-t border-zinc-800 space-y-1">
-                <span className="text-[9px] uppercase font-bold text-zinc-500">Edit Actions</span>
-                <button
-                  onClick={pasteClipAtPlayhead}
-                  disabled={!copiedClip}
-                  className="w-full text-left px-2 py-1 rounded text-[11px] text-zinc-300 hover:bg-[#282a32] disabled:opacity-40"
-                >
-                  📋 Paste Clip (Cmd+V)
-                </button>
-                <button
-                  onClick={splitClipAtPlayhead}
-                  className="w-full text-left px-2 py-1 rounded text-[11px] text-zinc-300 hover:bg-[#282a32]"
-                >
-                  ✂ Split at Playhead (Cmd+T)
-                </button>
+                <span className="text-[9px] uppercase font-bold text-zinc-500">Keybinds</span>
+                <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">Space</kbd> Play / Pause</p>
+                <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">R</kbd> Record Arm</p>
+                <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">Enter</kbd> Rewind (001.1)</p>
+                <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">Cmd+C/V</kbd> Copy / Paste</p>
+                <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">Cmd+T</kbd> Split Clip</p>
+                <p className="text-[10px] text-zinc-400"><kbd className="bg-zinc-800 px-1 rounded">Delete</kbd> Remove Clip</p>
               </div>
             </div>
 
@@ -910,7 +1023,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
                         trackId={track.id}
                         onCopy={(reg) => {
                           setCopiedClip(reg);
-                          setStatusMsg(`Copied "${reg.name}"`);
+                          setStatusMsg(`Copied "${reg.name}" (Cmd+C)`);
                         }}
                         onUpdate={(patch) =>
                           setTracks((prev) =>
@@ -973,7 +1086,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
         </div>
       </div>
 
-      {/* 4. MODALS & POP-UPS (With click-to-close toggle!) */}
+      {/* 4. MODALS & POP-UPS */}
       <AudioSettingsModal
         isOpen={audioSettingsOpen}
         onClose={() => setAudioSettingsOpen(false)}
