@@ -1,5 +1,29 @@
 // lib/daw/AudioEngine.ts
-import { TrackData, AudioRegion } from "./types";
+
+export interface AudioRegion {
+  id: string;
+  name: string;
+  buffer: AudioBuffer;
+  startTime: number;    // Timeline start position in seconds
+  duration: number;     // Active length in seconds
+  offset: number;       // Trim start offset into original buffer
+  gain?: number;        // Clip level (0 to 2.0)
+  muted?: boolean;
+}
+
+export interface TrackData {
+  id: number;
+  name: string;
+  category?: "audio" | "midi" | "drum";
+  instrument: string;
+  color: string;
+  volume: number;       // 0 to 1.0
+  pan: number;          // -1.0 to 1.0
+  mute: boolean;
+  solo: boolean;
+  armed: boolean;
+  regions: AudioRegion[];
+}
 
 export class AudioEngine {
   private static instance: AudioEngine;
