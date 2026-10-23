@@ -1,30 +1,35 @@
 // components/daw/ClipRegion.tsx
 "use client";
 import React, { useEffect, useRef, useState } from "react";
-import { AudioRegion } from "@/lib/daw/types";
+import { AudioRegion } from "@/lib/AudioEngine";
 
 interface ClipRegionProps {
   region: AudioRegion;
   pixelsPerSecond: number;
   trackColor: string;
+  trackId: number;
   onUpdate: (updated: Partial<AudioRegion>) => void;
   onSplit: (splitTimeSec: number) => void;
   onDelete: () => void;
+  onCopy?: (region: AudioRegion) => void;
 }
 
 export function ClipRegion({
   region,
   pixelsPerSecond,
   trackColor,
+  trackId,
   onUpdate,
   onSplit,
   onDelete,
+  onCopy,
 }: ClipRegionProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartX = useRef(0);
   const originalStartTime = useRef(0);
 
+  // Render Real Waveform
   useEffect(() => {
     const cv = canvasRef.current;
     if (!cv || !region.buffer) return;
@@ -54,8 +59,9 @@ export function ClipRegion({
     }
   }, [region, pixelsPerSecond]);
 
+  // Horizontal position dragging
   const handlePointerDown = (e: React.PointerEvent) => {
-    if ((e.target as HTMLElement).dataset.handle) return;
+    if ((e.target as HTMLElement).dataset.handle || (e.target as HTMLElement).tagName === "BUTTON") return;
     setIsDragging(true);
     dragStartX.current = e.clientX;
     originalStartTime.current = region.startTime;
@@ -76,27 +82,46 @@ export function ClipRegion({
     } catch {}
   };
 
-  const width = Math.max(20, region.duration * pixelsPerSecond);
+  const width = Math.max(24, region.duration * pixelsPerSecond);
   const left = region.startTime * pixelsPerSecond;
 
   return (
     <div
+      draggable
+      onDragStart={(e) => {
+        // Embed track data so it can move across tracks!
+        e.dataTransfer.setData("sourceTrackId", String(trackId));
+        e.dataTransfer.setData("regionId", region.id);
+      }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       style={{ left: `${left}px`, width: `${width}px` }}
-      className={`absolute top-1 bottom-1 select-none rounded border border-white/20 shadow-md flex flex-col overflow-hidden cursor-grab active:cursor-grabbing ${trackColor}`}
+      className={`absolute top-1 bottom-1 select-none rounded border border-white/25 shadow-md flex flex-col overflow-hidden cursor-grab active:cursor-grabbing ${trackColor}`}
     >
-      <div className="flex h-4 items-center justify-between bg-black/35 px-1.5 text-[9px] font-semibold text-white/95">
-        <span className="truncate">{region.name}</span>
+      {/* Clip Header Label with Copy, Split, and Delete Buttons */}
+      <div className="flex h-4 items-center justify-between bg-black/40 px-1.5 text-[9px] font-semibold text-white/95">
+        <span className="truncate max-w-[120px]">{region.name}</span>
         <div className="flex items-center gap-1.5">
+          {onCopy && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onCopy(region);
+              }}
+              title="Copy Clip (Cmd+C)"
+              className="hover:text-amber-300 transition text-[10px]"
+            >
+              📋
+            </button>
+          )}
           <button
             onClick={(e) => {
               e.stopPropagation();
               onSplit(region.startTime + region.duration / 2);
             }}
-            title="Split Clip at center"
-            className="hover:text-amber-300"
+            title="Split Clip at Center"
+            className="hover:text-amber-300 transition text-[10px]"
           >
             ✂
           </button>
@@ -106,13 +131,14 @@ export function ClipRegion({
               onDelete();
             }}
             title="Delete Clip"
-            className="hover:text-red-300"
+            className="hover:text-red-300 transition text-[10px]"
           >
             ✕
           </button>
         </div>
       </div>
 
+      {/* Waveform Graphic */}
       <div className="flex-1 w-full relative">
         <canvas
           ref={canvasRef}
@@ -122,6 +148,7 @@ export function ClipRegion({
         />
       </div>
 
+      {/* Trim Handles */}
       <div data-handle="left" className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white/40" />
       <div data-handle="right" className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white/40" />
     </div>
