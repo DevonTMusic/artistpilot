@@ -10,7 +10,6 @@ import { AiCoachModal } from "@/components/daw/AiCoachModal";
 import { AudioInputManager } from "@/lib/daw/AudioInputManager";
 import { RecordingSettingsModal } from "@/components/daw/RecordingSettingsModal";
 import { ChannelEqModal } from "@/components/daw/ChannelEqModal";
-import { DraggableWindow } from "@/components/daw/DraggableWindow";
 
 const INSTRUMENT_LIBRARY = [
   { name: "Vocals / Acoustic Mic", category: "audio" as const, color: "bg-[#2563eb]", icon: "🎙️", desc: "Studio vocal chain & live hardware" },
@@ -62,16 +61,21 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const [isRecording, setIsRecording] = useState(false);
   const [playheadSec, setPlayheadSec] = useState(0);
   const [selectedTrackId, setSelectedTrackId] = useState(1);
-  const [pixelsPerSecond, setPixelsPerSecond] = useState(48);
+  const [pixelsPerSecond, setPixelsPerSecond] = useState(50);
   const [masterVolume, setMasterVolume] = useState(0.85);
 
-  // Advanced Transport: Loop & Count-In
+  // Loop & Count-In
   const [isLooping, setIsLooping] = useState(false);
   const [loopStartSec, setLoopStartSec] = useState(0);
   const [loopEndSec, setLoopEndSec] = useState(8);
   const [countInActive, setCountInActive] = useState(true);
 
-  // Modals & Windows
+  // Draggable Window Coordinates
+  const [pianoPos, setPianoPos] = useState({ x: 260, y: 130 });
+  const [isDraggingPiano, setIsDraggingPiano] = useState(false);
+  const pianoOffset = useRef({ x: 0, y: 0 });
+
+  // Modals & Panels
   const [instrumentWindowOpen, setInstrumentWindowOpen] = useState(false);
   const [ampModalOpen, setAmpModalOpen] = useState(false);
   const [aiCoachOpen, setAiCoachOpen] = useState(false);
@@ -81,8 +85,11 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const [monitoringEnabled, setMonitoringEnabled] = useState(false);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
   const [trackModalOpen, setTrackModalOpen] = useState(false);
-  const [midiConnected, setMidiConnected] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
+
+  // Live Recording Waveform Canvas State
+  const liveCanvasRef = useRef<HTMLCanvasElement>(null);
+  const liveAnimRef = useRef<number | null>(null);
 
   const [trackNotes, setTrackNotes] = useState<Record<number, MidiNote[]>>({
     2: [
@@ -98,19 +105,9 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const recChunks = useRef<Blob[]>([]);
   const recStartTime = useRef(0);
 
-  const clickSound = (high: boolean) => {
-    const c = engine.current.init();
-    const osc = c.createOscillator();
-    const g = c.createGain();
-    osc.frequency.setValueAtTime(high ? 1200 : 800, c.currentTime);
-    g.gain.setValueAtTime(0.3, c.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.04);
-    osc.connect(g);
-    g.connect(c.destination);
-    osc.start();
-    osc.stop(c.currentTime + 0.05);
-  };
+  const timelineContainerRef = useRef<HTMLDivElement>(null);
 
+  // Sound Engine
   const playSynthesizerVoice = (pitch: number, instrument: string) => {
     const c = engine.current.init();
     const t = c.currentTime;
@@ -138,26 +135,37 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     }
   };
 
-  useEffect(() => {
-    if (typeof navigator !== "undefined" && "requestMIDIAccess" in navigator) {
-      // @ts-ignore
-      navigator.requestMIDIAccess?.().then((access: any) => {
-        setMidiConnected(access.inputs.size > 0);
-        access.onstatechange = () => setMidiConnected(access.inputs.size > 0);
-        for (const input of access.inputs.values()) {
-          input.onmidimessage = (msg: any) => {
-            if (!msg?.data) return;
-            const [status, noteNumber, velocity] = msg.data;
-            if (status >= 144 && status <= 159 && velocity > 0) {
-              const currentTrack = tracks.find((tr) => tr.id === selectedTrackId);
-              playSynthesizerVoice(noteNumber, currentTrack?.instrument ?? "Acoustic Grand Piano");
-            }
-          };
-        }
-      }).catch(() => {});
-    }
-  }, [tracks, selectedTrackId]);
+  // Draggable Mouse Handlers for Pop-Ups
+  const startDragPiano = (e: React.MouseEvent) => {
+    setIsDraggingPiano(true);
+    pianoOffset.current = {
+      x: e.clientX - pianoPos.x,
+      y: e.clientY - pianoPos.y,
+    };
+  };
 
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDraggingPiano) {
+        setPianoPos({
+          x: Math.max(10, e.clientX - pianoOffset.current.x),
+          y: Math.max(10, e.clientY - pianoOffset.current.y),
+        });
+      }
+    };
+    const handleMouseUp = () => setIsDraggingPiano(false);
+
+    if (isDraggingPiano) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDraggingPiano]);
+
+  // Master Clock & Loop Watcher
   const updatePlaybackPosition = () => {
     const elapsed = (performance.now() - playStartTime.current) / 1000;
     let currentSec = playheadAnchor.current + elapsed;
@@ -195,6 +203,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     if (isRecording && mediaRecorder.current) {
       mediaRecorder.current.stop();
       setIsRecording(false);
+      if (liveAnimRef.current) cancelAnimationFrame(liveAnimRef.current);
     }
     setIsPlaying(false);
   };
@@ -211,6 +220,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     playheadAnchor.current = nextBar;
   };
 
+  // Split Clip
   const splitClipAtPlayhead = () => {
     const track = tracks.find((t) => t.id === selectedTrackId);
     if (!track) return;
@@ -227,7 +237,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     const r2: AudioRegion = {
       ...clip,
       id: `reg-${Date.now()}`,
-      name: `${clip.name} (Part 2)`,
+      name: `${clip.name} (B)`,
       startTime: playheadSec,
       offset: clip.offset + firstDuration,
       duration: secondDuration,
@@ -243,6 +253,46 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     setStatusMsg(`Split clip at ${playheadSec.toFixed(2)}s`);
   };
 
+  // Live Waveform Recording Functionality
+  const startLiveWaveAnimation = () => {
+    const analyser = inputManager.current.analyserNode;
+    const cv = liveCanvasRef.current;
+    if (!cv || !analyser) return;
+
+    const canvasCtx = cv.getContext("2d");
+    if (!canvasCtx) return;
+
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+    const draw = () => {
+      liveAnimRef.current = requestAnimationFrame(draw);
+      analyser.getByteTimeDomainData(dataArray);
+
+      canvasCtx.clearRect(0, 0, cv.width, cv.height);
+      canvasCtx.lineWidth = 2;
+      canvasCtx.strokeStyle = "#ffffff";
+      canvasCtx.beginPath();
+
+      const sliceWidth = (cv.width * 1.0) / dataArray.length;
+      let x = 0;
+
+      for (let i = 0; i < dataArray.length; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = (v * cv.height) / 2;
+
+        if (i === 0) canvasCtx.moveTo(x, y);
+        else canvasCtx.lineTo(x, y);
+
+        x += sliceWidth;
+      }
+
+      canvasCtx.lineTo(cv.width, cv.height / 2);
+      canvasCtx.stroke();
+    };
+
+    draw();
+  };
+
   const handleRecord = async () => {
     if (isRecording) {
       handleStop();
@@ -256,15 +306,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         selectedDeviceId,
         monitoringEnabled
       );
-
-      if (countInActive) {
-        setStatusMsg("Count-in: 1... 2... 3... 4...");
-        const beatIntervalMs = (60 / bpm) * 1000;
-        for (let i = 0; i < 4; i++) {
-          setTimeout(() => clickSound(i === 0), i * beatIntervalMs);
-        }
-        await new Promise((res) => setTimeout(res, 4 * beatIntervalMs));
-      }
 
       const mr = new MediaRecorder(stream);
       recChunks.current = [];
@@ -299,6 +340,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       mr.start();
       setIsRecording(true);
       handlePlay();
+      setTimeout(startLiveWaveAnimation, 50);
     } catch {
       setStatusMsg("Microphone or Interface permission denied.");
     }
@@ -358,8 +400,10 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-[#0a0b0e] text-[#c5c7d0] font-sans select-none relative">
       
-      {/* 1. GARAGEBAND LUXURY GRAPHITE TRANSPORT BAR */}
+      {/* 1. TOP TRANSPORT BAR */}
       <header className="flex h-13 flex-none items-center justify-between border-b border-[#1f2128] bg-[#131419] px-4 shadow-xl z-20">
+        
+        {/* Left Controls */}
         <div className="flex items-center gap-2">
           <input
             value={projectName}
@@ -372,21 +416,21 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             onClick={() => setTrackModalOpen(true)}
             className="flex h-7 items-center gap-1 rounded bg-[#1e2028] border border-zinc-700/80 px-2.5 text-[11px] font-semibold text-zinc-200 hover:border-[#d4af37] hover:text-[#d4af37] transition shadow-sm"
           >
-            <span>+</span> Track
+            + Track
           </button>
 
           <button
             onClick={() => setRecModalOpen(true)}
             className="flex h-7 items-center gap-1.5 rounded border border-zinc-800 bg-[#17181f] px-2.5 text-[11px] font-semibold text-sky-400 hover:border-sky-500/60 shadow-sm"
           >
-            <span>🎙️</span> Inputs
+            Inputs & Monitor
           </button>
 
           <button
             onClick={() => setEqModalOpen(true)}
             className="flex h-7 items-center gap-1.5 rounded border border-zinc-800 bg-[#17181f] px-2.5 text-[11px] font-semibold text-zinc-400 hover:border-sky-500/60 hover:text-sky-400 transition"
           >
-            <span>🎛️</span> Visual EQ
+            Visual EQ
           </button>
 
           <button
@@ -395,49 +439,87 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               instrumentWindowOpen ? "border-[#3b82f6] bg-blue-950/40 text-blue-300" : "border-zinc-800 bg-[#17181f] text-zinc-400 hover:text-white"
             }`}
           >
-            <span>🎹</span> Piano Roll
+            Piano Roll
           </button>
 
           <button
             onClick={() => setAmpModalOpen(true)}
             className="flex h-7 items-center gap-1.5 rounded border border-zinc-800 bg-[#17181f] px-2.5 text-[11px] font-semibold text-zinc-400 hover:border-amber-500/60 hover:text-amber-400 transition"
           >
-            <span>🎸</span> Amp Rig
+            Amp Rig
           </button>
 
           <button
             onClick={() => setAiCoachOpen(true)}
             className="flex h-7 items-center gap-1.5 rounded border border-zinc-800 bg-[#17181f] px-2.5 text-[11px] font-semibold text-zinc-400 hover:border-purple-500/60 hover:text-purple-300 transition"
           >
-            <span>✨</span> AI Coach
+            AI Coach
           </button>
         </div>
 
-        {/* Center: Controls */}
+        {/* Center: Vector Transport Controls */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1">
-            <button onClick={handleRewind} className="h-7 w-7 rounded flex items-center justify-center text-zinc-400 hover:text-white text-xs">⏮</button>
-            <button onClick={handleStop} className="h-7 w-7 rounded flex items-center justify-center text-zinc-400 hover:text-white text-xs">◼</button>
+            <button
+              onClick={handleRewind}
+              title="Rewind to start"
+              className="h-8 w-8 rounded flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+            >
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+              </svg>
+            </button>
+            
+            <button
+              onClick={handleStop}
+              title="Stop"
+              className="h-8 w-8 rounded flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+            >
+              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                <rect x="5" y="5" width="14" height="14" rx="1"/>
+              </svg>
+            </button>
+
             <button
               onClick={() => handlePlay()}
+              title="Play / Pause"
               className={`h-8 w-11 rounded font-bold text-sm flex items-center justify-center transition shadow-md ${
                 isPlaying ? "bg-[#d4af37] text-black" : "bg-[#22242e] text-white hover:bg-[#2b2d38]"
               }`}
             >
-              {isPlaying ? "❚❚" : "▶"}
+              {isPlaying ? (
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                </svg>
+              ) : (
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              )}
             </button>
-            <button onClick={handleForward} className="h-7 w-7 rounded flex items-center justify-center text-zinc-400 hover:text-white text-xs">⏭</button>
+
+            <button
+              onClick={handleForward}
+              title="Forward 1 Bar"
+              className="h-8 w-8 rounded flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+            >
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+              </svg>
+            </button>
             
             <button
               onClick={handleRecord}
-              className={`h-7 w-7 rounded-full border border-red-950 flex items-center justify-center transition ml-1 ${
+              title="Record"
+              className={`h-8 w-8 rounded-full border border-red-950 flex items-center justify-center transition ml-1 ${
                 isRecording ? "bg-red-500 animate-pulse text-white shadow-[0_0_12px_#ef4444]" : "bg-[#8b1e1e] hover:bg-red-600"
               }`}
             >
-              <div className="h-2.5 w-2.5 rounded-full bg-white shadow-sm" />
+              <div className="h-3 w-3 rounded-full bg-white shadow-sm" />
             </button>
           </div>
 
+          {/* LCD Timecode */}
           <div className="flex h-8 items-center divide-x divide-zinc-800/80 rounded border border-zinc-800/90 bg-[#08090b] px-3 font-mono text-zinc-300 shadow-inner">
             <div className="pr-2.5 text-center">
               <span className="text-xs font-bold tracking-widest text-[#d4af37]">
@@ -461,11 +543,12 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           <div className="flex items-center gap-1">
             <button
               onClick={() => setIsLooping(!isLooping)}
-              className={`h-7 px-2 rounded border text-[10px] font-bold transition ${
+              className={`h-7 px-2 rounded border text-[11px] font-bold transition ${
                 isLooping ? "border-amber-400 bg-amber-400/20 text-amber-300" : "border-zinc-800 bg-[#16171d] text-zinc-500"
               }`}
+              title="Toggle Loop Range"
             >
-              🔁
+              ↻ Loop
             </button>
             <button
               onClick={() => setCountInActive(!countInActive)}
@@ -484,7 +567,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             onClick={splitClipAtPlayhead}
             className="h-7 px-2.5 rounded border border-zinc-700 bg-zinc-800/90 text-[11px] font-bold text-white hover:bg-zinc-700 shadow"
           >
-            ✂ Split
+            Split (✂)
           </button>
 
           <button
@@ -493,7 +576,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               mixerOpen ? "border-[#d4af37] bg-[#d4af37]/15 text-[#d4af37]" : "border-zinc-800 bg-[#17181f] text-zinc-400 hover:text-white"
             }`}
           >
-            🎚️ Mixer
+            Mixer
           </button>
 
           <button
@@ -511,75 +594,27 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         </div>
       )}
 
-      {/* 2. MUSICAL TIMELINE RULER & LOOP CYCLE BAR */}
-      <div
-        onClick={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          const clickX = e.clientX - rect.left - 256;
-          if (clickX >= 0) {
-            const newSec = Math.max(0, clickX / pixelsPerSecond);
-            setPlayheadSec(newSec);
-            playheadAnchor.current = newSec;
-            if (isPlaying) handlePlay(newSec);
-          }
-        }}
-        className="flex h-7 flex-none border-b border-[#1c1d24] bg-[#121318] text-[9px] text-zinc-500 font-mono cursor-pointer relative"
-      >
-        <div className="w-64 flex-none border-r border-[#1c1d24] px-3 flex items-center justify-between font-bold text-zinc-400">
-          <span>TRACKS ({tracks.length})</span>
-          <span className="text-[8px] font-sans text-zinc-500">Click to scrub</span>
-        </div>
+      {/* 2. SPLIT LAYOUT: FIXED HEADERS (LEFT) + HORIZONTALLY SCROLLABLE TIMELINE (RIGHT) */}
+      <div className="flex-1 flex overflow-hidden">
+        
+        {/* Left Track Headers (Stays in place during horizontal scroll) */}
+        <div className="w-64 flex-none border-r border-[#1c1d24] bg-[#121318] flex flex-col z-10 shadow-lg">
+          <div className="h-7 border-b border-[#1c1d24] px-3 flex items-center justify-between font-bold text-zinc-400 text-[10px]">
+            <span>TRACK HEADERS ({tracks.length})</span>
+          </div>
 
-        {isLooping && (
-          <div
-            style={{
-              left: `${256 + loopStartSec * pixelsPerSecond}px`,
-              width: `${(loopEndSec - loopStartSec) * pixelsPerSecond}px`,
-            }}
-            className="absolute top-0 bottom-0 bg-amber-400/30 border-y-2 border-amber-400 z-10 pointer-events-none"
-          />
-        )}
-
-        <div className="flex-1 flex items-center relative overflow-hidden select-none">
-          {Array.from({ length: 32 }, (_, i) => (
-            <div
-              key={i}
-              style={{ left: `${(i * 4 * 60 * pixelsPerSecond) / bpm}px` }}
-              className="absolute flex items-center gap-2 text-zinc-500"
-            >
-              <span className="font-semibold text-zinc-400">{i + 1}</span>
-              <div className="h-2 w-[1px] bg-zinc-800" />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 3. MULTI-TRACK ARRANGER */}
-      <div className="flex-1 overflow-y-auto divide-y divide-[#171820] bg-[#0c0d10] relative">
-        <div
-          style={{ left: `${256 + playheadSec * pixelsPerSecond}px` }}
-          className="absolute top-0 bottom-0 w-[1.5px] bg-[#d4af37] z-30 pointer-events-none"
-        >
-          <div className="h-2 w-2 -ml-[3px] bg-[#d4af37] rotate-45 shadow" />
-        </div>
-
-        {tracks.map((track) => {
-          const isSelected = selectedTrackId === track.id;
-          return (
-            <div
-              key={track.id}
-              onClick={() => setSelectedTrackId(track.id)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => handleDropAudio(e, track.id)}
-              className={`flex h-20 transition ${isSelected ? "bg-[#16171f]" : "bg-[#0e0f13] hover:bg-[#121319]"}`}
-            >
-              {/* Left Track Header */}
-              <div className="w-64 flex-none border-r border-[#1c1d24] p-2 flex flex-col justify-between bg-[#121318]">
+          <div className="flex-1 overflow-y-hidden divide-y divide-[#171820]">
+            {tracks.map((track) => (
+              <div
+                key={track.id}
+                onClick={() => setSelectedTrackId(track.id)}
+                className={`h-20 p-2 flex flex-col justify-between transition ${
+                  selectedTrackId === track.id ? "bg-[#16171f]" : "bg-[#121318]"
+                }`}
+              >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-6 w-6 items-center justify-center rounded bg-zinc-800 text-xs shadow-inner">
-                      {INSTRUMENT_LIBRARY.find((p) => p.name === track.instrument)?.icon ?? "🎙️"}
-                    </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs">{INSTRUMENT_LIBRARY.find((p) => p.name === track.instrument)?.icon ?? "🎙️"}</span>
                     <input
                       value={track.name}
                       onChange={(e) => setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, name: e.target.value } : t))}
@@ -631,24 +666,97 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                     </button>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] text-zinc-500 font-mono">VOL</span>
-                    <input
-                      type="range"
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      value={track.volume}
-                      onChange={(e) => setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, volume: Number(e.target.value) } : t))}
-                      className="w-16 accent-[#d4af37] h-1 bg-zinc-800 rounded cursor-pointer"
-                    />
-                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={track.volume}
+                    onChange={(e) => setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, volume: Number(e.target.value) } : t))}
+                    className="w-16 accent-[#d4af37] h-1 bg-zinc-800 rounded cursor-pointer"
+                  />
                 </div>
               </div>
+            ))}
+          </div>
+        </div>
 
-              {/* Arranger Track Grid Lane */}
-              <div className="flex-1 relative overflow-hidden flex items-center">
-                {track.regions.length === 0 ? (
+        {/* Right Scrollable Timeline Grid */}
+        <div
+          ref={timelineContainerRef}
+          className="flex-1 overflow-x-auto overflow-y-hidden flex flex-col bg-[#0c0d10] relative select-none"
+        >
+          {/* Scrollable Musical Ruler */}
+          <div
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const scrollLeft = timelineContainerRef.current?.scrollLeft || 0;
+              const clickX = e.clientX - rect.left + scrollLeft;
+              const newSec = Math.max(0, clickX / pixelsPerSecond);
+              setPlayheadSec(newSec);
+              playheadAnchor.current = newSec;
+              if (isPlaying) handlePlay(newSec);
+            }}
+            style={{ width: "3200px" }}
+            className="h-7 border-b border-[#1c1d24] bg-[#121318] relative cursor-pointer flex-none"
+          >
+            {isLooping && (
+              <div
+                style={{
+                  left: `${loopStartSec * pixelsPerSecond}px`,
+                  width: `${(loopEndSec - loopStartSec) * pixelsPerSecond}px`,
+                }}
+                className="absolute top-0 bottom-0 bg-amber-400/30 border-y-2 border-amber-400 z-10 pointer-events-none"
+              />
+            )}
+
+            {Array.from({ length: 64 }, (_, i) => (
+              <div
+                key={i}
+                style={{ left: `${(i * 4 * 60 * pixelsPerSecond) / bpm}px` }}
+                className="absolute flex items-center gap-2 text-zinc-500 top-1 text-[9px] font-mono pointer-events-none"
+              >
+                <span className="font-semibold text-zinc-400">{i + 1}</span>
+                <div className="h-3 w-[1px] bg-zinc-800" />
+              </div>
+            ))}
+          </div>
+
+          {/* Arranger Track Lanes Container */}
+          <div style={{ width: "3200px" }} className="flex-1 relative divide-y divide-[#171820]">
+            
+            {/* Playhead Hairline */}
+            <div
+              style={{ left: `${playheadSec * pixelsPerSecond}px` }}
+              className="absolute top-0 bottom-0 w-[1.5px] bg-[#d4af37] z-30 pointer-events-none"
+            >
+              <div className="h-2 w-2 -ml-[3.5px] bg-[#d4af37] rotate-45 shadow" />
+            </div>
+
+            {tracks.map((track) => (
+              <div
+                key={track.id}
+                onClick={() => setSelectedTrackId(track.id)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => handleDropAudio(e, track.id)}
+                className={`h-20 relative flex items-center transition ${
+                  selectedTrackId === track.id ? "bg-[#16171f]" : "bg-[#0e0f13] hover:bg-[#121319]"
+                }`}
+              >
+                {/* Real-time live audio recording waveform canvas */}
+                {isRecording && selectedTrackId === track.id && (
+                  <div
+                    style={{
+                      left: `${recStartTime.current * pixelsPerSecond}px`,
+                      width: `${Math.max(20, (playheadSec - recStartTime.current) * pixelsPerSecond)}px`,
+                    }}
+                    className="absolute top-1 bottom-1 bg-red-950/80 border border-red-500 rounded z-20 overflow-hidden"
+                  >
+                    <canvas ref={liveCanvasRef} width={400} height={70} className="h-full w-full opacity-90" />
+                  </div>
+                )}
+
+                {track.regions.length === 0 && (!isRecording || selectedTrackId !== track.id) ? (
                   <div className="text-[10px] text-zinc-600 pl-6 italic select-none pointer-events-none">
                     Drop audio files here, or arm record (●)
                   </div>
@@ -681,12 +789,57 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                   ))
                 )}
               </div>
-            </div>
-          );
-        })}
+            ))}
+          </div>
+
+        </div>
       </div>
 
-      {/* 4. DRAGGABLE FLOATING WINDOWS */}
+      {/* 3. DRAGGABLE PIANO ROLL POPUP */}
+      {instrumentWindowOpen && (
+        <div
+          style={{ left: `${pianoPos.x}px`, top: `${pianoPos.y}px` }}
+          className="fixed z-50 w-[660px] h-[360px] rounded-2xl border-2 border-[#20222a] bg-[#14151b] shadow-[0_30px_70px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden font-sans select-none"
+        >
+          {/* Draggable Title Bar */}
+          <div
+            onMouseDown={startDragPiano}
+            className="flex h-10 flex-none items-center justify-between border-b border-zinc-800 bg-[#1c1e26] px-4 cursor-grab active:cursor-grabbing hover:bg-[#22242e] transition"
+          >
+            <span className="text-xs font-bold text-white flex items-center gap-2">
+              <span>🎹</span> Piano Roll ({selectedTrack?.instrument})
+            </span>
+            <button
+              onClick={() => setInstrumentWindowOpen(false)}
+              className="h-6 w-6 rounded hover:bg-red-500 text-zinc-400 hover:text-white flex items-center justify-center font-bold text-xs"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-hidden">
+            <PianoRoll
+              notes={currentNotes}
+              instrumentName={selectedTrack?.instrument ?? "Acoustic Grand Piano"}
+              onPreviewNote={(pitch) => playSynthesizerVoice(pitch, selectedTrack?.instrument ?? "Acoustic Grand Piano")}
+              onAddNote={(note) =>
+                setTrackNotes((prev) => ({
+                  ...prev,
+                  [selectedTrackId]: [...(prev[selectedTrackId] || []), note],
+                }))
+              }
+              onDeleteNote={(noteId) =>
+                setTrackNotes((prev) => ({
+                  ...prev,
+                  [selectedTrackId]: (prev[selectedTrackId] || []).filter((n) => n.id !== noteId),
+                }))
+              }
+            />
+          </div>
+        </div>
+      )}
+
+      {/* 4. MODALS */}
       <RecordingSettingsModal
         isOpen={recModalOpen}
         onClose={() => setRecModalOpen(false)}
@@ -704,35 +857,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         onClose={() => setEqModalOpen(false)}
         trackName={selectedTrack?.name ?? "Track"}
       />
-
-      {/* Draggable Piano Roll Window */}
-      <DraggableWindow
-        title={`Piano Roll (${selectedTrack?.instrument})`}
-        icon="🎹"
-        isOpen={instrumentWindowOpen}
-        onClose={() => setInstrumentWindowOpen(false)}
-        defaultPosition={{ x: 260, y: 140 }}
-        width="w-[660px]"
-        height="h-[360px]"
-      >
-        <PianoRoll
-          notes={currentNotes}
-          instrumentName={selectedTrack?.instrument ?? "Acoustic Grand Piano"}
-          onPreviewNote={(pitch) => playSynthesizerVoice(pitch, selectedTrack?.instrument ?? "Acoustic Grand Piano")}
-          onAddNote={(note) =>
-            setTrackNotes((prev) => ({
-              ...prev,
-              [selectedTrackId]: [...(prev[selectedTrackId] || []), note],
-            }))
-          }
-          onDeleteNote={(noteId) =>
-            setTrackNotes((prev) => ({
-              ...prev,
-              [selectedTrackId]: (prev[selectedTrackId] || []).filter((n) => n.id !== noteId),
-            }))
-          }
-        />
-      </DraggableWindow>
 
       <GuitarAmpModal isOpen={ampModalOpen} onClose={() => setAmpModalOpen(false)} trackName={selectedTrack?.name ?? "Guitar Track"} />
       <AiCoachModal isOpen={aiCoachOpen} onClose={() => setAiCoachOpen(false)} currentKey="C" bpm={bpm} />
