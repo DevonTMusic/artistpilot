@@ -5,10 +5,11 @@ export async function middleware(req: NextRequest) {
   const sb = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     cookies: {
       getAll: () => req.cookies.getAll(),
-      setAll: (list) => {
-        list.forEach(({ name, value }) => req.cookies.set(name, value));
+      // @ts-ignore
+      setAll: (list: any) => {
+        list.forEach((c: any) => req.cookies.set(c.name, c.value));
         res = NextResponse.next({ request: req });
-        list.forEach(({ name, value, options }) => res.cookies.set(name, value, options));
+        list.forEach((c: any) => res.cookies.set(c.name, c.value, c.options));
       },
     },
   });
