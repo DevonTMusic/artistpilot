@@ -124,13 +124,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
   const [activeDragWindow, setActiveDragWindow] = useState<keyof typeof windowState | null>(null);
   const dragOffset = useRef({ x: 0, y: 0 });
 
-  const [trackNotes, setTrackNotes] = useState<Record<number, MidiNote[]>>({
-    2: [
-      { id: "1", pitch: 60, startStep: 0, length: 2 },
-      { id: "2", pitch: 64, startStep: 4, length: 2 },
-    ],
-  });
-
   const animFrame = useRef<number | null>(null);
   const playStartTime = useRef(0);
   const playheadAnchor = useRef(0);
@@ -141,7 +134,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
   const liveAnimRef = useRef<number | null>(null);
   const timelineContainerRef = useRef<HTMLDivElement>(null);
 
-  // Toggle helper for modals (Clicking again closes them!)
   const toggleModal = (key: keyof typeof windowState) => {
     setWindowState((prev) => ({
       ...prev,
@@ -230,7 +222,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     };
   }, [isScrubbing, pixelsPerSecond]);
 
-  // Copy / Paste / Split
+  // Copy / Paste / Split keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "c") {
@@ -470,6 +462,49 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     setStatusMsg("Track removed.");
   };
 
+  // Drag and Drop Audio Clip Between Compatible Tracks
+  const handleClipDropBetweenTracks = (e: React.DragEvent, targetTrack: ExtendedTrackData) => {
+    e.preventDefault();
+    const sourceTrackId = Number(e.dataTransfer.getData("sourceTrackId"));
+    const regionId = e.dataTransfer.getData("regionId");
+
+    if (!sourceTrackId || !regionId) return;
+
+    const sourceTrack = tracks.find((t) => t.id === sourceTrackId);
+    if (!sourceTrack) return;
+
+    if (targetTrack.category === "midi") {
+      setStatusMsg("Piano and Synth tracks are MIDI-only! Audio clips cannot be placed here.");
+      return;
+    }
+
+    if (sourceTrack.trackType !== targetTrack.trackType) {
+      if (sourceTrack.trackType === "guitar-bass" && targetTrack.trackType === "guitar-bass") {
+        // Allowed
+      } else {
+        setStatusMsg(`Cannot move ${sourceTrack.trackType} clips onto a ${targetTrack.trackType} track!`);
+        return;
+      }
+    }
+
+    const movingRegion = sourceTrack.regions.find((r) => r.id === regionId);
+    if (!movingRegion) return;
+
+    setTracks((prev) =>
+      prev.map((t) => {
+        if (t.id === sourceTrackId) {
+          return { ...t, regions: t.regions.filter((r) => r.id !== regionId) };
+        }
+        if (t.id === targetTrack.id) {
+          return { ...t, regions: [...t.regions, movingRegion] };
+        }
+        return t;
+      })
+    );
+
+    setStatusMsg(`Moved clip to ${targetTrack.name}`);
+  };
+
   const selectedTrack = tracks.find((t) => t.id === selectedTrackId);
 
   const totalBeats = (playheadSec * bpm) / 60;
@@ -703,7 +738,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
           
           <div className="flex-1 flex overflow-hidden">
             
-            {/* Left Track Headers with working delete button */}
+            {/* Left Track Headers */}
             <div className="w-64 flex-none border-r border-[#1a1b20] bg-[#22242a] flex flex-col z-10 shadow-lg">
               <div className="h-7 border-b border-[#1a1b20] px-3 flex items-center justify-between font-bold text-zinc-400 text-[10px]">
                 <span>TRACKS</span>
@@ -733,7 +768,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
                         />
                       </div>
                       
-                      {/* Prominent Working Delete Track Button */}
                       <div className="flex items-center gap-1">
                         <span className="text-[8px] uppercase font-mono text-zinc-500">{track.trackType}</span>
                         <button
@@ -829,7 +863,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
                 ))}
               </div>
 
-              {/* Arranger Track Lanes with Direct Playhead Handle */}
+              {/* Arranger Track Lanes */}
               <div style={{ width: "3200px" }} className="flex-1 relative divide-y divide-[#1e2028]">
                 
                 {/* INTERACTIVE DRAGGABLE PLAYHEAD LINE */}
@@ -848,6 +882,8 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
                   <div
                     key={track.id}
                     onClick={() => setSelectedTrackId(track.id)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => handleClipDropBetweenTracks(e, track)}
                     className={`h-20 relative flex items-center transition ${
                       selectedTrackId === track.id ? "bg-[#1d1f27]" : "bg-[#14151a]"
                     }`}
@@ -865,37 +901,35 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
                     )}
 
                     {track.regions.map((region) => (
-                      <div
+                      <ClipRegion
                         key={region.id}
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData("sourceTrackId", String(track.id));
-                          e.dataTransfer.setData("regionId", region.id);
+                        // @ts-ignore
+                        region={region as any}
+                        pixelsPerSecond={pixelsPerSecond}
+                        trackColor={track.color}
+                        trackId={track.id}
+                        onCopy={(reg) => {
+                          setCopiedClip(reg);
+                          setStatusMsg(`Copied "${reg.name}"`);
                         }}
-                      >
-                        <ClipRegion
-                          region={region as any}
-                          pixelsPerSecond={pixelsPerSecond}
-                          trackColor={track.color}
-                          onUpdate={(patch) =>
-                            setTracks((prev) =>
-                              prev.map((t) =>
-                                t.id === track.id
-                                  ? { ...t, regions: t.regions.map((r) => r.id === region.id ? { ...r, ...patch } : r) }
-                                  : t
-                              )
+                        onUpdate={(patch) =>
+                          setTracks((prev) =>
+                            prev.map((t) =>
+                              t.id === track.id
+                                ? { ...t, regions: t.regions.map((r) => r.id === region.id ? { ...r, ...patch } : r) }
+                                : t
                             )
-                          }
-                          onSplit={() => {}}
-                          onDelete={() =>
-                            setTracks((prev) =>
-                              prev.map((t) =>
-                                t.id === track.id ? { ...t, regions: t.regions.filter((r) => r.id !== region.id) } : t
-                              )
+                          )
+                        }
+                        onSplit={() => splitClipAtPlayhead()}
+                        onDelete={() =>
+                          setTracks((prev) =>
+                            prev.map((t) =>
+                              t.id === track.id ? { ...t, regions: t.regions.filter((r) => r.id !== region.id) } : t
                             )
-                          }
-                        />
-                      </div>
+                          )
+                        }
+                      />
                     ))}
                   </div>
                 ))}
