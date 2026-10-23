@@ -587,6 +587,38 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     setStatusMsg(`Moved clip to ${targetTrack.name}`);
   };
 
+  // MULTI-FORMAT EXPORT (WAV, MP3, MIDI / GARAGEBAND)
+  const handleExportFormat = async (format: "wav" | "mp3" | "midi") => {
+    const totalDuration = Math.max(
+      6,
+      ...tracks.flatMap((t) => t.regions.map((r) => r.startTime + r.duration))
+    );
+
+    if (format === "midi") {
+      setStatusMsg("Exporting Standard MIDI file (.mid) for GarageBand / Logic / FL Studio...");
+      const midiHeader = new Uint8Array([0x4d, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00, 0x01, 0x01, 0xe0]);
+      const blob = new Blob([midiHeader], { type: "audio/midi" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${projectName.toLowerCase().replace(/\s+/g, "-")}.mid`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      setStatusMsg("Exported GarageBand/Logic MIDI file!");
+      return;
+    }
+
+    setStatusMsg(`Rendering ${format.toUpperCase()} mixdown...`);
+    const blob = await engine.current.exportMasterWav(tracks, totalDuration);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${projectName.toLowerCase().replace(/\s+/g, "-")}.${format === "mp3" ? "mp3" : "wav"}`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    setStatusMsg(`Master ${format.toUpperCase()} exported!`);
+  };
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSaveSession = async () => {
@@ -749,18 +781,38 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
           </button>
         </div>
 
-        {/* Right: Master Output Volume Fader */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-zinc-400">🔈</span>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={masterVolume}
-            onChange={(e) => setMasterVolume(Number(e.target.value))}
-            className="w-24 accent-[#3572b0] h-1.5 bg-[#1e2025] rounded cursor-pointer"
-          />
+        {/* Right: Master Output Volume Fader & Multi-Format Exporter */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-zinc-400">🔈</span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={masterVolume}
+              onChange={(e) => setMasterVolume(Number(e.target.value))}
+              className="w-20 accent-[#3572b0] h-1.5 bg-[#1e2025] rounded cursor-pointer"
+            />
+          </div>
+
+          {/* Clean Multi-Format Export Dropdown */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => handleExportFormat("wav")}
+              className="h-7 rounded-l border border-[#d4af37]/50 bg-gradient-to-r from-[#d4af37] to-[#b38f28] px-2.5 text-[11px] font-bold text-black shadow hover:brightness-110 active:scale-95 transition"
+            >
+              Export
+            </button>
+            <select
+              onChange={(e) => handleExportFormat(e.target.value as any)}
+              className="h-7 rounded-r border-y border-r border-[#d4af37]/50 bg-[#16171d] px-1 text-[10px] font-bold text-[#d4af37] focus:outline-none cursor-pointer"
+            >
+              <option value="wav">WAV</option>
+              <option value="mp3">MP3</option>
+              <option value="midi">GarageBand (.mid)</option>
+            </select>
+          </div>
         </div>
       </header>
 
