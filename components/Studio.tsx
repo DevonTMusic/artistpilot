@@ -7,8 +7,9 @@ import { ClipRegion } from "@/components/daw/ClipRegion";
 import { PianoRoll, MidiNote } from "@/components/daw/PianoRoll";
 import { GuitarAmpModal } from "@/components/daw/GuitarAmpModal";
 import { AiCoachModal } from "@/components/daw/AiCoachModal";
-import { AudioInputManager, AudioInputDevice } from "@/lib/daw/AudioInputManager";
 import { ChannelEqModal } from "@/components/daw/ChannelEqModal";
+import { AudioDeviceManager } from "@/lib/daw/AudioDeviceManager";
+import { AudioSettingsModal } from "@/components/daw/AudioSettingsModal";
 
 export type TrackCompatibilityType = "vocal" | "guitar-bass" | "midi" | "drum";
 
@@ -36,7 +37,7 @@ const midiToFreq = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
 export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
   const engine = useRef<AudioEngine>(AudioEngine.getInstance());
-  const inputManager = useRef<AudioInputManager>(AudioInputManager.getInstance());
+  const deviceManager = useRef<AudioDeviceManager>(AudioDeviceManager.getInstance());
 
   const [tracks, setTracks] = useState<ExtendedTrackData[]>([
     {
@@ -98,18 +99,22 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
   const [countInActive, setCountInActive] = useState(true);
   const [metronomeActive, setMetronomeActive] = useState(false);
 
+  // Hardware Audio Interface Device Selection
+  const [activeInputLabel, setActiveInputLabel] = useState<string>("System Default");
+  const [activeInputId, setActiveInputId] = useState<string>("default");
+  const [activeOutputId, setActiveOutputId] = useState<string>("default");
+  const [monitoringEnabled, setMonitoringEnabled] = useState(false);
+
   // Clipboard for Copy / Paste clips
   const [copiedClip, setCopiedClip] = useState<AudioRegion | null>(null);
 
-  // Left Tools Drawer
+  // Drawers & Modals
   const [toolsDrawerOpen, setToolsDrawerOpen] = useState(true);
   const [smartControlsOpen, setSmartControlsOpen] = useState(true);
-
-  // Hardware Devices
-  const [devices, setDevices] = useState<AudioInputDevice[]>([]);
+  const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
 
-  // Universal Draggable Window Coordinates
+  // Draggable Windows
   const [windowState, setWindowState] = useState({
     piano: { open: false, x: 260, y: 120 },
     amp: { open: false, x: 300, y: 100 },
@@ -138,12 +143,28 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
   const liveAnimRef = useRef<number | null>(null);
   const timelineContainerRef = useRef<HTMLDivElement>(null);
 
-  // Enumerate hardware devices (e.g. Scarlett Solo)
+  // Initial Hardware Detection on Mount
   useEffect(() => {
-    inputManager.current.getAvailableInputs().then((devs) => {
-      setDevices(devs);
+    deviceManager.current.refreshDevices().then(({ inputs }) => {
+      if (inputs.length > 0) {
+        setActiveInputLabel(inputs[0].label);
+        setActiveInputId(inputs[0].deviceId);
+      }
     });
-  }, []);
+
+    const unsubscribe = deviceManager.current.subscribe((inList) => {
+      if (inList.length > 0) {
+        const stillConnected = inList.find((d) => d.deviceId === activeInputId);
+        if (!stillConnected) {
+          setActiveInputLabel(inList[0].label);
+          setActiveInputId(inList[0].deviceId);
+          setStatusMsg(`Audio device changed to: ${inList[0].label}`);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [activeInputId]);
 
   // Universal Draggable Pointer Listeners
   const startDragWindow = (key: keyof typeof windowState, e: React.MouseEvent) => {
@@ -202,7 +223,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     };
   }, [isScrubbing, pixelsPerSecond]);
 
-  // Keyboard Shortcuts (Command+C, Command+V, Command+T)
+  // Copy / Paste / Split shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "c") {
@@ -216,9 +237,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
         }
       }
       if ((e.metaKey || e.ctrlKey) && e.key === "v") {
-        if (copiedClip) {
-          pasteClipAtPlayhead();
-        }
+        if (copiedClip) pasteClipAtPlayhead();
       }
       if ((e.metaKey || e.ctrlKey) && e.key === "t") {
         splitClipAtPlayhead();
@@ -328,7 +347,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
   };
 
   const startLiveWaveform = () => {
-    const analyser = inputManager.current.analyserNode;
+    const analyser = (deviceManager.current as any).analyserNode;
     const cv = liveCanvasRef.current;
     if (!cv || !analyser) return;
 
@@ -381,10 +400,11 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
     try {
       const ctx = engine.current.init();
       const currentTrack = tracks.find((t) => t.id === selectedTrackId);
-      const { stream } = await inputManager.current.setupInputStream(
+      
+      const { stream } = await deviceManager.current.setupInputStream(
         ctx,
-        currentTrack?.inputDevice,
-        currentTrack?.monitoring ?? false
+        currentTrack?.inputDevice || activeInputId,
+        currentTrack?.monitoring ?? monitoringEnabled
       );
 
       recChunks.current = {};
@@ -426,7 +446,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
       handlePlay();
       setTimeout(startLiveWaveform, 60);
     } catch {
-      setStatusMsg("Microphone / Scarlett Solo access denied.");
+      setStatusMsg("Microphone / Audio interface access denied.");
     }
   };
 
@@ -443,7 +463,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
       {/* 1. TOP TRANSPORT BAR (GARAGEBAND LOOK) */}
       <header className="flex h-12 flex-none items-center justify-between border-b border-[#1b1c20] bg-[#3a3c44] px-4 shadow-md z-30">
         
-        {/* Left: Window Dots & Project Title */}
+        {/* Left: Window Dots & Audio Interface Status */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <div className="h-3 w-3 rounded-full bg-[#ff5f56] border border-[#e0443e]" />
@@ -460,12 +480,21 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
             <span>📁</span> Tools
           </button>
 
-          <span className="text-xs font-bold text-zinc-300 truncate">{projectName}</span>
+          {/* Real Audio Interface / Device Status Pill */}
+          <button
+            onClick={() => setAudioSettingsOpen(true)}
+            className="flex items-center gap-1.5 rounded-full border border-zinc-600/80 bg-zinc-900/60 px-2.5 py-1 text-[11px] text-zinc-300 hover:border-sky-400 transition"
+            title="Configure Audio Interface / Inputs"
+          >
+            <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]" />
+            <span className="font-medium truncate max-w-[140px]">{activeInputLabel}</span>
+          </button>
+
+          <span className="text-xs font-bold text-zinc-300 truncate hidden md:inline">{projectName}</span>
         </div>
 
         {/* Center: Authentic Transport + GarageBand LCD Box */}
         <div className="flex items-center gap-3">
-          {/* Rewind, FastForward, Stop, Play, Record, Loop */}
           <div className="flex items-center gap-1 text-zinc-300">
             <button
               onClick={() => { handleStop(); setPlayheadSec(0); }}
@@ -502,7 +531,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
               className={`h-8 w-8 rounded-full border border-red-950 flex items-center justify-center ml-1 ${
                 isRecording ? "bg-red-500 animate-pulse text-white shadow-[0_0_12px_#ef4444]" : "bg-[#a82222] hover:bg-red-600"
               }`}
-              title="Record"
+              title="Record Armed Tracks"
             >
               <div className="h-3 w-3 rounded-full bg-white shadow-sm" />
             </button>
@@ -546,7 +575,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
             </div>
           </div>
 
-          {/* Count-in Purple Button (1234) & Metronome */}
           <div className="flex items-center gap-1">
             <button
               onClick={() => setCountInActive(!countInActive)}
@@ -556,15 +584,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
               title="Count-In (1234)"
             >
               1234
-            </button>
-            <button
-              onClick={() => setMetronomeActive(!metronomeActive)}
-              className={`h-7 w-7 rounded flex items-center justify-center text-xs ${
-                metronomeActive ? "text-amber-400" : "text-zinc-500"
-              }`}
-              title="Metronome"
-            >
-              🔔
             </button>
           </div>
         </div>
@@ -590,7 +609,7 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
         </div>
       )}
 
-      {/* 2. BODY (LEFT TOOLS MENU + CENTER TIMELINE) */}
+      {/* 2. BODY */}
       <div className="flex-1 flex overflow-hidden">
         
         {/* Left Tools Menu Drawer */}
@@ -605,6 +624,12 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
                   className="w-full text-left p-2 rounded hover:bg-[#282a32] flex items-center gap-2 font-semibold text-zinc-200"
                 >
                   <span>+</span> New Track
+                </button>
+                <button
+                  onClick={() => setAudioSettingsOpen(true)}
+                  className="w-full text-left p-2 rounded hover:bg-[#282a32] flex items-center gap-2 font-semibold text-sky-400"
+                >
+                  <span>🎙️</span> Audio Interface Setup
                 </button>
                 <button
                   onClick={() => setWindowState((w) => ({ ...w, piano: { ...w.piano, open: true } }))}
@@ -663,7 +688,6 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
         {/* Timeline Tracks Section */}
         <div className="flex-1 flex flex-col overflow-hidden bg-[#18191f]">
           
-          {/* Timeline Grid (Headers + Lanes) */}
           <div className="flex-1 flex overflow-hidden">
             
             {/* Left Track Headers */}
@@ -846,32 +870,35 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
             </div>
           </div>
 
-          {/* 3. BOTTOM DOCK: RECORDING SETTINGS & HARDWARE CHANNEL STRIP (AS REQUESTED) */}
+          {/* 3. BOTTOM DOCK: RECORDING SETTINGS & HARDWARE CHANNEL STRIP */}
           {smartControlsOpen && (
             <div className="h-56 flex-none border-t border-[#1a1c22] bg-[#22242a] flex shadow-2xl z-20">
               
-              {/* Left Column: Recording Settings (Focusrite Scarlett Solo setup) */}
+              {/* Left Column: Recording Settings (Live Hardware Interface Selection) */}
               <div className="w-72 flex-none border-r border-[#1a1b22] p-4 flex flex-col justify-between bg-[#282a32]">
                 <div className="space-y-3">
-                  <span className="text-xs font-bold text-white uppercase tracking-wider block">
-                    Recording Settings ({selectedTrack?.name})
-                  </span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-white uppercase tracking-wider block">
+                      Recording Settings
+                    </span>
+                    <button onClick={() => setAudioSettingsOpen(true)} className="text-[10px] text-sky-400 font-bold hover:underline">
+                      Setup
+                    </button>
+                  </div>
 
-                  {/* Input Selector Dropdown */}
+                  {/* Input Selector Dropdown with actual hardware names */}
                   <div>
                     <label className="text-[10px] text-zinc-400 block mb-1">Input Source</label>
                     <select
-                      value={selectedTrack?.inputDevice ?? ""}
+                      value={selectedTrack?.inputDevice || activeInputId}
                       onChange={(e) => {
                         const dev = e.target.value;
                         setTracks((ts) => ts.map((t) => t.id === selectedTrackId ? { ...t, inputDevice: dev } : t));
+                        setActiveInputId(dev);
                       }}
                       className="w-full bg-[#18191f] border border-zinc-700 text-xs text-white rounded p-1.5 focus:outline-none"
                     >
-                      <option value="">1 (Scarlett Solo USB)</option>
-                      {devices.map((d) => (
-                        <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
-                      ))}
+                      <option value="default">{activeInputLabel}</option>
                     </select>
                   </div>
 
@@ -882,10 +909,11 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
                       onClick={() => {
                         const nextMon = !selectedTrack?.monitoring;
                         setTracks((ts) => ts.map((t) => t.id === selectedTrackId ? { ...t, monitoring: nextMon } : t));
-                        inputManager.current.setMonitoring(engine.current.init(), nextMon);
+                        deviceManager.current.setMonitoring(engine.current.init(), nextMon);
+                        setMonitoringEnabled(nextMon);
                       }}
                       className={`px-3 py-1 rounded text-xs font-bold transition ${
-                        selectedTrack?.monitoring ? "bg-sky-500 text-black" : "bg-zinc-800 text-zinc-400"
+                        selectedTrack?.monitoring ? "bg-sky-500 text-black shadow-sky-500/50" : "bg-zinc-800 text-zinc-400"
                       }`}
                     >
                       {selectedTrack?.monitoring ? "ON" : "OFF"}
@@ -913,10 +941,10 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
                   </div>
                 </div>
 
-                <span className="text-[9px] text-zinc-500">Inputs routing configured for USB Audio Interfaces</span>
+                <span className="text-[9px] text-zinc-500 font-mono">Clean input mode enabled (Zero AGC/Noise suppression)</span>
               </div>
 
-              {/* Right Column: Blue Skeuomorphic Hardware Console (Compressor, EQ, Sends) */}
+              {/* Right Column: Blue Skeuomorphic Hardware Console */}
               <div className="flex-1 bg-gradient-to-b from-[#244b78] via-[#1d3d63] to-[#142d4a] p-4 flex items-center justify-around border-l border-sky-950 shadow-inner">
                 
                 {/* Compressor Section */}
@@ -984,9 +1012,29 @@ export default function Studio({ defaultBpm = 118 }: { defaultBpm?: number }) {
         </div>
       </div>
 
-      {/* 4. UNIVERSAL DRAGGABLE POP-UP WINDOWS */}
-      
-      {/* Draggable Piano Roll */}
+      {/* 4. HARDWARE AUDIO INTERFACE MODAL */}
+      <AudioSettingsModal
+        isOpen={audioSettingsOpen}
+        onClose={() => setAudioSettingsOpen(false)}
+        ctx={engine.current.ctx}
+        activeInputDeviceName={activeInputLabel}
+        onSelectInputDevice={(devId, label) => {
+          setActiveInputId(devId);
+          setActiveInputLabel(label);
+          setTracks((ts) => ts.map((t) => t.id === selectedTrackId ? { ...t, inputDevice: devId } : t));
+        }}
+        onSelectOutputDevice={(devId) => {
+          setActiveOutputId(devId);
+          deviceManager.current.setOutputDevice(engine.current.init(), devId);
+        }}
+        isMonitoring={monitoringEnabled}
+        onToggleMonitoring={(en) => {
+          setMonitoringEnabled(en);
+          deviceManager.current.setMonitoring(engine.current.init(), en);
+        }}
+      />
+
+      {/* 5. DRAGGABLE MODALS (Piano Roll, Amp, EQ, AI) */}
       {windowState.piano.open && (
         <div
           style={{ left: `${windowState.piano.x}px`, top: `${windowState.piano.y}px` }}
