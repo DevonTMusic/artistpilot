@@ -1,6 +1,6 @@
 // components/daw/TrackControlsPanel.tsx
 "use client";
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { ProcessingSettings } from "@/lib/daw/TrackProcessor";
 
 interface TrackControlsPanelProps {
@@ -16,6 +16,77 @@ interface TrackControlsPanelProps {
   onUpdateSettings: (newSettings: ProcessingSettings) => void;
   onOpenAdvancedEq: () => void;
   onClosePanel: () => void;
+}
+
+// Interactive Circular Rotary Knob
+function RotaryKnob({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  onChange,
+  color = "text-white",
+  indicatorColor = "bg-white",
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  onChange: (val: number) => void;
+  color?: string;
+  indicatorColor?: string;
+}) {
+  const isDragging = useRef(false);
+  const startY = useRef(0);
+  const startVal = useRef(value);
+
+  const angle = ((value - min) / (max - min)) * 270 - 135;
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    isDragging.current = true;
+    startY.current = e.clientY;
+    startVal.current = value;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging.current) return;
+    const deltaY = startY.current - e.clientY;
+    const range = max - min;
+    const stepVal = (deltaY / 120) * range;
+    const newVal = Math.max(min, Math.min(max, startVal.current + stepVal));
+    onChange(Number((Math.round(newVal / step) * step).toFixed(2)));
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    isDragging.current = false;
+    try {
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  return (
+    <div className="flex flex-col items-center select-none">
+      <div
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        className="h-12 w-12 rounded-full border-2 border-zinc-700 bg-gradient-to-b from-zinc-800 to-black shadow-lg flex items-center justify-center relative cursor-ns-resize active:scale-95 transition-transform"
+      >
+        <div
+          style={{ transform: `rotate(${angle}deg)` }}
+          className="h-full w-full absolute flex justify-center pt-1 pointer-events-none"
+        >
+          <div className={`h-2.5 w-0.5 ${indicatorColor} rounded-full`} />
+        </div>
+        <div className="h-3.5 w-3.5 rounded-full bg-zinc-700 border border-zinc-900 pointer-events-none" />
+      </div>
+      <span className={`text-[8px] mt-1 font-bold ${color}`}>{label}</span>
+      <span className="text-[8px] font-mono text-zinc-400">{value}</span>
+    </div>
+  );
 }
 
 export function TrackControlsPanel({
@@ -86,7 +157,6 @@ export function TrackControlsPanel({
                 ? "bg-amber-500/20 border-amber-500/60 text-amber-300"
                 : "bg-black/20 border-zinc-700 text-zinc-300 hover:bg-zinc-700/50"
             }`}
-            title="A/B Compare"
           >
             Compare ({activeSnapshot})
           </button>
@@ -127,13 +197,14 @@ export function TrackControlsPanel({
       {/* 2. BODY */}
       <div className="flex-1 flex overflow-hidden">
         
-        {/* LEFT: Recording Settings */}
-        <div className="w-72 flex-none border-r border-[#1a1b22] p-3.5 flex flex-col justify-between bg-[#262830]">
-          <div className="space-y-2.5">
+        {/* LEFT: Recording Settings (NOW FULLY SCROLLABLE) */}
+        <div className="w-72 flex-none border-r border-[#1a1b22] p-3 flex flex-col bg-[#262830] overflow-y-auto">
+          <div className="space-y-3 pb-4">
             <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 block">
               Recording Settings
             </span>
 
+            {/* Record Level Slider */}
             <div>
               <div className="flex justify-between text-[10px] text-zinc-400 mb-0.5">
                 <span>Record Level</span>
@@ -150,6 +221,7 @@ export function TrackControlsPanel({
               />
             </div>
 
+            {/* Input selector */}
             <div>
               <label className="text-[9px] text-zinc-400 block mb-0.5">Input</label>
               <select
@@ -164,6 +236,7 @@ export function TrackControlsPanel({
               </select>
             </div>
 
+            {/* Monitoring toggle */}
             <div className="flex items-center justify-between pt-0.5">
               <span className="text-xs text-zinc-300">Monitoring</span>
               <button
@@ -176,7 +249,8 @@ export function TrackControlsPanel({
               </button>
             </div>
 
-            <div className="pt-1 border-t border-zinc-800/80">
+            {/* Noise Gate section */}
+            <div className="pt-2 border-t border-zinc-800">
               <div className="flex justify-between items-center text-[10px] mb-1">
                 <label className="flex items-center gap-1.5 text-zinc-300 cursor-pointer">
                   <input
@@ -185,7 +259,7 @@ export function TrackControlsPanel({
                     onChange={(e) => updateProp("gateEnabled", e.target.checked)}
                     className="accent-sky-500 rounded"
                   />
-                  <span>Noise Gate</span>
+                  <span className="font-bold">Noise Gate</span>
                 </label>
                 <span className="font-mono text-zinc-400">{currentSettings.gateThreshold} dB</span>
               </div>
@@ -202,29 +276,25 @@ export function TrackControlsPanel({
           </div>
         </div>
 
-        {/* CENTER & RIGHT: Blue Hardware Console */}
-        <div className="flex-1 bg-gradient-to-b from-[#244b78] via-[#1d3d63] to-[#142d4a] p-3 flex items-center justify-around border-l border-sky-950 shadow-inner">
+        {/* CENTER & RIGHT: Blue Hardware Console with Rotating Circular Dials */}
+        <div className="flex-1 bg-gradient-to-b from-[#244b78] via-[#1d3d63] to-[#142d4a] p-3 flex items-center justify-around border-l border-sky-950 shadow-inner overflow-x-auto">
           
-          {/* Compressor */}
-          <div className="flex flex-col items-center border-r border-sky-400/20 pr-6">
+          {/* COMPRESSOR */}
+          <div className="flex flex-col items-center border-r border-sky-400/20 pr-6 flex-none">
             <span className="text-[10px] font-black tracking-wider text-sky-200 uppercase mb-1.5">COMPRESSOR</span>
             <div className="flex items-center gap-3">
-              <div className="flex flex-col items-center">
-                <div
-                  onWheel={(e) => updateProp("compAmount", Math.max(0, Math.min(1, currentSettings.compAmount - e.deltaY * 0.001)))}
-                  className="h-14 w-14 rounded-full border-2 border-zinc-700 bg-gradient-to-b from-zinc-800 to-black shadow-lg flex items-center justify-center relative cursor-ns-resize"
-                >
-                  <div
-                    style={{ transform: `rotate(${(currentSettings.compAmount - 0.5) * 260}deg)` }}
-                    className="h-full w-full absolute flex justify-center pt-1"
-                  >
-                    <div className="h-2 w-0.5 bg-cyan-400 rounded" />
-                  </div>
-                  <div className="h-4 w-4 rounded-full bg-zinc-700" />
-                </div>
-                <span className="text-[8px] text-sky-200 mt-1 font-bold">AMOUNT</span>
-              </div>
+              <RotaryKnob
+                label="AMOUNT"
+                value={Math.round(currentSettings.compAmount * 100)}
+                min={0}
+                max={100}
+                step={1}
+                onChange={(val) => updateProp("compAmount", val / 100)}
+                color="text-sky-200"
+                indicatorColor="bg-cyan-400"
+              />
 
+              {/* Dynamic Gain Reduction LED Meter */}
               <div className="flex flex-col gap-1 p-1 bg-black/60 rounded border border-sky-900/40">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
                   <div
@@ -240,62 +310,40 @@ export function TrackControlsPanel({
             </div>
           </div>
 
-          {/* Equalizer */}
-          <div className="flex flex-col items-center border-r border-sky-400/20 px-6">
+          {/* EQUALIZER (True Rotating Dials) */}
+          <div className="flex flex-col items-center border-r border-sky-400/20 px-6 flex-none">
             <span className="text-[10px] font-black tracking-wider text-sky-200 uppercase mb-1.5">EQUALIZER</span>
-            <div className="flex items-center gap-3">
-              {/* Low */}
-              <div className="flex flex-col items-center">
-                <div
-                  onWheel={(e) => updateProp("lowGain", Math.max(-12, Math.min(12, currentSettings.lowGain - e.deltaY * 0.05)))}
-                  className="h-11 w-11 rounded-full border-2 border-zinc-700 bg-gradient-to-b from-zinc-800 to-black shadow flex items-center justify-center relative cursor-ns-resize"
-                >
-                  <div
-                    style={{ transform: `rotate(${(currentSettings.lowGain / 12) * 130}deg)` }}
-                    className="h-full w-full absolute flex justify-center pt-1"
-                  >
-                    <div className="h-2 w-0.5 bg-white rounded" />
-                  </div>
-                  <div className="h-3 w-3 rounded-full bg-zinc-700" />
-                </div>
-                <span className="text-[8px] text-sky-200 mt-1 font-bold">LOW</span>
-              </div>
+            <div className="flex items-center gap-4">
+              <RotaryKnob
+                label="LOW"
+                value={currentSettings.lowGain}
+                min={-12}
+                max={12}
+                step={0.5}
+                onChange={(val) => updateProp("lowGain", val)}
+                color="text-sky-200"
+              />
+              <RotaryKnob
+                label="MID"
+                value={currentSettings.midGain}
+                min={-12}
+                max={12}
+                step={0.5}
+                onChange={(val) => updateProp("midGain", val)}
+                color="text-sky-200"
+                indicatorColor="bg-cyan-400"
+              />
+              <RotaryKnob
+                label="HIGH"
+                value={currentSettings.highGain}
+                min={-12}
+                max={12}
+                step={0.5}
+                onChange={(val) => updateProp("highGain", val)}
+                color="text-sky-200"
+              />
 
-              {/* Mid */}
-              <div className="flex flex-col items-center">
-                <div
-                  onWheel={(e) => updateProp("midGain", Math.max(-12, Math.min(12, currentSettings.midGain - e.deltaY * 0.05)))}
-                  className="h-11 w-11 rounded-full border-2 border-zinc-700 bg-gradient-to-b from-zinc-800 to-black shadow flex items-center justify-center relative cursor-ns-resize"
-                >
-                  <div
-                    style={{ transform: `rotate(${(currentSettings.midGain / 12) * 130}deg)` }}
-                    className="h-full w-full absolute flex justify-center pt-1"
-                  >
-                    <div className="h-2 w-0.5 bg-cyan-400 rounded" />
-                  </div>
-                  <div className="h-3 w-3 rounded-full bg-zinc-700" />
-                </div>
-                <span className="text-[8px] text-sky-200 mt-1 font-bold">MID</span>
-              </div>
-
-              {/* High */}
-              <div className="flex flex-col items-center">
-                <div
-                  onWheel={(e) => updateProp("highGain", Math.max(-12, Math.min(12, currentSettings.highGain - e.deltaY * 0.05)))}
-                  className="h-11 w-11 rounded-full border-2 border-zinc-700 bg-gradient-to-b from-zinc-800 to-black shadow flex items-center justify-center relative cursor-ns-resize"
-                >
-                  <div
-                    style={{ transform: `rotate(${(currentSettings.highGain / 12) * 130}deg)` }}
-                    className="h-full w-full absolute flex justify-center pt-1"
-                  >
-                    <div className="h-2 w-0.5 bg-white rounded" />
-                  </div>
-                  <div className="h-3 w-3 rounded-full bg-zinc-700" />
-                </div>
-                <span className="text-[8px] text-sky-200 mt-1 font-bold">HIGH</span>
-              </div>
-
-              {/* Low Cut */}
+              {/* Low Cut Switch */}
               <div className="flex flex-col items-center pl-1">
                 <button
                   onClick={() => updateProp("lowCut", !currentSettings.lowCut)}
@@ -311,41 +359,29 @@ export function TrackControlsPanel({
             </div>
           </div>
 
-          {/* SENDS */}
-          <div className="flex flex-col items-center pl-6">
+          {/* SENDS (Rotating Circular Dials) */}
+          <div className="flex flex-col items-center pl-6 flex-none">
             <span className="text-[10px] font-black tracking-wider text-sky-200 uppercase mb-1.5">SENDS</span>
             <div className="flex items-center gap-4">
-              <div className="flex flex-col items-center">
-                <div
-                  onWheel={(e) => updateProp("ambienceSend", Math.max(0, Math.min(1, currentSettings.ambienceSend - e.deltaY * 0.001)))}
-                  className="h-11 w-11 rounded-full border-2 border-zinc-700 bg-gradient-to-b from-zinc-800 to-black shadow flex items-center justify-center relative cursor-ns-resize"
-                >
-                  <div
-                    style={{ transform: `rotate(${(currentSettings.ambienceSend - 0.5) * 260}deg)` }}
-                    className="h-full w-full absolute flex justify-center pt-1"
-                  >
-                    <div className="h-2 w-0.5 bg-white rounded" />
-                  </div>
-                  <div className="h-3 w-3 rounded-full bg-zinc-700" />
-                </div>
-                <span className="text-[8px] text-sky-200 mt-1 font-bold">AMBIENCE</span>
-              </div>
-
-              <div className="flex flex-col items-center">
-                <div
-                  onWheel={(e) => updateProp("reverbSend", Math.max(0, Math.min(1, currentSettings.reverbSend - e.deltaY * 0.001)))}
-                  className="h-11 w-11 rounded-full border-2 border-zinc-700 bg-gradient-to-b from-zinc-800 to-black shadow flex items-center justify-center relative cursor-ns-resize"
-                >
-                  <div
-                    style={{ transform: `rotate(${(currentSettings.reverbSend - 0.5) * 260}deg)` }}
-                    className="h-full w-full absolute flex justify-center pt-1"
-                  >
-                    <div className="h-2 w-0.5 bg-cyan-400 rounded" />
-                  </div>
-                  <div className="h-3 w-3 rounded-full bg-zinc-700" />
-                </div>
-                <span className="text-[8px] text-sky-200 mt-1 font-bold">REVERB</span>
-              </div>
+              <RotaryKnob
+                label="AMBIENCE"
+                value={Math.round(currentSettings.ambienceSend * 100)}
+                min={0}
+                max={100}
+                step={1}
+                onChange={(val) => updateProp("ambienceSend", val / 100)}
+                color="text-sky-200"
+              />
+              <RotaryKnob
+                label="REVERB"
+                value={Math.round(currentSettings.reverbSend * 100)}
+                min={0}
+                max={100}
+                step={1}
+                onChange={(val) => updateProp("reverbSend", val / 100)}
+                color="text-sky-200"
+                indicatorColor="bg-cyan-400"
+              />
             </div>
           </div>
 
