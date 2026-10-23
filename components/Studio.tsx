@@ -10,6 +10,7 @@ import { AiCoachModal } from "@/components/daw/AiCoachModal";
 import { AudioInputManager } from "@/lib/daw/AudioInputManager";
 import { RecordingSettingsModal } from "@/components/daw/RecordingSettingsModal";
 import { ChannelEqModal } from "@/components/daw/ChannelEqModal";
+import { DraggableWindow } from "@/components/daw/DraggableWindow";
 
 const INSTRUMENT_LIBRARY = [
   { name: "Vocals / Acoustic Mic", category: "audio" as const, color: "bg-[#2563eb]", icon: "🎙️", desc: "Studio vocal chain & live hardware" },
@@ -72,7 +73,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
 
   // Modals & Windows
   const [instrumentWindowOpen, setInstrumentWindowOpen] = useState(false);
-  const [instrumentTab, setInstrumentTab] = useState<"pianoroll" | "keyboard">("keyboard");
   const [ampModalOpen, setAmpModalOpen] = useState(false);
   const [aiCoachOpen, setAiCoachOpen] = useState(false);
   const [eqModalOpen, setEqModalOpen] = useState(false);
@@ -360,8 +360,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       
       {/* 1. GARAGEBAND LUXURY GRAPHITE TRANSPORT BAR */}
       <header className="flex h-13 flex-none items-center justify-between border-b border-[#1f2128] bg-[#131419] px-4 shadow-xl z-20">
-        
-        {/* Left Section: Add Track & Modular Studios */}
         <div className="flex items-center gap-2">
           <input
             value={projectName}
@@ -415,25 +413,23 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           </button>
         </div>
 
-        {/* Center Section: GarageBand Transport Controls */}
+        {/* Center: Controls */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1">
-            <button onClick={handleRewind} title="Return to Beginning" className="h-7 w-7 rounded flex items-center justify-center text-zinc-400 hover:text-white text-xs">⏮</button>
-            <button onClick={handleStop} title="Stop" className="h-7 w-7 rounded flex items-center justify-center text-zinc-400 hover:text-white text-xs">◼</button>
+            <button onClick={handleRewind} className="h-7 w-7 rounded flex items-center justify-center text-zinc-400 hover:text-white text-xs">⏮</button>
+            <button onClick={handleStop} className="h-7 w-7 rounded flex items-center justify-center text-zinc-400 hover:text-white text-xs">◼</button>
             <button
               onClick={() => handlePlay()}
-              title="Play / Pause"
               className={`h-8 w-11 rounded font-bold text-sm flex items-center justify-center transition shadow-md ${
                 isPlaying ? "bg-[#d4af37] text-black" : "bg-[#22242e] text-white hover:bg-[#2b2d38]"
               }`}
             >
               {isPlaying ? "❚❚" : "▶"}
             </button>
-            <button onClick={handleForward} title="Forward 1 Bar" className="h-7 w-7 rounded flex items-center justify-center text-zinc-400 hover:text-white text-xs">⏭</button>
+            <button onClick={handleForward} className="h-7 w-7 rounded flex items-center justify-center text-zinc-400 hover:text-white text-xs">⏭</button>
             
             <button
               onClick={handleRecord}
-              title="Record to Selected Track"
               className={`h-7 w-7 rounded-full border border-red-950 flex items-center justify-center transition ml-1 ${
                 isRecording ? "bg-red-500 animate-pulse text-white shadow-[0_0_12px_#ef4444]" : "bg-[#8b1e1e] hover:bg-red-600"
               }`}
@@ -442,7 +438,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             </button>
           </div>
 
-          {/* LCD Timecode */}
           <div className="flex h-8 items-center divide-x divide-zinc-800/80 rounded border border-zinc-800/90 bg-[#08090b] px-3 font-mono text-zinc-300 shadow-inner">
             <div className="pr-2.5 text-center">
               <span className="text-xs font-bold tracking-widest text-[#d4af37]">
@@ -469,7 +464,6 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               className={`h-7 px-2 rounded border text-[10px] font-bold transition ${
                 isLooping ? "border-amber-400 bg-amber-400/20 text-amber-300" : "border-zinc-800 bg-[#16171d] text-zinc-500"
               }`}
-              title="Cycle Loop Range"
             >
               🔁
             </button>
@@ -478,19 +472,17 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               className={`h-7 px-2 rounded border text-[10px] font-mono font-bold transition ${
                 countInActive ? "border-[#d4af37] bg-[#d4af37]/20 text-[#d4af37]" : "border-zinc-800 bg-[#16171d] text-zinc-500"
               }`}
-              title="4-Beat Count-in"
             >
               1234
             </button>
           </div>
         </div>
 
-        {/* Right Section: Split Tool, Mixer & Export */}
+        {/* Right Section */}
         <div className="flex items-center gap-2.5">
           <button
             onClick={splitClipAtPlayhead}
             className="h-7 px-2.5 rounded border border-zinc-700 bg-zinc-800/90 text-[11px] font-bold text-white hover:bg-zinc-700 shadow"
-            title="Split Clip at Playhead"
           >
             ✂ Split
           </button>
@@ -694,7 +686,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         })}
       </div>
 
-      {/* 4. MODALS & WINDOWS */}
+      {/* 4. DRAGGABLE FLOATING WINDOWS */}
       <RecordingSettingsModal
         isOpen={recModalOpen}
         onClose={() => setRecModalOpen(false)}
@@ -713,33 +705,34 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         trackName={selectedTrack?.name ?? "Track"}
       />
 
-      {instrumentWindowOpen && (
-        <div className="absolute bottom-6 right-8 z-40 w-[640px] h-[340px] rounded-xl border border-zinc-700 bg-[#14151a] shadow-2xl flex flex-col overflow-hidden">
-          <div className="flex h-9 items-center justify-between border-b border-zinc-800 bg-[#1c1d24] px-3 select-none">
-            <span className="text-xs font-bold text-white">🎹 {selectedTrack?.instrument}</span>
-            <button onClick={() => setInstrumentWindowOpen(false)} className="text-xs text-zinc-400 hover:text-white">✕</button>
-          </div>
-          <div className="flex-1 overflow-hidden">
-            <PianoRoll
-              notes={currentNotes}
-              instrumentName={selectedTrack?.instrument ?? "Acoustic Grand Piano"}
-              onPreviewNote={(pitch) => playSynthesizerVoice(pitch, selectedTrack?.instrument ?? "Acoustic Grand Piano")}
-              onAddNote={(note) =>
-                setTrackNotes((prev) => ({
-                  ...prev,
-                  [selectedTrackId]: [...(prev[selectedTrackId] || []), note],
-                }))
-              }
-              onDeleteNote={(noteId) =>
-                setTrackNotes((prev) => ({
-                  ...prev,
-                  [selectedTrackId]: (prev[selectedTrackId] || []).filter((n) => n.id !== noteId),
-                }))
-              }
-            />
-          </div>
-        </div>
-      )}
+      {/* Draggable Piano Roll Window */}
+      <DraggableWindow
+        title={`Piano Roll (${selectedTrack?.instrument})`}
+        icon="🎹"
+        isOpen={instrumentWindowOpen}
+        onClose={() => setInstrumentWindowOpen(false)}
+        defaultPosition={{ x: 260, y: 140 }}
+        width="w-[660px]"
+        height="h-[360px]"
+      >
+        <PianoRoll
+          notes={currentNotes}
+          instrumentName={selectedTrack?.instrument ?? "Acoustic Grand Piano"}
+          onPreviewNote={(pitch) => playSynthesizerVoice(pitch, selectedTrack?.instrument ?? "Acoustic Grand Piano")}
+          onAddNote={(note) =>
+            setTrackNotes((prev) => ({
+              ...prev,
+              [selectedTrackId]: [...(prev[selectedTrackId] || []), note],
+            }))
+          }
+          onDeleteNote={(noteId) =>
+            setTrackNotes((prev) => ({
+              ...prev,
+              [selectedTrackId]: (prev[selectedTrackId] || []).filter((n) => n.id !== noteId),
+            }))
+          }
+        />
+      </DraggableWindow>
 
       <GuitarAmpModal isOpen={ampModalOpen} onClose={() => setAmpModalOpen(false)} trackName={selectedTrack?.name ?? "Guitar Track"} />
       <AiCoachModal isOpen={aiCoachOpen} onClose={() => setAiCoachOpen(false)} currentKey="C" bpm={bpm} />
