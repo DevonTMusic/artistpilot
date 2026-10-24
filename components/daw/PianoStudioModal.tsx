@@ -11,6 +11,8 @@ interface PianoStudioModalProps {
   trackName: string;
   outputNode?: AudioNode;
   synthSettings?: SynthSettings;
+  projectKey?: string;
+  scale?: "maj" | "min";
   onRecordMidiNote?: (pitch: number, velocity: number, isNoteOn: boolean) => void;
 }
 
@@ -37,6 +39,8 @@ export function PianoStudioModal({
   trackName,
   outputNode,
   synthSettings,
+  projectKey = "C",
+  scale = "maj",
   onRecordMidiNote,
 }: PianoStudioModalProps) {
   const engine = useRef<PianoEngine>(PianoEngine.getInstance());
@@ -45,6 +49,13 @@ export function PianoStudioModal({
   const [sustainOn, setSustainOn] = useState<boolean>(false);
   const [activePitches, setActivePitches] = useState<Set<number>>(new Set());
   const [velocity, setVelocity] = useState<number>(105);
+  const [scaleLock, setScaleLock] = useState(false);
+  const [chordMode, setChordMode] = useState(false);
+  const [chordQuality, setChordQuality] = useState<"triad" | "7th" | "9th">("triad");
+  const activeChordNotes = useRef(new Map<number, number[]>());
+  const rootPitchClass = ({ C: 0, "D♭": 1, D: 2, "E♭": 3, E: 4, F: 5, "F#": 6, G: 7, "A♭": 8, A: 9, "B♭": 10, B: 11 } as Record<string, number>)[projectKey] ?? 0;
+  const scaleIntervals = scale === "maj" ? [0, 2, 4, 5, 7, 9, 11] : [0, 2, 3, 5, 7, 8, 10];
+  const scalePitchClasses = new Set(scaleIntervals.map((interval) => (rootPitchClass + interval) % 12));
 
   const pianoKeys = Array.from({ length: 88 }, (_, i) => {
     const pitch = i + 21;
@@ -60,17 +71,38 @@ export function PianoStudioModal({
   });
 
   const triggerNoteOn = useCallback((pitch: number) => {
-    engine.current.noteOn(ctx, pitch, velocity, selectedPreset, outputNode, synthSettings);
-    setActivePitches((prev) => new Set(prev).add(pitch));
-    if (onRecordMidiNote) onRecordMidiNote(pitch, velocity, true);
-  }, [ctx, velocity, selectedPreset, outputNode, synthSettings, onRecordMidiNote]);
+    const root = scaleLock
+      ? Array.from({ length: 13 }, (_, index) => pitch - 6 + index)
+        .filter((candidate) => scalePitchClasses.has(candidate % 12))
+        .sort((left, right) => Math.abs(left - pitch) - Math.abs(right - pitch))[0] ?? pitch
+      : pitch;
+    const rootOffset = (root - rootPitchClass + 120) % 12;
+    const degree = scaleIntervals.reduce((closest, interval, index) =>
+      Math.abs(interval - rootOffset) < Math.abs(scaleIntervals[closest] - rootOffset) ? index : closest, 0);
+    const diatonicSteps = chordQuality === "triad" ? [0, 2, 4] : chordQuality === "7th" ? [0, 2, 4, 6] : [0, 2, 4, 6, 8];
+    const pitches = chordMode ? diatonicSteps.map((step) => {
+      const targetDegree = degree + step;
+      const semitones = scaleIntervals[targetDegree % 7] - scaleIntervals[degree] + Math.floor(targetDegree / 7) * 12;
+      return root + semitones;
+    }) : [root];
+    activeChordNotes.current.set(pitch, pitches);
+    pitches.forEach((notePitch) => {
+      engine.current.noteOn(ctx, notePitch, velocity, selectedPreset, outputNode, synthSettings);
+      if (onRecordMidiNote) onRecordMidiNote(notePitch, velocity, true);
+    });
+    setActivePitches((prev) => new Set([...prev, ...pitches]));
+  }, [ctx, velocity, selectedPreset, outputNode, synthSettings, onRecordMidiNote, scaleLock, scalePitchClasses, rootPitchClass, scaleIntervals, chordMode, chordQuality]);
 
   const triggerNoteOff = useCallback((pitch: number) => {
-    engine.current.noteOff(ctx, pitch);
-    if (onRecordMidiNote) onRecordMidiNote(pitch, velocity, false);
+    const pitches = activeChordNotes.current.get(pitch) ?? [pitch];
+    pitches.forEach((notePitch) => {
+      engine.current.noteOff(ctx, notePitch);
+      if (onRecordMidiNote) onRecordMidiNote(notePitch, velocity, false);
+    });
+    activeChordNotes.current.delete(pitch);
     setActivePitches((prev) => {
       const next = new Set(prev);
-      next.delete(pitch);
+      pitches.forEach((notePitch) => next.delete(notePitch));
       return next;
     });
   }, [ctx, velocity, onRecordMidiNote]);
@@ -138,14 +170,21 @@ export function PianoStudioModal({
     };
   }, [isOpen, ctx, currentOctave, triggerNoteOn, triggerNoteOff]);
 
-  const playChord = (rootPitch: number, type: "maj" | "min" | "7th") => {
-    const intervals = type === "maj" ? [0, 4, 7] : type === "min" ? [0, 3, 7] : [0, 4, 7, 10];
-    intervals.forEach((interval) => {
-      triggerNoteOn(rootPitch + interval);
+  const playChord = (degree: number) => {
+    const rootPitch = 60 + rootPitchClass + scaleIntervals[degree];
+    const steps = chordQuality === "triad" ? [0, 2, 4] : chordQuality === "7th" ? [0, 2, 4, 6] : [0, 2, 4, 6, 8];
+    const pitches = steps.map((step) => {
+      const targetDegree = degree + step;
+      return rootPitch + scaleIntervals[targetDegree % 7] - scaleIntervals[degree] + Math.floor(targetDegree / 7) * 12;
+    });
+    pitches.forEach((pitch) => {
+      engine.current.noteOn(ctx, pitch, velocity, selectedPreset, outputNode, synthSettings);
+      if (onRecordMidiNote) onRecordMidiNote(pitch, velocity, true);
     });
     setTimeout(() => {
-      intervals.forEach((interval) => {
-        triggerNoteOff(rootPitch + interval);
+      pitches.forEach((pitch) => {
+        engine.current.noteOff(ctx, pitch);
+        if (onRecordMidiNote) onRecordMidiNote(pitch, velocity, false);
       });
     }, 700);
   };
@@ -229,6 +268,33 @@ export function PianoStudioModal({
             </div>
           </div>
 
+          <div className="mb-2 flex w-full max-w-2xl flex-wrap items-center gap-2">
+            <button
+              onClick={() => setScaleLock((enabled) => !enabled)}
+              aria-pressed={scaleLock}
+              className={`rounded px-2 py-1 text-[10px] font-semibold ${scaleLock ? "bg-emerald-700 text-white" : "bg-zinc-800 text-zinc-300"}`}
+              title={`Highlight ${projectKey} ${scale === "maj" ? "major" : "minor"} notes and constrain key presses`}
+            >
+              Scale lock {scaleLock ? "On" : "Off"}
+            </button>
+            <button
+              onClick={() => setChordMode((enabled) => !enabled)}
+              aria-pressed={chordMode}
+              className={`rounded px-2 py-1 text-[10px] font-semibold ${chordMode ? "bg-violet-700 text-white" : "bg-zinc-800 text-zinc-300"}`}
+            >
+              Chord mode {chordMode ? "On" : "Off"}
+            </button>
+            <label className="flex items-center gap-1 text-[10px] text-zinc-400">
+              Chord size
+              <select value={chordQuality} onChange={(event) => setChordQuality(event.target.value as typeof chordQuality)} className="rounded bg-zinc-900 px-1.5 py-1 text-zinc-200">
+                <option value="triad">Triad</option>
+                <option value="7th">7th</option>
+                <option value="9th">9th</option>
+              </select>
+            </label>
+            <span className="text-[10px] text-emerald-300">{projectKey} {scale === "maj" ? "Major" : "Minor"}</span>
+          </div>
+
           <div className="p-2.5 rounded-xl border border-zinc-800 bg-[#14151c] flex flex-col gap-1 shadow-inner">
             <div className="flex justify-center gap-1 pl-4">
               {["w", "e", null, "t", "y", "u", null, "o", "p"].map((k, idx) =>
@@ -291,7 +357,11 @@ export function PianoStudioModal({
                     className={`relative h-full w-8 flex-none rounded-b border border-x-zinc-400 border-b-zinc-500 transition ${
                       isPressed
                         ? "bg-amber-300"
-                        : "bg-gradient-to-b from-white via-zinc-100 to-zinc-300 hover:from-white hover:to-white"
+                        : scaleLock && !scalePitchClasses.has(key.pitch % 12)
+                          ? "bg-zinc-400 opacity-30"
+                          : scalePitchClasses.has(key.pitch % 12)
+                            ? "bg-gradient-to-b from-emerald-50 via-white to-zinc-200"
+                            : "bg-gradient-to-b from-white via-zinc-100 to-zinc-300 hover:from-white hover:to-white"
                     }`}
                   >
                     {key.pitch % 12 === 0 && (
@@ -321,7 +391,11 @@ export function PianoStudioModal({
                     className={`absolute top-0 z-10 h-[62%] w-[22px] rounded-b border border-black shadow-[0_3px_5px_rgba(0,0,0,0.55)] ${
                       isPressed
                         ? "bg-amber-400"
-                        : "bg-gradient-to-b from-zinc-700 via-zinc-900 to-black hover:from-zinc-600"
+                        : scaleLock && !scalePitchClasses.has(key.pitch % 12)
+                          ? "bg-black opacity-25"
+                          : scalePitchClasses.has(key.pitch % 12)
+                            ? "bg-gradient-to-b from-emerald-700 via-emerald-900 to-black"
+                            : "bg-gradient-to-b from-zinc-700 via-zinc-900 to-black hover:from-zinc-600"
                     }`}
                   />
                 );
@@ -332,21 +406,15 @@ export function PianoStudioModal({
 
         {/* CHORD ASSIST */}
         <div className="p-3 border-t border-zinc-800 bg-[#161720] flex items-center justify-between text-xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Chord Assist</span>
-          <div className="flex gap-2">
-            {[
-              { name: "C Major", root: 60, type: "maj" as const },
-              { name: "G Major", root: 67, type: "maj" as const },
-              { name: "A Minor", root: 57, type: "min" as const },
-              { name: "F Major", root: 65, type: "maj" as const },
-              { name: "D Minor 7", root: 62, type: "7th" as const },
-            ].map((chord) => (
+          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">In-key chord pads</span>
+          <div className="flex gap-2 overflow-x-auto">
+            {scaleIntervals.slice(0, 5).map((interval, degree) => (
               <button
-                key={chord.name}
-                onClick={() => playChord(chord.root, chord.type)}
+                key={degree}
+                onClick={() => playChord(degree)}
                 className="px-2.5 py-1 rounded bg-[#22242e] border border-zinc-700 hover:border-[#d4af37] text-white text-[11px] font-semibold shadow-sm active:scale-95 transition"
               >
-                {chord.name}
+                {["I", "II", "III", "IV", "V"][degree]} · {NOTE_NAMES[(rootPitchClass + interval) % 12]}
               </button>
             ))}
           </div>

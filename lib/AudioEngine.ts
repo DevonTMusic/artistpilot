@@ -51,6 +51,51 @@ export interface TrackAutomation {
   reverbSend?: AutomationPoint[];
 }
 
+export interface ArrangerSection {
+  id: string;
+  name: string;
+  color: string;
+  startBar: number;
+  endBar: number;
+}
+
+export interface MixerBus {
+  id: string;
+  name: string;
+  volume: number;
+  pan: number;
+  reverbSend: number;
+}
+
+export interface MasterAutomationPoint {
+  id: string;
+  time: number;
+  value: number;
+}
+
+export interface SamplerPad {
+  id: string;
+  name: string;
+  key: string;
+  startTime: number;
+  endTime: number;
+}
+
+export interface SamplerData {
+  sampleName: string;
+  sample: AudioBuffer;
+  pads: SamplerPad[];
+}
+
+export interface StudioScene {
+  id: string;
+  name: string;
+  color: string;
+  regionIdsByTrack: Record<number, string[]>;
+  midiNotesByTrack?: Record<number, MidiNoteData[]>;
+  drumPatternsByTrack?: Record<number, DrumPatternData>;
+}
+
 export interface GuitarAmpSettings {
   drive: number;
   bass: number;
@@ -107,12 +152,17 @@ export interface TrackData {
   inputDevice?: string;
   monitoring?: boolean;
   automation?: TrackAutomation;
+  busId?: string;
+  sampler?: SamplerData;
 }
 
 interface TrackMixNodes {
+  input: GainNode;
   gain: GainNode;
   ampMaster: GainNode;
   pan: StereoPannerNode;
+  routingNode: GainNode;
+  routedBusId?: string;
   filters: BiquadFilterNode[];
   compressor: DynamicsCompressorNode;
   ampDrive: WaveShaperNode;
@@ -127,14 +177,26 @@ interface TrackMixNodes {
   audible: boolean;
 }
 
+interface BusMixNodes {
+  input: GainNode;
+  gain: GainNode;
+  pan: StereoPannerNode;
+  delay: DelayNode;
+  reverbWet: GainNode;
+}
+
 export class AudioEngine {
   private static instance: AudioEngine;
   public ctx: AudioContext | null = null;
   public masterGain: GainNode | null = null;
   private activeSources: AudioScheduledSourceNode[] = [];
   private activeNodes: AudioNode[] = [];
+  private sceneSources: AudioScheduledSourceNode[] = [];
+  private sceneNodes: AudioNode[] = [];
+  private sceneTimers: number[] = [];
   private masterNodes: AudioNode[] = [];
   private activeTrackMix = new Map<number, TrackMixNodes>();
+  private activeBusMix = new Map<string, BusMixNodes>();
 
   private constructor() {}
 
@@ -160,6 +222,7 @@ export class AudioEngine {
   }
 
   public stopPlayback(): void {
+    this.stopScene();
     this.activeSources.forEach((src) => {
       try {
         src.stop();
@@ -174,11 +237,174 @@ export class AudioEngine {
     });
     this.activeNodes = [];
     this.activeTrackMix.clear();
+    this.activeBusMix.clear();
+  }
+
+  public stopScene(): void {
+    this.sceneTimers.forEach((timer) => window.clearInterval(timer));
+    this.sceneTimers = [];
+    this.sceneSources.forEach((source) => {
+      try {
+        source.stop();
+        source.disconnect();
+      } catch {}
+    });
+    const sceneSourceSet = new Set(this.sceneSources);
+    this.activeSources = this.activeSources.filter((source) => !sceneSourceSet.has(source));
+    this.sceneSources = [];
+    this.sceneNodes.forEach((node) => {
+      try { node.disconnect(); } catch {}
+    });
+    this.sceneNodes = [];
   }
 
   public setMasterVolume(volume: number): void {
     if (!this.ctx || !this.masterGain) return;
     this.masterGain.gain.setTargetAtTime(Math.max(0, Math.min(1, volume)), this.ctx.currentTime, 0.015);
+  }
+
+  public playSamplerPad(track: TrackData, pad: SamplerPad): void {
+    if (!track.sampler || pad.startTime < 0 || pad.endTime <= pad.startTime ||
+      pad.endTime > track.sampler.sample.duration) return;
+    const ctx = this.init();
+    const source = ctx.createBufferSource();
+    source.buffer = track.sampler.sample;
+    source.connect(this.activeTrackMix.get(track.id)?.input ?? this.masterGain!);
+    source.start(ctx.currentTime, pad.startTime, pad.endTime - pad.startTime);
+    this.activeSources.push(source);
+  }
+
+  public launchScene(
+    tracks: TrackData[],
+    scene: StudioScene,
+    bpm: number,
+    timeSignature: string,
+    delaySeconds = 0,
+    buses: MixerBus[] = []
+  ): void {
+    const ctx = this.init();
+    this.stopScene();
+    const hasSolo = tracks.some((track) => track.solo);
+    const startTime = ctx.currentTime + Math.max(0.05, delaySeconds);
+    const beatDuration = 60 / Math.max(1, bpm);
+    const stepDuration = beatDuration / 4;
+    const [numerator, denominator] = timeSignature.split("/").map(Number);
+    const barDuration = beatDuration * numerator * (4 / denominator);
+    const fallbackBusInputs = new Map<string, GainNode>();
+    const getTrackInput = (track: TrackData): AudioNode => {
+      const activeMix = this.activeTrackMix.get(track.id);
+      if (activeMix) return activeMix.input;
+      const input = ctx.createGain();
+      const gain = ctx.createGain();
+      const pan = ctx.createStereoPanner();
+      gain.gain.value = track.volume;
+      pan.pan.value = track.pan;
+      input.connect(gain);
+      gain.connect(pan);
+      const bus = track.busId ? buses.find((candidate) => candidate.id === track.busId) : undefined;
+      if (bus) {
+        let busInput = fallbackBusInputs.get(bus.id);
+        if (!busInput) {
+          busInput = ctx.createGain();
+          const busGain = ctx.createGain();
+          const busPan = ctx.createStereoPanner();
+          busGain.gain.value = bus.volume;
+          busPan.pan.value = bus.pan;
+          busInput.connect(busGain);
+          busGain.connect(busPan);
+          busPan.connect(this.masterGain!);
+          this.sceneNodes.push(busInput, busGain, busPan);
+          fallbackBusInputs.set(bus.id, busInput);
+        }
+        pan.connect(busInput);
+      } else {
+        pan.connect(this.masterGain!);
+      }
+      this.sceneNodes.push(input, gain, pan);
+      return input;
+    };
+
+    tracks.forEach((track) => {
+      if (track.mute || (hasSolo && !track.solo)) return;
+      const destination = getTrackInput(track);
+      const regionIds = new Set(scene.regionIdsByTrack[track.id] ?? []);
+      track.regions.filter((region) => regionIds.has(region.id) && !region.muted).forEach((region) => {
+        const source = ctx.createBufferSource();
+        source.buffer = region.buffer;
+        source.loop = true;
+        source.loopStart = region.offset;
+        source.loopEnd = Math.min(region.buffer.duration, region.offset + region.duration);
+        source.connect(destination);
+        source.start(startTime, region.offset);
+        this.activeSources.push(source);
+        this.sceneSources.push(source);
+      });
+    });
+
+    const repeatingEntries: Array<{ duration: number; schedule: (when: number) => void; nextTime: number }> = [];
+    Object.entries(scene.midiNotesByTrack ?? {}).forEach(([trackId, notes]) => {
+      const track = tracks.find((candidate) => candidate.id === Number(trackId));
+      if (!track || track.mute || (hasSolo && !track.solo) || notes.length === 0) return;
+      const destination = getTrackInput(track);
+      const cycleDuration = Math.max(barDuration, barDuration * 4);
+      const schedule = (when: number) => {
+        const sourceStart = this.activeSources.length;
+        const nodeStart = this.activeNodes.length;
+        notes.forEach((note) => this.scheduleTone(
+          destination,
+          note.pitch,
+          note.velocity ?? 100,
+          note.startStep * stepDuration,
+          Math.max(1, note.length) * stepDuration,
+          0,
+          when,
+          track.synthSettings
+        ));
+        this.sceneSources.push(...this.activeSources.slice(sourceStart));
+        this.sceneNodes.push(...this.activeNodes.splice(nodeStart));
+      };
+      repeatingEntries.push({ duration: cycleDuration, schedule, nextTime: startTime });
+    });
+
+    Object.entries(scene.drumPatternsByTrack ?? {}).forEach(([trackId, pattern]) => {
+      const track = tracks.find((candidate) => candidate.id === Number(trackId));
+      if (!track || track.mute || (hasSolo && !track.solo)) return;
+      const destination = getTrackInput(track);
+      const patternLength = Math.max(pattern.kick.length, pattern.snare.length, pattern.hat.length);
+      if (patternLength < 1) return;
+      const cycleDuration = patternLength * stepDuration;
+      const swing = Math.max(0, Math.min(0.5, pattern.swing ?? 0));
+      const schedule = (when: number) => {
+        const sourceStart = this.activeSources.length;
+        const nodeStart = this.activeNodes.length;
+        for (let step = 0; step < patternLength; step++) {
+          const stepTime = when + step * stepDuration + (step % 2 === 1 ? swing * stepDuration * 0.5 : 0);
+          if (pattern.kick[step]) this.scheduleDrum(destination, "kick", stepTime);
+          if (pattern.snare[step]) this.scheduleDrum(destination, "snare", stepTime);
+          if (pattern.hat[step]) this.scheduleDrum(destination, "hat", stepTime);
+          for (const kind of ["openHat", "clap", "percussion"] as const) {
+            if (pattern[kind]?.[step]) this.scheduleDrum(destination, kind, stepTime);
+          }
+        }
+        this.sceneSources.push(...this.activeSources.slice(sourceStart));
+        this.sceneNodes.push(...this.activeNodes.splice(nodeStart));
+      };
+      repeatingEntries.push({ duration: cycleDuration, schedule, nextTime: startTime });
+    });
+
+    repeatingEntries.forEach((entry) => entry.schedule(entry.nextTime));
+    if (repeatingEntries.length) {
+      const timer = window.setInterval(() => {
+        const horizon = ctx.currentTime + 0.12;
+        repeatingEntries.forEach((entry) => {
+          while (entry.nextTime <= horizon) {
+            entry.nextTime += entry.duration;
+            entry.schedule(entry.nextTime);
+          }
+        });
+      }, 25);
+      this.sceneTimers.push(timer);
+    }
   }
 
   private configureMasterProcessing(settings?: TrackProcessingSettings): void {
@@ -198,7 +424,8 @@ export class AudioEngine {
     let mid = this.masterNodes[1] as BiquadFilterNode | undefined;
     let high = this.masterNodes[2] as BiquadFilterNode | undefined;
     let compressor = this.masterNodes[3] as DynamicsCompressorNode | undefined;
-    if (!low || !mid || !high || !compressor) {
+    let limiter = this.masterNodes[4] as DynamicsCompressorNode | undefined;
+    if (!low || !mid || !high || !compressor || !limiter) {
       this.masterGain.disconnect();
       low = this.ctx.createBiquadFilter();
       low.type = "lowshelf";
@@ -208,12 +435,19 @@ export class AudioEngine {
       high = this.ctx.createBiquadFilter();
       high.type = "highshelf";
       compressor = this.ctx.createDynamicsCompressor();
+      limiter = this.ctx.createDynamicsCompressor();
+      limiter.threshold.value = -1;
+      limiter.knee.value = 0;
+      limiter.ratio.value = 20;
+      limiter.attack.value = 0.001;
+      limiter.release.value = 0.08;
       this.masterGain.connect(low);
       low.connect(mid);
       mid.connect(high);
       high.connect(compressor);
-      compressor.connect(this.ctx.destination);
-      this.masterNodes = [low, mid, high, compressor];
+      compressor.connect(limiter);
+      limiter.connect(this.ctx.destination);
+      this.masterNodes = [low, mid, high, compressor, limiter];
     }
     low.frequency.value = 100;
     low.gain.setTargetAtTime(settings.eqEnabled ? settings.lowGain : 0, this.ctx.currentTime, 0.02);
@@ -327,7 +561,12 @@ export class AudioEngine {
     });
   }
 
-  public updateMix(tracks: TrackData[], masterVolume: number, masterSettings?: TrackProcessingSettings): void {
+  public updateMix(
+    tracks: TrackData[],
+    masterVolume: number,
+    masterSettings?: TrackProcessingSettings,
+    buses: MixerBus[] = []
+  ): void {
     this.setMasterVolume(masterVolume);
     this.configureMasterProcessing(masterSettings);
     const hasSolo = tracks.some((track) => track.solo);
@@ -337,7 +576,25 @@ export class AudioEngine {
     });
     tracks.forEach((track) => {
       const nodes = this.activeTrackMix.get(track.id);
-      if (nodes) this.updateTrackMix(track, nodes, hasSolo);
+      if (nodes) {
+        this.updateTrackMix(track, nodes, hasSolo);
+        const busId = track.busId && this.activeBusMix.has(track.busId) ? track.busId : undefined;
+        if (nodes.routedBusId !== busId) {
+          nodes.routingNode.disconnect();
+          nodes.routingNode.connect(busId
+            ? this.activeBusMix.get(busId)!.input
+            : this.masterGain!);
+          nodes.routedBusId = busId;
+        }
+      }
+    });
+    buses.forEach((bus) => {
+      const nodes = this.activeBusMix.get(bus.id);
+      if (!nodes || !this.ctx) return;
+      const now = this.ctx.currentTime;
+      nodes.gain.gain.setTargetAtTime(bus.volume, now, 0.015);
+      nodes.pan.pan.setTargetAtTime(bus.pan, now, 0.015);
+      nodes.reverbWet.gain.setTargetAtTime(Math.min(0.45, bus.reverbSend * 0.25), now, 0.02);
     });
   }
 
@@ -347,7 +604,9 @@ export class AudioEngine {
     bpm = 120,
     masterVolume = 1,
     masterSettings?: TrackProcessingSettings,
-    endOffsetSec = Number.POSITIVE_INFINITY
+    endOffsetSec = Number.POSITIVE_INFINITY,
+    buses: MixerBus[] = [],
+    masterAutomation: MasterAutomationPoint[] = []
   ): void {
     const ctx = this.init();
     this.stopPlayback();
@@ -356,6 +615,34 @@ export class AudioEngine {
 
     const hasSolo = tracks.some((t) => t.solo);
     const scheduledTime = ctx.currentTime + 0.05;
+    if (masterAutomation.length) {
+      this.scheduleAutomation(this.masterGain!.gain, masterAutomation, masterVolume, startOffsetSec, scheduledTime, endOffsetSec);
+    }
+    const busNodes = new Map<string, BusMixNodes>();
+    buses.forEach((bus) => {
+      const input = ctx.createGain();
+      const gain = ctx.createGain();
+      const pan = ctx.createStereoPanner();
+      const delay = ctx.createDelay(2);
+      const feedback = ctx.createGain();
+      const reverbWet = ctx.createGain();
+      gain.gain.value = bus.volume;
+      pan.pan.value = bus.pan;
+      delay.delayTime.value = 0.32;
+      feedback.gain.value = 0.18;
+      reverbWet.gain.value = Math.min(0.45, bus.reverbSend * 0.25);
+      input.connect(gain);
+      gain.connect(pan);
+      pan.connect(this.masterGain!);
+      pan.connect(delay);
+      delay.connect(feedback);
+      feedback.connect(delay);
+      delay.connect(reverbWet);
+      reverbWet.connect(this.masterGain!);
+      busNodes.set(bus.id, { input, gain, pan, delay, reverbWet });
+      this.activeBusMix.set(bus.id, { input, gain, pan, delay, reverbWet });
+      this.activeNodes.push(input, gain, pan, delay, feedback, reverbWet);
+    });
     const stepDuration = 60 / Math.max(1, bpm) / 4;
     const effectiveEndOffset = Number.isFinite(endOffsetSec)
       ? Math.max(startOffsetSec, endOffsetSec)
@@ -369,6 +656,7 @@ export class AudioEngine {
       const trackGain = ctx.createGain();
       const ampMaster = ctx.createGain();
       const trackPan = ctx.createStereoPanner();
+      const routingNode = ctx.createGain();
       const filters = [
         ctx.createBiquadFilter(),
         ctx.createBiquadFilter(),
@@ -430,7 +718,9 @@ export class AudioEngine {
       chorusWet.connect(trackGain);
       trackGain.connect(ampMaster);
       ampMaster.connect(trackPan);
-      trackPan.connect(this.masterGain!);
+      const bus = track.busId ? busNodes.get(track.busId) : undefined;
+      trackPan.connect(routingNode);
+      routingNode.connect(bus?.input ?? this.masterGain!);
       const sends: TrackMixNodes["sends"] = [];
       (["reverb", "ambience", "delay"] as const).forEach((type) => {
         const delay = ctx.createDelay(2);
@@ -443,14 +733,17 @@ export class AudioEngine {
         delay.connect(feedback);
         feedback.connect(delay);
         delay.connect(wet);
-        wet.connect(this.masterGain!);
+        wet.connect(routingNode);
         sends.push({ wet, type });
         this.activeNodes.push(delay, feedback, wet);
       });
       const mixNodes: TrackMixNodes = {
+        input,
         gain: trackGain,
         ampMaster,
         pan: trackPan,
+        routingNode,
+        routedBusId: bus ? track.busId : undefined,
         filters,
         compressor,
         ampDrive,
@@ -488,7 +781,7 @@ export class AudioEngine {
           this.scheduleAutomation(reverbWet.gain, scaledPoints, Math.min(0.45, reverbSend * 0.25), startOffsetSec, scheduledTime, effectiveEndOffset);
         }
       }
-      this.activeNodes.push(input, trackGain, ampMaster, trackPan, ...filters, compressor, ampDrive, deEsser, ...ampFilters, chorusDelay, chorusWet, chorusDepth);
+      this.activeNodes.push(input, trackGain, ampMaster, trackPan, routingNode, ...filters, compressor, ampDrive, deEsser, ...ampFilters, chorusDelay, chorusWet, chorusDepth);
       this.activeSources.push(chorusLfo);
 
       track.regions.forEach((region) => {
@@ -599,7 +892,8 @@ export class AudioEngine {
     gain.connect(destination);
     osc.start(when);
     osc.stop(when + remaining + release + 0.02);
-    this.activeNodes.push(osc, filter, gain);
+    this.activeNodes.push(filter, gain);
+    this.activeSources.push(osc);
   }
 
   private scheduleDrum(destination: AudioNode, kind: "kick" | "snare" | "hat" | "openHat" | "clap" | "percussion", when: number): void {
@@ -645,7 +939,9 @@ export class AudioEngine {
     totalDurationSec: number,
     bpm = 120,
     masterVolume = 1,
-    masterSettings?: TrackProcessingSettings
+    masterSettings?: TrackProcessingSettings,
+    buses: MixerBus[] = [],
+    masterAutomation: MasterAutomationPoint[] = []
   ): Promise<Blob> {
     const sampleRate = 44100;
     if (!Number.isFinite(totalDurationSec) || totalDurationSec <= 0 || totalDurationSec > 600) {
@@ -655,21 +951,24 @@ export class AudioEngine {
     const offlineCtx = new OfflineAudioContext(2, length, sampleRate);
     const offlineMaster = offlineCtx.createGain();
     offlineMaster.gain.value = Math.max(0, Math.min(1, masterVolume));
+    if (masterAutomation.length) {
+      this.scheduleAutomation(offlineMaster.gain, masterAutomation, masterVolume, 0, 0, totalDurationSec);
+    }
+    const low = offlineCtx.createBiquadFilter();
+    low.type = "lowshelf";
+    low.frequency.value = 100;
+    low.gain.value = masterSettings?.eqEnabled ? masterSettings.lowGain : 0;
+    const mid = offlineCtx.createBiquadFilter();
+    mid.type = "peaking";
+    mid.frequency.value = masterSettings?.midFreq ?? 1200;
+    mid.Q.value = 0.8;
+    mid.gain.value = masterSettings?.eqEnabled ? masterSettings.midGain : 0;
+    const high = offlineCtx.createBiquadFilter();
+    high.type = "highshelf";
+    high.frequency.value = 8000;
+    high.gain.value = masterSettings?.eqEnabled ? masterSettings.highGain : 0;
+    const compressor = offlineCtx.createDynamicsCompressor();
     if (masterSettings) {
-      const low = offlineCtx.createBiquadFilter();
-      low.type = "lowshelf";
-      low.frequency.value = 100;
-      low.gain.value = masterSettings.eqEnabled ? masterSettings.lowGain : 0;
-      const mid = offlineCtx.createBiquadFilter();
-      mid.type = "peaking";
-      mid.frequency.value = masterSettings.midFreq;
-      mid.Q.value = 0.8;
-      mid.gain.value = masterSettings.eqEnabled ? masterSettings.midGain : 0;
-      const high = offlineCtx.createBiquadFilter();
-      high.type = "highshelf";
-      high.frequency.value = 8000;
-      high.gain.value = masterSettings.eqEnabled ? masterSettings.highGain : 0;
-      const compressor = offlineCtx.createDynamicsCompressor();
       if (masterSettings.compEnabled || masterSettings.gateEnabled) {
         compressor.threshold.value = masterSettings.gateEnabled
           ? masterSettings.gateThreshold
@@ -678,14 +977,43 @@ export class AudioEngine {
         compressor.attack.value = masterSettings.compAttack;
         compressor.release.value = masterSettings.compRelease;
       } else compressor.ratio.value = 1;
-      offlineMaster.connect(low);
-      low.connect(mid);
-      mid.connect(high);
-      high.connect(compressor);
-      compressor.connect(offlineCtx.destination);
-    } else {
-      offlineMaster.connect(offlineCtx.destination);
     }
+    const limiter = offlineCtx.createDynamicsCompressor();
+    limiter.threshold.value = -1;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.001;
+    limiter.release.value = 0.08;
+    offlineMaster.connect(low);
+    low.connect(mid);
+    mid.connect(high);
+    high.connect(compressor);
+    compressor.connect(limiter);
+    limiter.connect(offlineCtx.destination);
+
+    const offlineBuses = new Map<string, BusMixNodes>();
+    buses.forEach((bus) => {
+      const input = offlineCtx.createGain();
+      const gain = offlineCtx.createGain();
+      const pan = offlineCtx.createStereoPanner();
+      const delay = offlineCtx.createDelay(2);
+      const feedback = offlineCtx.createGain();
+      const reverbWet = offlineCtx.createGain();
+      gain.gain.value = bus.volume;
+      pan.pan.value = bus.pan;
+      delay.delayTime.value = 0.32;
+      feedback.gain.value = 0.18;
+      reverbWet.gain.value = Math.min(0.45, bus.reverbSend * 0.25);
+      input.connect(gain);
+      gain.connect(pan);
+      pan.connect(offlineMaster);
+      pan.connect(delay);
+      delay.connect(feedback);
+      feedback.connect(delay);
+      delay.connect(reverbWet);
+      reverbWet.connect(offlineMaster);
+      offlineBuses.set(bus.id, { input, gain, pan, delay, reverbWet });
+    });
 
     const hasSolo = tracks.some((t) => t.solo);
     const stepDuration = 60 / Math.max(1, bpm) / 4;
@@ -699,6 +1027,7 @@ export class AudioEngine {
       tGain.gain.value = track.volume * ampMaster;
       const tPan = offlineCtx.createStereoPanner();
       tPan.pan.value = track.pan;
+      const bus = track.busId ? offlineBuses.get(track.busId) : undefined;
       if (track.automation?.volume?.length) {
         this.scheduleAutomation(
           tGain.gain,
@@ -803,7 +1132,7 @@ export class AudioEngine {
         input.connect(tGain);
       }
       tGain.connect(tPan);
-      tPan.connect(offlineMaster);
+      tPan.connect(bus?.input ?? offlineMaster);
 
       track.regions.forEach((region) => {
         if (region.muted || region.startTime >= totalDurationSec) return;
@@ -842,7 +1171,7 @@ export class AudioEngine {
         delay.connect(feedback);
         feedback.connect(delay);
         delay.connect(wet);
-        wet.connect(offlineMaster);
+        wet.connect(bus?.input ?? offlineMaster);
       });
 
       (track.midiNotes ?? []).forEach((note) => {

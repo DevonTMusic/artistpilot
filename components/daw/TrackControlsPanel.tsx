@@ -133,10 +133,10 @@ export function TrackControlsPanel({
   };
 
   return (
-    <div className="flex h-56 w-full flex-col border-t border-[#1a1c22] bg-[#22242a] font-sans select-none shadow-2xl z-20">
+    <div className="flex h-[clamp(9rem,20vh,13rem)] w-full flex-none flex-col border-t border-[#1a1c22] bg-[#22242a] font-sans select-none shadow-2xl z-20">
       
       {/* 1. TOP TOOLBAR */}
-      <div className="flex h-8 flex-none items-center justify-between border-b border-[#18191f] bg-[#2d3038] px-4 text-xs">
+      <div className="flex h-7 flex-none items-center justify-between border-b border-[#18191f] bg-[#2d3038] px-2 text-xs">
         <div className="flex items-center gap-1.5">
           <div className="flex rounded bg-black/40 p-0.5">
             <button
@@ -205,8 +205,8 @@ export function TrackControlsPanel({
       <div className="flex-1 flex overflow-hidden">
         
         {/* LEFT: Recording Settings (NOW FULLY SCROLLABLE) */}
-        <div className="w-72 flex-none border-r border-[#1a1b22] p-3 flex flex-col bg-[#262830] overflow-y-auto">
-          <div className="space-y-3 pb-4">
+        <div className="w-56 flex-none border-r border-[#1a1b22] p-2 flex flex-col bg-[#262830] overflow-y-auto">
+          <div className="space-y-2 pb-3">
             <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 block">
               Recording Settings
             </span>
@@ -318,7 +318,7 @@ export function TrackControlsPanel({
         </div>
 
         {/* CENTER & RIGHT: Blue Hardware Console with Rotating Circular Dials */}
-        <div className="flex-1 bg-gradient-to-b from-[#244b78] via-[#1d3d63] to-[#142d4a] p-3 flex items-center justify-around border-l border-sky-950 shadow-inner overflow-x-auto">
+        <div className="min-w-0 flex-1 bg-gradient-to-b from-[#244b78] via-[#1d3d63] to-[#142d4a] p-2 flex items-center justify-around border-l border-sky-950 shadow-inner overflow-x-auto">
           
           {/* COMPRESSOR */}
           <div className="flex flex-col items-center border-r border-sky-400/20 pr-6 flex-none">
