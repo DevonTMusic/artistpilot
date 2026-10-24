@@ -1,5 +1,7 @@
 // lib/daw/PianoEngine.ts
 
+import type { SynthSettings } from "@/lib/AudioEngine";
+
 export type PianoPresetType =
   | "Concert Grand"
   | "Studio Upright"
@@ -12,6 +14,7 @@ export interface ActiveVoice {
   nodes: AudioNode[];
   gain: GainNode;
   pitch: number;
+  release?: number;
 }
 
 export class PianoEngine {
@@ -35,7 +38,8 @@ export class PianoEngine {
     pitch: number,
     velocity: number = 105,
     preset: PianoPresetType = "Concert Grand",
-    destNode?: AudioNode
+    destNode?: AudioNode,
+    synthSettings?: SynthSettings
   ) {
     this.noteOff(ctx, pitch, true);
 
@@ -46,6 +50,12 @@ export class PianoEngine {
 
     const masterGain = ctx.createGain();
     const nodesToClean: AudioNode[] = [masterGain];
+    if (synthSettings) {
+      const peak = 0.75 * vel;
+      masterGain.gain.setValueAtTime(0.0001, t);
+      masterGain.gain.linearRampToValueAtTime(peak, t + synthSettings.attack);
+      masterGain.gain.linearRampToValueAtTime(peak * synthSettings.sustain, t + synthSettings.attack + synthSettings.decay);
+    }
 
     // 1. Hammer Attack Transient (Short burst of wooden percussive noise)
     const hammerBuffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.025), ctx.sampleRate);
@@ -77,22 +87,25 @@ export class PianoEngine {
       const stringFilter = ctx.createBiquadFilter();
       const stringGain = ctx.createGain();
 
-      osc.type = preset === "Classic Tine EP" ? "sine" : "triangle";
+      osc.type = synthSettings?.waveform ?? (preset === "Classic Tine EP" ? "sine" : "triangle");
       osc.frequency.setValueAtTime(freq, t);
       osc.detune.setValueAtTime(cents, t);
 
       // Acoustic Soundboard Dispersion
       stringFilter.type = "lowpass";
-      const cutoff = preset === "Felt Piano" ? 900 : preset === "Studio Upright" ? 1800 : 4500;
+      const cutoff = synthSettings?.cutoff ?? (preset === "Felt Piano" ? 900 : preset === "Studio Upright" ? 1800 : 4500);
       stringFilter.frequency.setValueAtTime(cutoff * vel, t);
-      stringFilter.frequency.exponentialRampToValueAtTime(350, t + 2.0);
+      stringFilter.Q.value = synthSettings?.resonance ?? 0.7;
+      if (!synthSettings) stringFilter.frequency.exponentialRampToValueAtTime(350, t + 2.0);
 
       // Piano String Decay Envelope
       const initialVol = (0.4 / detunes.length) * vel;
       stringGain.gain.setValueAtTime(0.0001, t);
       stringGain.gain.linearRampToValueAtTime(initialVol, t + 0.005);
-      stringGain.gain.exponentialRampToValueAtTime(initialVol * 0.35, t + 0.3);
-      stringGain.gain.exponentialRampToValueAtTime(0.0001, t + (preset === "Concert Grand" ? 3.5 : 2.2));
+      if (!synthSettings) {
+        stringGain.gain.exponentialRampToValueAtTime(initialVol * 0.35, t + 0.3);
+        stringGain.gain.exponentialRampToValueAtTime(0.0001, t + (preset === "Concert Grand" ? 3.5 : 2.2));
+      }
 
       osc.connect(stringFilter);
       stringFilter.connect(stringGain);
@@ -103,7 +116,7 @@ export class PianoEngine {
     });
 
     masterGain.connect(destination);
-    this.activeVoices.set(pitch, { nodes: nodesToClean, gain: masterGain, pitch });
+    this.activeVoices.set(pitch, { nodes: nodesToClean, gain: masterGain, pitch, release: synthSettings?.release });
   }
 
   public noteOff(ctx: AudioContext, pitch: number, immediate: boolean = false) {
@@ -116,7 +129,7 @@ export class PianoEngine {
     if (!voice) return;
 
     const t = ctx.currentTime;
-    const releaseTime = immediate ? 0.01 : 0.25;
+    const releaseTime = immediate ? 0.01 : voice.release ?? 0.25;
 
     try {
       voice.gain.gain.cancelScheduledValues(t);

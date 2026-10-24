@@ -2,7 +2,7 @@
 "use client";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { AudioEngine } from "@/lib/AudioEngine";
-import { TrackData, AudioRegion, DrumPatternData, GuitarAmpSettings } from "@/lib/AudioEngine";
+import { TrackData, AudioRegion, DrumPatternData, GuitarAmpSettings, SynthSettings } from "@/lib/AudioEngine";
 import { ClipRegion } from "@/components/daw/ClipRegion";
 import { PianoRoll, MidiNote } from "@/components/daw/PianoRoll";
 import { GuitarAmpModal } from "@/components/daw/GuitarAmpModal";
@@ -37,15 +37,33 @@ const DEFAULT_DRUM_PATTERN: DrumPatternData = {
   kick: Array.from({ length: 16 }, (_, index) => index % 4 === 0),
   snare: Array.from({ length: 16 }, (_, index) => index === 4 || index === 12),
   hat: Array.from({ length: 16 }, (_, index) => index % 2 === 0),
+  openHat: Array.from({ length: 16 }, () => false),
+  clap: Array.from({ length: 16 }, (_, index) => index === 4 || index === 12),
+  percussion: Array.from({ length: 16 }, () => false),
+  swing: 0,
+};
+const DEFAULT_SYNTH_SETTINGS: SynthSettings = {
+  waveform: "triangle",
+  attack: 0.01,
+  decay: 0.15,
+  sustain: 0.75,
+  release: 0.15,
+  cutoff: 12000,
+  resonance: 0.7,
 };
 const DEFAULT_AMP_SETTINGS: GuitarAmpSettings = {
   drive: 0.6,
   bass: 2,
   mid: 1.5,
   treble: 3,
+  master: 0.85,
   cabSim: true,
   reverb: 0.3,
   delay: 0.25,
+  driveEnabled: true,
+  delayEnabled: true,
+  chorusEnabled: false,
+  reverbEnabled: true,
 };
 
 export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
@@ -89,6 +107,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       ampEnabled: false,
       regions: [],
       midiNotes: [],
+      synthSettings: { ...DEFAULT_SYNTH_SETTINGS },
     },
   ]);
   const trackHistoryRef = useRef<{
@@ -1092,6 +1111,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         regions: [],
         midiNotes: [],
         ...(type === "drum" ? { drumPattern: { ...DEFAULT_DRUM_PATTERN } } : {}),
+        ...(type === "piano" ? { synthSettings: { ...DEFAULT_SYNTH_SETTINGS } } : {}),
       },
     ]);
     if (category === "midi") setTrackNotes((prev) => ({ ...prev, [id]: [] }));
@@ -1145,6 +1165,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         inputDevice: typeof track.inputDevice === "string" ? track.inputDevice : undefined,
         monitoring: typeof track.monitoring === "boolean" ? track.monitoring : false,
         settings: track.settings ?? { ...DEFAULT_TRACK_SETTINGS },
+        synthSettings: track.synthSettings ?? (track.category === "midi" ? { ...DEFAULT_SYNTH_SETTINGS } : undefined),
         ampSettings: track.ampSettings ?? { ...DEFAULT_AMP_SETTINGS },
         ampEnabled: track.ampEnabled ?? false,
       }));
@@ -1261,7 +1282,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const previewMidiNote = (pitch: number) => {
     const ctx = engine.current.init();
     const piano = PianoEngine.getInstance();
-    piano.noteOn(ctx, pitch, 100, undefined, engine.current.masterGain ?? undefined);
+    piano.noteOn(ctx, pitch, 100, undefined, engine.current.masterGain ?? undefined, selectedTrack?.synthSettings ?? DEFAULT_SYNTH_SETTINGS);
     window.setTimeout(() => piano.noteOff(ctx, pitch), 250);
   };
 
@@ -1657,6 +1678,9 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                 onClick={() => {
                   setSelectedTrackId(track.id);
                   setIsMasterMode(false);
+                  if (track.trackType === "guitar-bass") {
+                    setWindowState((prev) => ({ ...prev, amp: { ...prev.amp, open: true } }));
+                  }
                 }}
                 className={`h-20 p-2 flex flex-col justify-between transition ${
                   selectedTrackId === track.id && !isMasterMode ? "bg-[#1c1e26]" : "bg-[#121316] hover:bg-[#181920]"
@@ -1976,8 +2000,15 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           </button>
 
           <button
-            onClick={() => toggleModal("amp")}
-            className="px-3 py-1 rounded-full text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
+            onClick={() => {
+              if (selectedTrack?.trackType !== "guitar-bass") {
+                setStatusMsg("Select a Guitar or Bass track to open its amp and pedal rack.");
+                return;
+              }
+              toggleModal("amp");
+            }}
+            disabled={selectedTrack?.trackType !== "guitar-bass"}
+            className="px-3 py-1 rounded-full text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition disabled:cursor-not-allowed disabled:opacity-40"
           >
             🎸 Guitar Rig
           </button>
@@ -2128,6 +2159,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         onClose={() => toggleModal("piano")}
         ctx={engine.current.init()}
         outputNode={engine.current.masterGain ?? undefined}
+        synthSettings={selectedTrack?.synthSettings ?? DEFAULT_SYNTH_SETTINGS}
         trackName={selectedTrack?.name ?? "Grand Piano"}
         onRecordMidiNote={handlePianoMidiNote}
       />
@@ -2143,6 +2175,10 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             onDeleteNote={deleteMidiNote}
             onPreviewNote={previewMidiNote}
             onUpdateNotes={updateMidiNotes}
+            synthSettings={selectedTrack.synthSettings ?? DEFAULT_SYNTH_SETTINGS}
+            onSynthSettingsChange={(settings) => setTracks((prev) => prev.map((track) =>
+              track.id === selectedTrack.id ? { ...track, synthSettings: settings } : track
+            ))}
           />
           <button
             onClick={() => setPianoRollOpen(false)}
@@ -2157,6 +2193,9 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       <DrumPatternEditor
         isOpen={drumEditorOpen}
         pattern={selectedTrack?.drumPattern ?? DEFAULT_DRUM_PATTERN}
+        bpm={bpm}
+        playheadSec={playheadSec}
+        isPlaying={isPlaying}
         onChange={(pattern) => setTracks((prev) => prev.map((track) => track.id === selectedTrackId ? { ...track, drumPattern: pattern } : track))}
         onClose={() => setDrumEditorOpen(false)}
       />

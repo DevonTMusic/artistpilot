@@ -1,14 +1,7 @@
 // lib/daw/EffectsEngine.ts
 
-export interface GuitarAmpSettings {
-  drive: number;      // 0 to 1.0 (Preamp gain)
-  bass: number;       // -10 to +10 dB
-  mid: number;        // -10 to +10 dB
-  treble: number;     // -10 to +10 dB
-  cabSim: boolean;    // Cabinet simulation filter
-  reverb: number;     // 0 to 1.0 (Ambience mix)
-  delay: number;      // 0 to 1.0 (Echo feedback)
-}
+import type { GuitarAmpSettings } from "@/lib/AudioEngine";
+export type { GuitarAmpSettings } from "@/lib/AudioEngine";
 
 export function makeDistortionCurve(amount: number = 20): any {
   const k = typeof amount === "number" ? amount : 20;
