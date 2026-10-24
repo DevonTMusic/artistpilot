@@ -14,15 +14,3 @@ Prepaid billing collects payment before extra AI requests, but it cannot guarant
 ## Shared Studio storage
 
 Run `studio_storage_limits.sql` to cap each shared project/revision upload at 25 MiB. The app removes the previous project file after a successful revision save so revisions do not grow storage indefinitely. This does not cap total Supabase storage, database, bandwidth, or hosting usage; set provider-side limits/alerts and review your plan.
-
-## Social sign-in
-
-Enable Google, Apple, and Azure (Microsoft) in Supabase Authentication > Sign In / Providers, and supply each provider's client credentials there. Add this app callback URL to Supabase Authentication > URL Configuration > Redirect URLs:
-
-`https://<your-production-domain>/auth/callback`
-
-For local development, also allow:
-
-`http://localhost:3000/auth/callback`
-
-The provider console's redirect/return URL must instead be Supabase's Auth callback URL (`https://<project-ref>.supabase.co/auth/v1/callback`, shown in Supabase provider settings). The Microsoft button uses Supabase's `azure` provider. Apple's provider credentials require an Apple Developer account; Apple Developer Program membership may have a fee. Provider credentials are configured in Supabase, not committed to this repository.
