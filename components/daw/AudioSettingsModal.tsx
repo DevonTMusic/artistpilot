@@ -125,7 +125,7 @@ export function AudioSettingsModal({
         <div className="flex h-11 items-center justify-between border-b border-zinc-800 bg-[#1c1e26] px-4">
           <div className="flex items-center gap-2">
             <span className="text-sm font-bold text-white flex items-center gap-1.5">
-              <span>🎙️</span> Audio Interface & System Settings
+              Audio Interface & System Settings
             </span>
           </div>
           <button onClick={onClose} className="h-6 w-6 rounded hover:bg-red-500 text-zinc-400 hover:text-white flex items-center justify-center font-bold text-xs">

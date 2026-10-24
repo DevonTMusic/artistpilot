@@ -104,7 +104,7 @@ export function AiCoachModal({
       <div className="flex h-11 items-center justify-between border-b border-zinc-800 bg-[#21232d] px-4">
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-indigo-400 flex items-center gap-1.5">
-            ✨ AI Music Coach & Theory
+            AI Music Coach & Theory
           </span>
           <div className="flex rounded bg-black/40 p-0.5 text-[10px]">
             <button

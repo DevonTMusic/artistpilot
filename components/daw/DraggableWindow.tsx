@@ -4,7 +4,7 @@ import React, { useState, useRef } from "react";
 
 interface DraggableWindowProps {
   title: string;
-  icon?: string;
+  icon?: React.ReactNode;
   isOpen: boolean;
   onClose: () => void;
   defaultPosition?: { x: number; y: number };
@@ -15,7 +15,7 @@ interface DraggableWindowProps {
 
 export function DraggableWindow({
   title,
-  icon = "🎛️",
+  icon,
   isOpen,
   onClose,
   defaultPosition = { x: 120, y: 100 },
@@ -66,7 +66,7 @@ export function DraggableWindow({
         className="flex h-10 flex-none items-center justify-between border-b border-zinc-800 bg-[#1c1e26] px-4 cursor-grab active:cursor-grabbing hover:bg-[#22242e] transition"
       >
         <span className="text-xs font-bold text-white flex items-center gap-2">
-          <span>{icon}</span> {title}
+          {icon && <span className="flex items-center">{icon}</span>} {title}
         </span>
         <div className="flex items-center gap-1.5">
           <button

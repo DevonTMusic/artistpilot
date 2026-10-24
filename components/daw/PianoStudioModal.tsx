@@ -14,13 +14,13 @@ interface PianoStudioModalProps {
   onRecordMidiNote?: (pitch: number, velocity: number, isNoteOn: boolean) => void;
 }
 
-const PIANO_PRESETS: { name: PianoPresetType; desc: string; icon: string }[] = [
-  { name: "Concert Grand", desc: "Steinway D style grand piano with warm resonance", icon: "🎹" },
-  { name: "Studio Upright", desc: "Intimate and punchy upright piano tone", icon: "🎙️" },
-  { name: "Felt Piano", desc: "Ultra-soft muted felt hammers for cinematic music", icon: "✨" },
-  { name: "Classic Tine EP", desc: "Vintage 1973 Rhodes bell-like electric piano", icon: "⚡" },
-  { name: "FM Digital Piano", desc: "Crystalline 80s DX7 digital bell piano", icon: "🎛️" },
-  { name: "Ambient Cinematic Piano", desc: "Long-decay reverberant atmospheric piano", icon: "🌌" },
+const PIANO_PRESETS: { name: PianoPresetType; desc: string }[] = [
+  { name: "Concert Grand", desc: "Warm, resonant concert grand" },
+  { name: "Studio Upright", desc: "Intimate, punchy upright tone" },
+  { name: "Felt Piano", desc: "Soft muted felt tone" },
+  { name: "Classic Tine EP", desc: "Bell-like electric piano" },
+  { name: "FM Digital Piano", desc: "Bright digital piano" },
+  { name: "Ambient Cinematic Piano", desc: "Long-decay atmospheric piano" },
 ];
 
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -160,7 +160,7 @@ export function PianoStudioModal({
         <div className="flex h-11 items-center justify-between border-b border-zinc-800 bg-[#1c1e26] px-4">
           <div className="flex items-center gap-3">
             <span className="text-sm font-bold text-white flex items-center gap-1.5">
-              <span>🎹</span> Piano Studio — <span className="text-[#d4af37]">{trackName}</span>
+              Piano Studio — <span className="text-[#d4af37]">{trackName}</span>
             </span>
 
             <select
@@ -170,7 +170,7 @@ export function PianoStudioModal({
             >
               {PIANO_PRESETS.map((p) => (
                 <option key={p.name} value={p.name}>
-                  {p.icon} {p.name}
+                  {p.name}
                 </option>
               ))}
             </select>
@@ -266,52 +266,64 @@ export function PianoStudioModal({
           </div>
         </div>
 
-        {/* 88-KEY STRIP */}
-        <div className="p-4 bg-[#090a0d] overflow-x-auto flex flex-col items-center">
-          <p className="text-[10px] text-zinc-500 mb-1.5">Interactive Full-Range Piano (Scroll & click keys to play):</p>
-          
-          <div className="relative flex h-40 select-none bg-black p-1 rounded-b border border-zinc-800 shadow-2xl">
-            {pianoKeys.map((k) => {
-              if (k.isBlack) return null;
-              const isPressed = activePitches.has(k.pitch);
-
-              return (
-                <button
-                  key={k.pitch}
-                  onPointerDown={() => triggerNoteOn(k.pitch)}
-                  onPointerUp={() => triggerNoteOff(k.pitch)}
-                  onPointerLeave={() => triggerNoteOff(k.pitch)}
-                  className={`relative w-8 h-full rounded-b border flex flex-col justify-end pb-1.5 items-center text-[8px] font-bold transition shadow ${
-                    isPressed
-                      ? "bg-[#d4af37] text-black border-[#d4af37]"
-                      : "border-zinc-400 bg-gradient-to-b from-zinc-100 to-zinc-300 text-zinc-800 hover:to-white"
-                  }`}
-                >
-                  {k.pitch % 12 === 0 && <span className="font-mono text-zinc-500">{k.name}</span>}
-                </button>
-              );
-            })}
-
-            <div className="absolute top-1 left-1 flex pointer-events-none">
-              {pianoKeys.map((k, idx) => {
-                if (!k.isBlack) return <div key={idx} className="w-8 pointer-events-none" />;
-                const isPressed = activePitches.has(k.pitch);
-
+        {/* Full-range keyboard with standard white/black key geometry */}
+        <div className="bg-[#090a0d] px-4 py-3">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-[10px] text-zinc-500">88-key piano · A0 to C8</p>
+            <p className="text-[10px] text-zinc-600">Click or hold a key to play</p>
+          </div>
+          <div className="overflow-x-auto rounded-b border border-zinc-700 bg-[#050505] p-1 shadow-2xl">
+            <div className="relative flex h-40 w-max touch-none">
+              {pianoKeys.filter((key) => !key.isBlack).map((key) => {
+                const isPressed = activePitches.has(key.pitch);
                 return (
                   <button
-                    key={k.pitch}
-                    onPointerDown={() => triggerNoteOn(k.pitch)}
-                    onPointerUp={() => triggerNoteOff(k.pitch)}
-                    onPointerLeave={() => triggerNoteOff(k.pitch)}
-                    style={{ marginLeft: "-13px", marginRight: "-13px" }}
-                    className={`pointer-events-auto z-10 w-6 h-24 rounded-b border text-[7px] font-bold flex flex-col justify-end pb-1 items-center shadow-lg transition ${
+                    key={key.pitch}
+                    type="button"
+                    aria-label={`Play ${key.name}`}
+                    onPointerDown={(event) => {
+                      event.currentTarget.setPointerCapture(event.pointerId);
+                      triggerNoteOn(key.pitch);
+                    }}
+                    onPointerUp={() => triggerNoteOff(key.pitch)}
+                    onPointerCancel={() => triggerNoteOff(key.pitch)}
+                    onLostPointerCapture={() => triggerNoteOff(key.pitch)}
+                    className={`relative h-full w-8 flex-none rounded-b border border-x-zinc-400 border-b-zinc-500 transition ${
                       isPressed
-                        ? "bg-[#d4af37] text-black border-[#d4af37]"
-                        : "border-black bg-gradient-to-b from-zinc-800 to-black text-zinc-400"
+                        ? "bg-amber-300"
+                        : "bg-gradient-to-b from-white via-zinc-100 to-zinc-300 hover:from-white hover:to-white"
                     }`}
                   >
-                    {k.name}
+                    {key.pitch % 12 === 0 && (
+                      <span className="pointer-events-none absolute bottom-1 left-0 w-full text-center font-mono text-[8px] font-semibold text-zinc-500">
+                        {key.name}
+                      </span>
+                    )}
                   </button>
+                );
+              })}
+              {pianoKeys.filter((key) => key.isBlack).map((key) => {
+                const precedingWhiteKeys = pianoKeys.filter((candidate) => !candidate.isBlack && candidate.pitch < key.pitch).length;
+                const isPressed = activePitches.has(key.pitch);
+                return (
+                  <button
+                    key={key.pitch}
+                    type="button"
+                    aria-label={`Play ${key.name}`}
+                    onPointerDown={(event) => {
+                      event.currentTarget.setPointerCapture(event.pointerId);
+                      triggerNoteOn(key.pitch);
+                    }}
+                    onPointerUp={() => triggerNoteOff(key.pitch)}
+                    onPointerCancel={() => triggerNoteOff(key.pitch)}
+                    onLostPointerCapture={() => triggerNoteOff(key.pitch)}
+                    style={{ left: `${precedingWhiteKeys * 32 - 11}px` }}
+                    className={`absolute top-0 z-10 h-[62%] w-[22px] rounded-b border border-black shadow-[0_3px_5px_rgba(0,0,0,0.55)] ${
+                      isPressed
+                        ? "bg-amber-400"
+                        : "bg-gradient-to-b from-zinc-700 via-zinc-900 to-black hover:from-zinc-600"
+                    }`}
+                  />
                 );
               })}
             </div>

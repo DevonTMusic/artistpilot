@@ -16,24 +16,28 @@ export interface ProcessingSettings {
   lowCut: boolean;         // 80Hz Highpass
   ambienceSend: number;    // 0 to 1.0
   reverbSend: number;      // 0 to 1.0
+  deEsserEnabled: boolean;
+  deEsserAmount: number;
 }
 
 export const DEFAULT_TRACK_SETTINGS: ProcessingSettings = {
   inputGain: 1.0,
   gateEnabled: false,
   gateThreshold: -45,
-  compEnabled: true,
-  compAmount: 0.5,
+  compEnabled: false,
+  compAmount: 0,
   compAttack: 0.01,
   compRelease: 0.15,
-  eqEnabled: true,
+  eqEnabled: false,
   lowGain: 0,
   midGain: 0,
   midFreq: 1200,
   highGain: 0,
-  lowCut: true,
-  ambienceSend: 0.15,
-  reverbSend: 0.25,
+  lowCut: false,
+  ambienceSend: 0,
+  reverbSend: 0,
+  deEsserEnabled: false,
+  deEsserAmount: 0,
 };
 
 export class TrackAudioNodeChain {

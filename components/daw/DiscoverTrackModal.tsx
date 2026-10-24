@@ -63,7 +63,7 @@ export function DiscoverTrackModal({
               className="flex items-center gap-3.5 p-3.5 rounded-xl border border-zinc-800 bg-[#18191f] hover:bg-[#1f2129] transition text-left"
             >
               <div className="h-12 w-12 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-400 flex items-center justify-center text-white shadow-lg">
-                <span className="font-bold text-lg">🎲</span>
+                <span className="font-bold text-lg">START</span>
               </div>
               <div>
                 <div className="flex items-center gap-1.5">

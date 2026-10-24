@@ -154,6 +154,10 @@ export class AudioDeviceManager {
     high.type = "highshelf";
     high.frequency.value = 8000;
     high.gain.value = settings?.eqEnabled ? settings.highGain : 0;
+    const deEsser = ctx.createBiquadFilter();
+    deEsser.type = "highshelf";
+    deEsser.frequency.value = 6500;
+    deEsser.gain.value = settings?.deEsserEnabled ? -12 * (settings.deEsserAmount ?? 0) : 0;
     const compressor = ctx.createDynamicsCompressor();
     if (settings?.compEnabled || settings?.gateEnabled) {
       compressor.threshold.value = settings?.gateEnabled
@@ -171,7 +175,8 @@ export class AudioDeviceManager {
     highPass.connect(low);
     low.connect(mid);
     mid.connect(high);
-    high.connect(compressor);
+    high.connect(deEsser);
+    deEsser.connect(compressor);
 
     let processedOutput: AudioNode = compressor;
     if (ampEnabled && ampSettings) {
@@ -240,7 +245,7 @@ export class AudioDeviceManager {
     this.setMonitoring(ctx, enableMonitoring);
     outputBus.connect(this.monitorGainNode);
     this.monitorGainNode.connect(ctx.destination);
-    this.activeInputNodes.push(inputGain, highPass, low, mid, high, compressor, outputBus);
+    this.activeInputNodes.push(inputGain, highPass, low, mid, high, deEsser, compressor, outputBus);
 
     return { stream: this.recordingDestination.stream, analyser: this.analyserNode };
   }

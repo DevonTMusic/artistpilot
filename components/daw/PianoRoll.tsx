@@ -139,6 +139,17 @@ export function PianoRoll({
     onUpdateNotes(quantized);
   };
 
+  const correctNotePitches = () => {
+    if (!onUpdateNotes) return;
+    const corrected = notes.map((note) => {
+      const nearest = Array.from({ length: 13 }, (_, index) => note.pitch - 6 + index)
+        .filter((pitch) => scalePitchClasses.has(pitch % 12))
+        .sort((a, b) => Math.abs(a - note.pitch) - Math.abs(b - note.pitch))[0];
+      return nearest === undefined ? note : { ...note, pitch: nearest };
+    });
+    onUpdateNotes(corrected);
+  };
+
   // Transpose: Shifts notes up/down by semitones
   const transposeNotes = (semitones: number) => {
     if (!onUpdateNotes) return;
@@ -155,7 +166,7 @@ export function PianoRoll({
       {/* Header with Quantize & Transpose Toolbar */}
       <div className="flex h-8 items-center justify-between border-b border-zinc-800 bg-[#1c1d24] px-4 text-xs font-semibold">
         <span className="text-zinc-200">
-          🎹 Piano Roll — <span className="text-[#d4af37]">{instrumentName}</span>
+          Piano Roll — <span className="text-[#d4af37]">{instrumentName}</span>
         </span>
 
         <div className="flex items-center gap-2">
@@ -183,6 +194,14 @@ export function PianoRoll({
             title={`Constrain note entry to ${projectKey} ${scale === "maj" ? "major" : "minor"}`}
           >
             Scale {scaleLock ? "On" : "Off"}
+          </button>
+          <button
+            onClick={correctNotePitches}
+            disabled={!notes.length || !onUpdateNotes}
+            className="rounded bg-sky-900/70 px-2 py-0.5 text-[10px] text-sky-200 hover:bg-sky-800 disabled:opacity-40"
+            title={`Move existing MIDI notes to the nearest note in ${projectKey} ${scale === "maj" ? "major" : "minor"}`}
+          >
+            Pitch Correct
           </button>
           <button
             onClick={() => setChordMode((enabled) => !enabled)}
