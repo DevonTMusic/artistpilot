@@ -10,7 +10,7 @@ Create a Neon Postgres project and configure these environment variables in `.en
 | --- | --- |
 | `DATABASE_URL` | Neon Postgres connection string. Use the direct connection string for the schema migration. |
 | `BETTER_AUTH_SECRET` | A private random secret of at least 32 characters. Generate one with `openssl rand -base64 32`; keep it out of source control. |
-| `BETTER_AUTH_URL` | Recommended app origin, such as `http://localhost:3000` locally or `https://artistpilot.com` in production. Do not append `/api/auth`. If omitted in a Vercel deployment, Better Auth accepts the `artistpilot-*.vercel.app` preview hosts and falls back to `https://artistpilot.com`. |
+| `BETTER_AUTH_URL` | Optional local development origin, normally `http://localhost:3000`. In Vercel production and preview deployments, Better Auth resolves the URL from the request host, allowing `artistpilot.com`, `www.artistpilot.com`, and `artistpilot-*.vercel.app`; this variable is not required in Vercel. |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL, only needed for shared Studio file storage. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service-role key, only needed for shared Studio file storage. Keep it server-only. |
 | `GEMINI_API_KEY` | Server-side key for the AI music coach. |
@@ -37,6 +37,6 @@ From the repository root, with `DATABASE_URL` set:
 
 ## Seed the grader demo account
 
-After the app is deployed with the production environment variables and schema above, run `npm run seed` from the repository root with `.env.local` containing the production `DATABASE_URL` and `BETTER_AUTH_URL`. The script creates or signs in to `demo@demo.com` with password `password123!`, then grants that account paid access in Neon. If that email already exists with a different password, the script stops with an error instead of pretending the grader credentials are ready.
+After the app is deployed with the production environment variables and schema above, run `npm run seed` from the repository root with `.env.local` containing the production `DATABASE_URL` and `BETTER_AUTH_URL` set to the app origin. The script creates or signs in to `demo@demo.com` with password `password123!`, then grants that account paid access in Neon. If that email already exists with a different password, the script stops with an error instead of pretending the grader credentials are ready.
 
 Verify that the account signs in at the deployed app and that its profile has `is_paid = true` in Neon's `profiles` table.
