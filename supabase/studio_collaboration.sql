@@ -21,7 +21,7 @@ create table public.studio_project_members (
 
 create table public.studio_project_invites (
   id uuid primary key default gen_random_uuid(),
-  project_id uuid not null raeferences public.studio_projects on delete cascade,
+  project_id uuid not null references public.studio_projects on delete cascade,
   token_hash text not null unique,
   created_by uuid not null references auth.users on delete cascade,
   expires_at timestamptz not null,
