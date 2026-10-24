@@ -301,5 +301,6 @@ export class AudioDeviceManager {
       try { this.recordingDestination.disconnect(); } catch {}
       this.recordingDestination = null;
     }
+    this.isMonitoring = false;
   }
 }

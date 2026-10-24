@@ -2,8 +2,20 @@
 "use client";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { AudioEngine } from "@/lib/AudioEngine";
-import { TrackData, AudioRegion, DrumPatternData, GuitarAmpSettings, SynthSettings } from "@/lib/AudioEngine";
+import {
+  TrackData,
+  AudioRegion,
+  ArrangerSection,
+  DrumPatternData,
+  GuitarAmpSettings,
+  MasterAutomationPoint,
+  MixerBus,
+  SamplerData,
+  StudioScene,
+  SynthSettings,
+} from "@/lib/AudioEngine";
 import { ClipRegion } from "@/components/daw/ClipRegion";
+import { ArrangerLane } from "@/components/daw/ArrangerLane";
 import { PianoRoll, MidiNote } from "@/components/daw/PianoRoll";
 import { GuitarAmpModal } from "@/components/daw/GuitarAmpModal";
 import { AiCoachModal } from "@/components/daw/AiCoachModal";
@@ -12,12 +24,25 @@ import { AudioDeviceManager, DeviceInfo } from "@/lib/daw/AudioDeviceManager";
 import { AudioSettingsModal } from "@/components/daw/AudioSettingsModal";
 import { TrackControlsPanel } from "@/components/daw/TrackControlsPanel";
 import { ProcessingSettings, DEFAULT_TRACK_SETTINGS } from "@/lib/daw/TrackProcessor";
-import { saveSessionFile, openSessionFile, parseProcessingSettings, sourceBlobs } from "@/lib/daw/sessionFile";
+import {
+  saveSessionFile,
+  openSessionFile,
+  parseArrangerSections,
+  parseMasterAutomation,
+  parseMixerBuses,
+  parseProcessingSettings,
+  parseStudioScenes,
+  serializeSessionFile,
+  sourceBlobs,
+} from "@/lib/daw/sessionFile";
 import { PianoStudioModal } from "@/components/daw/PianoStudioModal";
 import { PianoEngine } from "@/lib/daw/PianoEngine";
 import { DiscoverTrackModal } from "@/components/daw/DiscoverTrackModal";
 import { DrumPatternEditor } from "@/components/daw/DrumPatternEditor";
 import { SoundLibraryModal } from "@/components/daw/SoundLibraryModal";
+import { SamplerPadModal } from "@/components/daw/SamplerPadModal";
+import { SceneLauncherModal } from "@/components/daw/SceneLauncherModal";
+import { CollaborationPanel } from "@/components/daw/CollaborationPanel";
 import { ChromaticTuner } from "@/components/daw/ChromaticTuner";
 import { SoundPreset } from "@/lib/daw/soundLibrary";
 import { parseMidiFile } from "@/lib/daw/midiFile";
@@ -101,6 +126,22 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const [bpm, setBpm] = useState(Math.min(300, Math.max(30, defaultBpm)));
   const [projectKey, setProjectKey] = useState("D♭");
   const [projectScale, setProjectScale] = useState<"maj" | "min">("maj");
+  const [sections, setSections] = useState<ArrangerSection[]>([]);
+  const [buses, setBuses] = useState<MixerBus[]>([]);
+  const [busPanelOpen, setBusPanelOpen] = useState(false);
+  const [masterAutomation, setMasterAutomation] = useState<MasterAutomationPoint[]>([]);
+  const [scenes, setScenes] = useState<StudioScene[]>([]);
+  const [samplerTrackId, setSamplerTrackId] = useState<number | null>(null);
+  const [sceneLauncherOpen, setSceneLauncherOpen] = useState(false);
+  const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
+  const [collaborationOpen, setCollaborationOpen] = useState(false);
+  const [sharedProjectId, setSharedProjectId] = useState<string | null>(null);
+  const [sharedRevision, setSharedRevision] = useState(0);
+  const [sharedProjectIsOwner, setSharedProjectIsOwner] = useState(false);
+  const [hasEditLease, setHasEditLease] = useState(false);
+  const [editLockOwnerId, setEditLockOwnerId] = useState<string | null>(null);
+  const [editLockExpiresAt, setEditLockExpiresAt] = useState<string | null>(null);
+  const sharedProjectLoaderRef = useRef<(projectId: string) => Promise<void>>(async () => {});
   const [isPlaying, setIsPlaying] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [playheadSec, setPlayheadSec] = useState(0);
@@ -172,10 +213,14 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const liveWaveformHistoryRef = useRef(new Map<number, number[]>());
   const liveAnimRef = useRef<number | null>(null);
   const timelineContainerRef = useRef<HTMLDivElement>(null);
+  const trackHeaderRowsRef = useRef<HTMLDivElement>(null);
+  const timelineRowsRef = useRef<HTMLDivElement>(null);
   const lastMetronomeBeat = useRef<number>(-1);
   const scrubPosition = useRef(0);
   const countInCancelled = useRef(false);
   const tapTimes = useRef<number[]>([]);
+  const [barNumerator, barDenominator] = timeSignature.split("/").map(Number);
+  const secondsPerBar = (60 / bpm) * (barNumerator * (4 / barDenominator));
   useEffect(() => {
     const history = trackHistoryRef.current;
     if (history.last !== tracks) {
@@ -195,8 +240,121 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       ...track.regions.map((region) => region.startTime + region.duration),
       ...(trackNotes[track.id] ?? track.midiNotes ?? []).map((note) => ((note.startStep + note.length) * 60) / bpm / 4),
       track.category === "drum" ? ((track.drumPattern?.kick.length ?? 0) * 60) / bpm / 4 : 0,
-    ])
+    ]),
+    ...sections.map((section) => section.endBar * secondsPerBar),
+    ...masterAutomation.map((point) => point.time)
   );
+  const addArrangerSection = () => {
+    const startBar = Math.max(1, Math.floor(playheadSec / secondsPerBar) + 1);
+    const names = ["Intro", "Verse", "Chorus", "Bridge", "Outro"];
+    const colors = ["bg-emerald-700", "bg-sky-700", "bg-violet-700", "bg-amber-700", "bg-rose-700"];
+    const index = sections.length;
+    setSections((current) => [...current, {
+      id: `section-${Date.now()}`,
+      name: names[index % names.length],
+      color: colors[index % colors.length],
+      startBar,
+      endBar: startBar + 4,
+    }]);
+  };
+
+  const commitSectionMove = useCallback((previous: ArrangerSection, next: ArrangerSection) => {
+    const deltaBars = next.startBar - previous.startBar;
+    const deltaSeconds = deltaBars * secondsPerBar;
+    const sectionStart = (previous.startBar - 1) * secondsPerBar;
+    const sectionEnd = (previous.endBar - 1) * secondsPerBar;
+    const stepDuration = 60 / bpm / 4;
+    const deltaSteps = Math.round(deltaSeconds / stepDuration);
+    if (deltaBars !== 0) {
+      setTracks((current) => current.map((track) => ({
+        ...track,
+        regions: track.regions.map((region) =>
+          region.startTime >= sectionStart && region.startTime < sectionEnd
+            ? { ...region, startTime: Math.max(0, region.startTime + deltaSeconds) }
+            : region
+        ),
+        midiNotes: (trackNotes[track.id] ?? track.midiNotes ?? []).map((note) => {
+          const noteTime = note.startStep * stepDuration;
+          return noteTime >= sectionStart && noteTime < sectionEnd
+            ? { ...note, startStep: Math.max(0, note.startStep + deltaSteps) }
+            : note;
+        }),
+      })));
+      setTrackNotes((current) => Object.fromEntries(Object.entries(current).map(([trackId, notes]) => [
+        trackId,
+        notes.map((note) => {
+          const noteTime = note.startStep * stepDuration;
+          return noteTime >= sectionStart && noteTime < sectionEnd
+            ? { ...note, startStep: Math.max(0, note.startStep + deltaSteps) }
+            : note;
+        }),
+      ])));
+    }
+    setSections((current) => current.map((section) => section.id === next.id ? next : section));
+  }, [bpm, secondsPerBar, trackNotes]);
+
+  const seekToBar = (bar: number) => {
+    const time = Math.max(0, (bar - 1) * secondsPerBar);
+    engine.current.stopPlayback();
+    if (animFrame.current) cancelAnimationFrame(animFrame.current);
+    animFrame.current = null;
+    setIsPlaying(false);
+    setPlayheadSec(time);
+    playheadAnchor.current = time;
+    scrubPosition.current = time;
+  };
+  const addMasterAutomationPoint = (time: number, value: number) => {
+    setMasterAutomation((current) => [
+      ...current.filter((point) => Math.abs(point.time - time) > 0.02),
+      { id: `master-${Date.now()}-${Math.round(time * 1000)}`, time, value },
+    ].sort((left, right) => left.time - right.time));
+  };
+  const createMasterFadeOut = () => {
+    const fadeStart = Math.max(playheadSec, projectDuration - secondsPerBar);
+    const fadeEnd = Math.max(fadeStart + 0.1, projectDuration);
+    setMasterAutomation((current) => [
+      ...current.filter((point) => point.time < fadeStart || point.time > fadeEnd),
+      { id: `master-fade-in-${Date.now()}`, time: fadeStart, value: masterVolume },
+      { id: `master-fade-out-${Date.now()}`, time: fadeEnd, value: 0 },
+    ].sort((left, right) => left.time - right.time));
+  };
+  const addMixerBus = () => {
+    setBuses((current) => [...current, {
+      id: `bus-${Date.now()}`,
+      name: `Bus ${current.length + 1}`,
+      volume: 1,
+      pan: 0,
+      reverbSend: 0,
+    }]);
+    setBusPanelOpen(true);
+  };
+  const captureScene = () => {
+    const projectTracks = getProjectTracks();
+    const regionIdsByTrack: Record<number, string[]> = {};
+    const midiNotesByTrack: Record<number, NonNullable<TrackData["midiNotes"]>> = {};
+    const drumPatternsByTrack: Record<number, DrumPatternData> = {};
+    projectTracks.forEach((track) => {
+      if (track.category === "audio" && track.regions[0]) regionIdsByTrack[track.id] = [track.regions[0].id];
+      if (track.category === "midi" && track.midiNotes?.length) midiNotesByTrack[track.id] = track.midiNotes;
+      if (track.category === "drum" && track.drumPattern) drumPatternsByTrack[track.id] = track.drumPattern;
+    });
+    const colors = ["bg-cyan-700", "bg-violet-700", "bg-emerald-700", "bg-orange-700"];
+    setScenes((current) => [...current, {
+      id: `scene-${Date.now()}`,
+      name: `Scene ${current.length + 1}`,
+      color: colors[current.length % colors.length],
+      regionIdsByTrack,
+      midiNotesByTrack,
+      drumPatternsByTrack,
+    }]);
+  };
+  const launchScene = (scene: StudioScene) => {
+    const remainder = playheadSec % secondsPerBar;
+    const delay = isPlaying && remainder > 0.02 ? secondsPerBar - remainder : 0;
+    engine.current.launchScene(getProjectTracks(), scene, bpm, timeSignature, delay, buses);
+    setActiveSceneId(scene.id);
+    setStatusMsg(delay > 0 ? `Queued "${scene.name}" for the next bar.` : `Launched "${scene.name}".`);
+  };
   const playbackState = useRef({
     tracks,
     bpm,
@@ -210,6 +368,8 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     isPlaying,
     projectDuration,
     masterSettings,
+    buses,
+    masterAutomation,
   });
 
   const triggerMetronomeClick = useCallback((isDownbeat: boolean) => {
@@ -248,6 +408,11 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     });
   }, []);
 
+  useEffect(() => () => {
+    deviceManager.current.cleanupStream();
+    engine.current.stopPlayback();
+  }, []);
+
   useEffect(() => {
     playbackState.current = {
       tracks: tracks.map((track) => ({ ...track, midiNotes: trackNotes[track.id] ?? track.midiNotes ?? [] })),
@@ -262,9 +427,11 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       isPlaying,
       projectDuration,
       masterSettings,
+      buses,
+      masterAutomation,
     };
-    engine.current.updateMix(playbackState.current.tracks, masterVolume, masterSettings);
-  }, [tracks, trackNotes, bpm, timeSignature, masterVolume, isLooping, loopStartSec, loopEndSec, metronomeActive, isRecording, isPlaying, projectDuration, masterSettings]);
+    engine.current.updateMix(playbackState.current.tracks, masterVolume, masterSettings, buses);
+  }, [tracks, trackNotes, bpm, timeSignature, masterVolume, isLooping, loopStartSec, loopEndSec, metronomeActive, isRecording, isPlaying, projectDuration, masterSettings, buses, masterAutomation]);
 
   // Scrubbing & Loop Range Listeners
   useEffect(() => {
@@ -297,7 +464,9 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           state.bpm,
           state.masterVolume,
           state.masterSettings,
-          state.isLooping ? state.loopEndSec : state.projectDuration
+          state.isLooping ? state.loopEndSec : state.projectDuration,
+          state.buses,
+          state.masterAutomation
         );
       }
       setIsScrubbing(false);
@@ -330,7 +499,9 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         state.bpm,
         state.masterVolume,
         state.masterSettings,
-        state.loopEndSec
+        state.loopEndSec,
+        state.buses,
+        state.masterAutomation
       );
     }
 
@@ -374,14 +545,63 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         bpm,
         masterVolume,
         masterSettings,
-        isLooping ? loopEndSec : projectDuration
+        isLooping ? loopEndSec : projectDuration,
+        buses,
+        masterAutomation
       );
       animFrame.current = requestAnimationFrame(updatePlaybackPosition);
       setIsPlaying(true);
     }
   };
 
+  const startLiveInputMonitor = async (deviceIdOverride?: string) => {
+    const inputTrack = tracks.find((track) => track.id === selectedTrackId && track.category === "audio")
+      ?? tracks.find((track) => track.category === "audio");
+    if (!inputTrack) throw new Error("Add or select an audio track before monitoring a microphone or instrument.");
+    const ctx = engine.current.init();
+    if (ctx.state === "suspended") await ctx.resume();
+    const { analyser } = await deviceManager.current.setupInputStream(
+      ctx,
+      deviceIdOverride || inputTrack.inputDevice || activeInputId,
+      true,
+      inputTrack.settings,
+      inputTrack.ampSettings,
+      inputTrack.ampEnabled
+    );
+    liveAnalyserRef.current = analyser;
+  };
+
+  const setInputMonitoring = async (enabled: boolean, deviceIdOverride?: string) => {
+    setMonitoringEnabled(enabled);
+    const ctx = engine.current.ctx;
+    if (!enabled) {
+      if (isRecording && ctx) {
+        deviceManager.current.setMonitoring(ctx, false);
+      } else {
+        deviceManager.current.cleanupStream();
+        liveAnalyserRef.current = null;
+      }
+      return;
+    }
+
+    if (isRecording && ctx) {
+      deviceManager.current.setMonitoring(ctx, true);
+      return;
+    }
+    try {
+      await startLiveInputMonitor(deviceIdOverride);
+      setStatusMsg("Live input monitoring is on. Headphones are recommended to prevent feedback.");
+    } catch (error) {
+      deviceManager.current.cleanupStream();
+      liveAnalyserRef.current = null;
+      setMonitoringEnabled(false);
+      console.error("Could not start live input monitoring:", error);
+      setStatusMsg(error instanceof Error ? error.message : "Could not start live input monitoring.");
+    }
+  };
+
   const handleStop = () => {
+    const shouldResumeMonitoring = isRecording && monitoringEnabled;
     countInCancelled.current = true;
     engine.current.stopPlayback();
     if (animFrame.current) cancelAnimationFrame(animFrame.current);
@@ -399,6 +619,14 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     }
     liveAnalyserRef.current = null;
     deviceManager.current.cleanupStream();
+    setActiveSceneId(null);
+    if (shouldResumeMonitoring) {
+      void startLiveInputMonitor().catch((error: unknown) => {
+        setMonitoringEnabled(false);
+        console.error("Could not resume live input monitoring:", error);
+        setStatusMsg(error instanceof Error ? error.message : "Could not resume live input monitoring.");
+      });
+    }
     setIsPlaying(false);
   };
 
@@ -1108,25 +1336,31 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const getProjectTracks = (): ExtendedTrackData[] =>
     tracks.map((track) => ({ ...track, midiNotes: trackNotes[track.id] ?? track.midiNotes ?? [] }));
 
+  const getProjectMeta = () => ({
+    projectName,
+    bpm,
+    key: projectKey,
+    scale: projectScale,
+    masterVolume,
+    masterSettings,
+    isLooping,
+    loopStartSec,
+    loopEndSec,
+    timeSignature,
+    lyricsNotes,
+    sections,
+    buses,
+    masterAutomation,
+    scenes,
+  });
+
   const saveProject = async () => {
     if (isRecording) {
       setStatusMsg("Stop recording before saving so the current take is included.");
       return;
     }
     try {
-      await saveSessionFile({
-        projectName,
-        bpm,
-        key: projectKey,
-        scale: projectScale,
-        masterVolume,
-        masterSettings,
-        isLooping,
-        loopStartSec,
-        loopEndSec,
-        timeSignature,
-        lyricsNotes,
-      }, getProjectTracks(), projectName);
+      await saveSessionFile(getProjectMeta(), getProjectTracks(), projectName);
       setStatusMsg(`Saved "${projectName || "ArtistPilot Project"}" to a local session file.`);
     } catch (error) {
       console.error("Could not save studio session:", error);
@@ -1134,13 +1368,22 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     }
   };
 
-  const loadProject = async (file?: File) => {
-    if (!file) return;
+  const loadProject = async (file?: File, fromSharedProject = false): Promise<boolean> => {
+    if (!file) return false;
     if (isRecording) {
       setStatusMsg("Stop recording before opening another session.");
-      return;
+      return false;
     }
     try {
+      if (!fromSharedProject && sharedProjectId) {
+        if (hasEditLease) await releaseSharedProject();
+        setSharedProjectId(null);
+        setSharedRevision(0);
+        setSharedProjectIsOwner(false);
+        setHasEditLease(false);
+        setEditLockOwnerId(null);
+        setEditLockExpiresAt(null);
+      }
       handleStop();
       const { meta, tracks: loadedTracks } = await openSessionFile(file, engine.current.init());
       const nextTracks = loadedTracks.map((track) => ({
@@ -1170,6 +1413,10 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       setLyricsNotes(typeof meta.lyricsNotes === "string" ? meta.lyricsNotes : "");
       setMasterVolume(typeof meta.masterVolume === "number" ? Math.min(1, Math.max(0, meta.masterVolume)) : 0.85);
       setMasterSettings(parseProcessingSettings(meta.masterSettings) ?? { ...DEFAULT_TRACK_SETTINGS });
+      setSections(parseArrangerSections(meta.sections));
+      setBuses(parseMixerBuses(meta.buses));
+      setMasterAutomation(parseMasterAutomation(meta.masterAutomation));
+      setScenes(parseStudioScenes(meta.scenes));
       setIsLooping(meta.isLooping === true);
       const loadedLoopStart = typeof meta.loopStartSec === "number" && Number.isFinite(meta.loopStartSec)
         ? Math.max(0, meta.loopStartSec)
@@ -1181,11 +1428,167 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       setLoopEndSec(Math.max(loadedLoopStart + 0.5, loadedLoopEnd));
       setPlayheadSec(0);
       setStatusMsg(`Opened "${file.name}".`);
+      return true;
     } catch (error) {
       console.error("Could not open studio session:", error);
       setStatusMsg(error instanceof Error ? `Could not open session: ${error.message}` : "Could not open this session file.");
+      return false;
     }
   };
+
+  const createSharedProject = async () => {
+    if (isRecording) throw new Error("Stop recording before sharing this project.");
+    const fileBlob = await serializeSessionFile(getProjectMeta(), getProjectTracks());
+    const form = new FormData();
+    form.set("action", "create");
+    form.set("name", projectName.trim() || "Untitled Studio Project");
+    form.set("file", new File([fileBlob], `${projectName.trim() || "studio-project"}.artistpilot`, {
+      type: "application/octet-stream",
+    }));
+    const response = await fetch("/api/studio/shared", { method: "POST", body: form });
+    const result = await response.json() as { projectId?: string; revision?: number; lockExpiresAt?: string; error?: string };
+    if (!response.ok || !result.projectId) throw new Error(result.error ?? "Could not share this Studio project.");
+    setSharedProjectId(result.projectId);
+    setSharedRevision(Number(result.revision) || 1);
+    setSharedProjectIsOwner(true);
+    setHasEditLease(true);
+    setEditLockOwnerId(null);
+    setEditLockExpiresAt(result.lockExpiresAt ?? null);
+    setStatusMsg("Shared project created. Create an invite link to collaborate.");
+  };
+
+  const saveSharedProject = async () => {
+    if (!sharedProjectId || !hasEditLease) throw new Error("Take the edit lock before saving a shared revision.");
+    if (isRecording) throw new Error("Stop recording before saving a shared revision.");
+    const fileBlob = await serializeSessionFile(getProjectMeta(), getProjectTracks());
+    const form = new FormData();
+    form.set("action", "save");
+    form.set("projectId", sharedProjectId);
+    form.set("expectedRevision", String(sharedRevision));
+    form.set("name", projectName.trim() || "Untitled Studio Project");
+    form.set("file", new File([fileBlob], `${projectName.trim() || "studio-project"}.artistpilot`, {
+      type: "application/octet-stream",
+    }));
+    const response = await fetch("/api/studio/shared", { method: "POST", body: form });
+    const result = await response.json() as { revision?: number; error?: string };
+    if (!response.ok || typeof result.revision !== "number") throw new Error(result.error ?? "Could not save the shared project revision.");
+    setSharedRevision(result.revision);
+    setStatusMsg(`Saved shared revision ${result.revision}.`);
+  };
+
+  const claimSharedProject = async (targetProjectId = sharedProjectId) => {
+    if (!targetProjectId) return;
+    const form = new FormData();
+    form.set("action", "claim");
+    form.set("projectId", targetProjectId);
+    const response = await fetch("/api/studio/shared", { method: "POST", body: form });
+    const payload = await response.json() as {
+      result?: { acquired?: boolean; editorId?: string | null; expiresAt?: string | null };
+      error?: string;
+    };
+    if (!response.ok || !payload.result) throw new Error(payload.error ?? "Could not take the shared project edit lock.");
+    const lock = payload.result;
+    setHasEditLease(lock.acquired === true);
+    setEditLockOwnerId(lock.editorId ?? null);
+    setEditLockExpiresAt(lock.expiresAt ?? null);
+    if (!lock.acquired) throw new Error("Another collaborator currently holds the edit lock.");
+  };
+
+  const releaseSharedProject = async () => {
+    if (!sharedProjectId) return;
+    const form = new FormData();
+    form.set("action", "release");
+    form.set("projectId", sharedProjectId);
+    const response = await fetch("/api/studio/shared", { method: "POST", body: form });
+    const payload = await response.json() as { result?: boolean; error?: string };
+    if (!response.ok) throw new Error(payload.error ?? "Could not release the shared project edit lock.");
+    setHasEditLease(false);
+    setEditLockOwnerId(null);
+    setEditLockExpiresAt(null);
+  };
+
+  const loadSharedProject = async (projectId: string) => {
+    if (isRecording) throw new Error("Stop recording before opening another project.");
+    const response = await fetch(`/api/studio/shared?id=${encodeURIComponent(projectId)}`, { cache: "no-store" });
+    if (!response.ok) {
+      const result = await response.json() as { error?: string };
+      throw new Error(result.error ?? "Could not open the shared Studio project.");
+    }
+    const name = decodeURIComponent(response.headers.get("X-Studio-Project-Name") ?? "Shared Studio Project");
+    const blob = await response.blob();
+    const file = new File([blob], `${name}.artistpilot`, { type: "application/octet-stream" });
+    if (!await loadProject(file, true)) throw new Error("The shared Studio project could not be loaded.");
+    setProjectName(name);
+    setSharedProjectId(projectId);
+    setSharedRevision(Number(response.headers.get("X-Studio-Project-Revision")) || 1);
+    setSharedProjectIsOwner(response.headers.get("X-Studio-Project-Is-Owner") === "true");
+    setEditLockOwnerId(response.headers.get("X-Studio-Edit-Owner") || null);
+    setEditLockExpiresAt(response.headers.get("X-Studio-Edit-Expires") || null);
+    setHasEditLease(false);
+    try {
+      await claimSharedProject(projectId);
+    } catch (error) {
+      if (error instanceof Error && error.message === "Another collaborator currently holds the edit lock.") {
+        setStatusMsg(error.message);
+        return;
+      }
+      throw error;
+    }
+  };
+  sharedProjectLoaderRef.current = loadSharedProject;
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("invite");
+    if (!token) return;
+    let cancelled = false;
+    const acceptInvite = async () => {
+      const form = new FormData();
+      form.set("action", "accept");
+      form.set("token", token);
+      const response = await fetch("/api/studio/shared", { method: "POST", body: form });
+      const result = await response.json() as { projectId?: string; error?: string };
+      if (!response.ok || !result.projectId) throw new Error(result.error ?? "Could not accept this Studio invitation.");
+      if (cancelled) return;
+      params.delete("invite");
+      const query = params.toString();
+      window.history.replaceState({}, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
+      await sharedProjectLoaderRef.current(result.projectId);
+    };
+    void acceptInvite().catch((error: unknown) => {
+      if (!cancelled) setStatusMsg(error instanceof Error ? error.message : "Could not accept this Studio invitation.");
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!sharedProjectId || !hasEditLease) return;
+    const interval = window.setInterval(() => {
+      void (async () => {
+        const form = new FormData();
+        form.set("action", "claim");
+        form.set("projectId", sharedProjectId);
+        const response = await fetch("/api/studio/shared", { method: "POST", body: form });
+        const payload = await response.json() as {
+          result?: { acquired?: boolean; editorId?: string | null; expiresAt?: string | null };
+          error?: string;
+        };
+        if (!response.ok || !payload.result || !payload.result.acquired) {
+          setHasEditLease(false);
+          setEditLockOwnerId(payload.result?.editorId ?? null);
+          setEditLockExpiresAt(payload.result?.expiresAt ?? null);
+          setStatusMsg(payload.error ?? "The shared edit lock was lost. This project is now read-only.");
+          return;
+        }
+        setEditLockOwnerId(payload.result.editorId ?? null);
+        setEditLockExpiresAt(payload.result.expiresAt ?? null);
+      })().catch((error: unknown) => {
+        setHasEditLease(false);
+        setStatusMsg(error instanceof Error ? `Could not renew edit lock: ${error.message}` : "Could not renew the shared edit lock.");
+      });
+    }, 60_000);
+    return () => window.clearInterval(interval);
+  }, [sharedProjectId, hasEditLease]);
 
   const exportProject = async () => {
     if (isExporting) return;
@@ -1196,7 +1599,15 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     setIsExporting(true);
     setStatusMsg("Rendering WAV mixdown…");
     try {
-      const blob = await engine.current.exportMasterWav(getProjectTracks(), projectDuration + 1, bpm, masterVolume, masterSettings);
+      const blob = await engine.current.exportMasterWav(
+        getProjectTracks(),
+        projectDuration + 1,
+        bpm,
+        masterVolume,
+        masterSettings,
+        buses,
+        masterAutomation
+      );
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
@@ -1231,7 +1642,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       const duration = projectDuration + 1;
       for (const [index, track] of exportableTracks.entries()) {
         const stemTrack = { ...track, mute: false, solo: false };
-        const blob = await engine.current.exportMasterWav([stemTrack], duration, bpm, 1);
+        const blob = await engine.current.exportMasterWav([stemTrack], duration, bpm, 1, undefined, buses, []);
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement("a");
         anchor.href = url;
@@ -1381,7 +1792,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const barCount = Math.ceil(timelineWidth / barWidth);
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-[#0c0d0f] text-[#c5c7d0] font-sans select-none">
+    <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#0c0d0f] text-[#c5c7d0] font-sans select-none">
       <input
         ref={fileInputRef}
         type="file"
@@ -1404,29 +1815,33 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       />
       
       {/* 1. BANDLAB-STYLE MODERN TOP TRANSPORT BAR (Screenshot 1) */}
-      <header className="flex h-13 flex-none items-center justify-between border-b border-[#1c1d22] bg-[#121316] px-4 shadow-md z-30">
+      <header
+        tabIndex={0}
+        aria-label="Studio transport and project controls. Scroll horizontally for additional controls."
+        className="flex h-11 flex-none items-center gap-4 overflow-x-auto overscroll-x-contain border-b border-[#1c1d22] bg-[#121316] px-2 shadow-md z-30 focus-visible:outline focus-visible:outline-1 focus-visible:outline-sky-500"
+      >
         
         {/* Left: Brand / Project Name & Metronome */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-none items-center gap-2 whitespace-nowrap">
           <div className="flex gap-1" data-history-version={historyVersion}>
             <button
               onClick={undoTrackChanges}
               disabled={trackHistoryRef.current.undo.length === 0}
               aria-label="Undo"
               title={`Undo track change (${trackHistoryRef.current.undo.length} available)`}
-              className="flex h-7 items-center gap-1 rounded bg-[#20222a] px-2 text-[10px] text-zinc-200 hover:bg-zinc-700 disabled:opacity-30"
+              className="flex h-7 items-center gap-1 rounded bg-[#20222a] px-1.5 text-[10px] text-zinc-200 hover:bg-zinc-700 disabled:opacity-30"
             ><span aria-hidden="true">↶</span> Undo</button>
             <button
               onClick={redoTrackChanges}
               disabled={trackHistoryRef.current.redo.length === 0}
               aria-label="Redo"
               title="Redo track change"
-              className="flex h-7 items-center gap-1 rounded bg-[#20222a] px-2 text-[10px] text-zinc-200 hover:bg-zinc-700 disabled:opacity-30"
+              className="flex h-7 items-center gap-1 rounded bg-[#20222a] px-1.5 text-[10px] text-zinc-200 hover:bg-zinc-700 disabled:opacity-30"
             ><span aria-hidden="true">↷</span> Redo</button>
           </div>
           <button
             onClick={() => setDiscoverModalOpen(true)}
-            className="flex h-8 items-center gap-1.5 rounded-lg bg-[#24262e] border border-zinc-700/80 px-3 text-xs font-bold text-white hover:border-red-500 hover:text-white transition shadow-sm"
+            className="flex h-7 items-center gap-1 rounded-lg bg-[#24262e] border border-zinc-700/80 px-2 text-[11px] font-bold text-white hover:border-red-500 hover:text-white transition shadow-sm"
           >
             <span>+</span> Add Track
           </button>
@@ -1441,6 +1856,8 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           <div className="h-4 w-[1px] bg-zinc-800" />
           <button onClick={() => void saveProject()} className="rounded bg-[#20222a] px-2 py-1 text-[10px] font-semibold text-zinc-200 hover:bg-zinc-700">Save</button>
           <button onClick={() => fileInputRef.current?.click()} className="rounded bg-[#20222a] px-2 py-1 text-[10px] font-semibold text-zinc-200 hover:bg-zinc-700">Open</button>
+          <button onClick={() => setCollaborationOpen(true)} className="rounded bg-violet-900/60 px-2 py-1 text-[10px] font-semibold text-violet-200 hover:bg-violet-800">Collaborate</button>
+          <button onClick={() => setBusPanelOpen(true)} className="rounded bg-[#20222a] px-2 py-1 text-[10px] font-semibold text-zinc-200 hover:bg-zinc-700">Buses</button>
 
           {/* Metronome & Count-In Pill */}
           <div className="flex items-center gap-1">
@@ -1466,9 +1883,9 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         </div>
 
         {/* Center: BandLab Tempo, Time Signature, Key, Transport, Timecode */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-none items-center gap-2 whitespace-nowrap">
           {/* BPM Box */}
-          <div className="flex items-center gap-1 bg-[#1a1b22] px-2.5 py-1 rounded-lg border border-zinc-800 text-xs">
+          <div className="flex items-center gap-1 rounded-lg border border-zinc-800 bg-[#1a1b22] px-1.5 py-0.5 text-[11px]">
             <input
               type="number"
               aria-label="Tempo in beats per minute"
@@ -1478,7 +1895,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               onChange={(e) => setBpm(Math.min(300, Math.max(30, Number(e.target.value) || 120)))}
               className="w-8 bg-transparent text-xs font-bold text-white focus:outline-none"
             />
-            <span className="text-[10px] text-zinc-500">bpm</span>
+            <span className="text-[9px] text-zinc-500">bpm</span>
           </div>
           <button
             onClick={tapTempo}
@@ -1501,7 +1918,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           </select>
 
           {/* Key Pill (e.g. D♭ maj) */}
-          <div className="flex items-center gap-1 bg-[#1a1b22] px-2.5 py-1 rounded-lg border border-zinc-800 text-xs">
+          <div className="flex items-center gap-1 rounded-lg border border-zinc-800 bg-[#1a1b22] px-1.5 py-0.5 text-[11px]">
             <select
               value={projectKey}
               onChange={(e) => setProjectKey(e.target.value)}
@@ -1520,7 +1937,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           </div>
 
           {/* Authentic Vector Transport Controls */}
-          <div className="flex items-center gap-1 text-zinc-300 ml-2">
+          <div className="ml-1 flex items-center gap-1 text-zinc-300">
             <button
               onClick={() => handlePlay()}
               className={`h-8 w-10 rounded-lg font-bold flex items-center justify-center transition shadow ${
@@ -1561,16 +1978,16 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           </div>
 
           {/* Timecode Clock (e.g. 00:00.0) */}
-          <div className="flex items-center gap-2 bg-[#1a1b22] px-3 py-1 rounded-lg border border-zinc-800 text-xs font-mono font-bold text-zinc-200">
+          <div className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-[#1a1b22] px-2 py-1 text-[11px] font-mono font-bold text-zinc-200">
             <span>{formatTimecode(playheadSec)}</span>
             <span className="text-[9px] text-zinc-500">BAR {currentBar} · BEAT {currentBeat}</span>
           </div>
         </div>
 
         {/* Right: Master Output Volume Fader with +0.0 dB readout & Export */}
-        <div className="flex items-center gap-3">
+        <div className="ml-auto flex flex-none items-center gap-2 whitespace-nowrap">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-zinc-400">🔈</span>
+            <span className="text-[10px] text-zinc-400">VOL</span>
             <input
               type="range"
               min={0}
@@ -1607,14 +2024,14 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             <button
               onClick={() => void exportProject()}
               disabled={isExporting || isExportingStems}
-              className="h-8 rounded-lg bg-gradient-to-r from-red-500 to-rose-600 px-3.5 text-xs font-bold text-white shadow hover:brightness-110 active:scale-95 transition disabled:cursor-wait disabled:opacity-60"
+              className="h-7 rounded-lg bg-gradient-to-r from-red-500 to-rose-600 px-2.5 text-[11px] font-bold text-white shadow hover:brightness-110 active:scale-95 transition disabled:cursor-wait disabled:opacity-60"
             >
               {isExporting ? "Rendering…" : "Export Mix"}
             </button>
             <button
               onClick={() => void exportStems()}
               disabled={isExporting || isExportingStems}
-              className="h-8 rounded-lg border border-zinc-700 bg-[#20222a] px-2.5 text-[10px] font-semibold text-zinc-200 hover:bg-zinc-700 disabled:cursor-wait disabled:opacity-60"
+              className="h-7 rounded-lg border border-zinc-700 bg-[#20222a] px-2 text-[9px] font-semibold text-zinc-200 hover:bg-zinc-700 disabled:cursor-wait disabled:opacity-60"
             >
               {isExportingStems ? "Stems…" : "Stems"}
             </button>
@@ -1623,19 +2040,24 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       </header>
 
       {statusMsg && (
-        <div className="bg-[#161820] py-1 text-center text-[11px] text-sky-400 border-b border-zinc-800">
+        <div className="flex-none bg-[#161820] py-1 text-center text-[11px] text-sky-400 border-b border-zinc-800">
           {statusMsg}
         </div>
       )}
 
       {/* 2. BODY ARRANGEMENT VIEW */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex min-h-0 overflow-hidden">
         
         {/* Track Headers (Left Column) */}
-        <div className="w-64 flex-none border-r border-[#1a1b20] bg-[#121316] flex flex-col z-10 shadow-lg">
-          <div className="h-7 border-b border-[#1a1b20] px-3 flex items-center justify-between font-bold text-zinc-400 text-[10px]">
-            <span>TRACKS ({tracks.length})</span>
-            <div className="flex items-center gap-1 font-normal">
+        <div className="w-56 flex-none border-r border-[#1a1b20] bg-[#121316] flex flex-col z-10 shadow-lg">
+          <div
+            tabIndex={0}
+            aria-label="Track editing tools. Scroll horizontally for more."
+            className="h-7 w-full min-w-0 flex-none overflow-x-auto border-b border-[#1a1b20] px-2 font-bold text-zinc-400 text-[9px]"
+          >
+            <div className="flex w-max min-w-full items-center justify-between gap-2">
+            <span className="flex-none whitespace-nowrap">TRACKS ({tracks.length})</span>
+            <div className="flex flex-none items-center gap-1 font-normal">
               <button
                 onClick={applyAutoMix}
                 className="rounded bg-sky-900/40 px-1.5 py-0.5 text-[9px] text-sky-300 hover:bg-sky-800/60"
@@ -1699,9 +2121,27 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               <span>{pixelsPerSecond}px/s</span>
               <button onClick={() => setPixelsPerSecond((value) => Math.min(100, value + 5))} aria-label="Zoom in" className="rounded px-1 text-sm hover:bg-zinc-800">+</button>
             </div>
+            </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto divide-y divide-[#171820]">
+          <div className="flex h-9 flex-none items-center justify-between border-b border-[#1a1b20] bg-[#101116] px-2">
+            <span className="text-[9px] font-bold uppercase tracking-wide text-zinc-500">Arranger</span>
+            <button
+              onClick={addArrangerSection}
+              className="rounded bg-zinc-800 px-2 py-1 text-[9px] font-semibold text-zinc-200 hover:bg-zinc-700"
+              title="Add a four-bar song section at the playhead"
+            >
+              + Section
+            </button>
+          </div>
+
+          <div
+            ref={trackHeaderRowsRef}
+            onScroll={(event) => {
+              if (timelineRowsRef.current) timelineRowsRef.current.scrollTop = event.currentTarget.scrollTop;
+            }}
+            className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#171820]"
+          >
             {tracks.length === 0 && (
               <div className="flex min-h-48 flex-col items-center justify-center gap-3 px-6 text-center">
                 <p className="text-sm font-semibold text-zinc-300">Your session is ready for its first track.</p>
@@ -1724,7 +2164,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                     setWindowState((prev) => ({ ...prev, amp: { ...prev.amp, open: true } }));
                   }
                 }}
-                className={`h-20 p-2 flex flex-col justify-between transition ${
+                className={`h-16 p-1.5 flex flex-col justify-between transition ${
                   selectedTrackId === track.id && !isMasterMode ? "bg-[#1c1e26]" : "bg-[#121316] hover:bg-[#181920]"
                 }`}
               >
@@ -1742,6 +2182,19 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                       className="w-24 bg-transparent text-xs font-bold text-white focus:outline-none rounded px-1"
                     />
                   </div>
+                  <select
+                    aria-label={`${track.name} output bus`}
+                    title="Route track to a subgroup bus"
+                    value={track.busId ?? ""}
+                    onClick={(event) => event.stopPropagation()}
+                    onChange={(event) => setTracks((current) => current.map((item) => item.id === track.id
+                      ? { ...item, busId: event.target.value || undefined }
+                      : item))}
+                    className="w-14 truncate rounded border border-zinc-700 bg-[#17181f] px-1 py-0.5 text-[8px] text-zinc-300"
+                  >
+                    <option value="">Main</option>
+                    {buses.map((bus) => <option key={bus.id} value={bus.id}>{bus.name}</option>)}
+                  </select>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1810,6 +2263,24 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                 />
               </div>
             ))}
+            <div
+              onClick={() => setIsMasterMode(true)}
+              className={`flex h-14 flex-none items-center justify-between border-t border-emerald-900/60 px-2 ${isMasterMode ? "bg-emerald-950/50" : "bg-[#111319]"}`}
+            >
+              <div>
+                <p className="text-[10px] font-bold tracking-wide text-emerald-300">MASTER</p>
+                <p className="text-[8px] text-zinc-500">Automation + safety limiter</p>
+              </div>
+              <button
+                onClick={(event) => {
+                  event.stopPropagation();
+                  createMasterFadeOut();
+                }}
+                className="rounded bg-emerald-900/60 px-1.5 py-1 text-[8px] text-emerald-200 hover:bg-emerald-800"
+              >
+                Fade out
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1873,8 +2344,25 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             ))}
           </div>
 
+          <ArrangerLane
+            sections={sections}
+            width={timelineWidth}
+            pixelsPerBar={barWidth}
+            onSeek={seekToBar}
+            onCommit={commitSectionMove}
+            onRename={(id, name) => setSections((current) => current.map((section) => section.id === id ? { ...section, name } : section))}
+            onDelete={(id) => setSections((current) => current.filter((section) => section.id !== id))}
+          />
+
           {/* Arranger Track Lanes */}
-          <div style={{ width: `${timelineWidth}px` }} className="flex-1 relative divide-y divide-[#171820]">
+          <div
+            ref={timelineRowsRef}
+            onScroll={(event) => {
+              if (trackHeaderRowsRef.current) trackHeaderRowsRef.current.scrollTop = event.currentTarget.scrollTop;
+            }}
+            style={{ width: `${timelineWidth}px` }}
+            className="flex-1 overflow-y-auto relative divide-y divide-[#171820]"
+          >
             
             {/* Gold Playhead Line */}
             <div
@@ -1901,13 +2389,13 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                 onClick={() => setSelectedTrackId(track.id)}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => handleLaneDrop(event, track.id)}
-                className={`h-20 relative flex items-center transition ${
+                className={`h-16 relative flex items-center transition ${
                   selectedTrackId === track.id ? "bg-[#14151c]" : "bg-[#0c0d0f]"
                 }`}
               >
                 {isAutomationMode && (
                   <svg
-                    viewBox={`0 0 ${timelineWidth} 80`}
+                    viewBox={`0 0 ${timelineWidth} 64`}
                     preserveAspectRatio="none"
                     className="absolute inset-0 z-30 h-full w-full cursor-crosshair"
                     onClick={(event) => {
@@ -1924,7 +2412,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                   >
                     <polyline
                       points={(track.automation?.[automationParameter] ?? [])
-                        .map((point) => `${point.time * pixelsPerSecond},${(automationParameter === "pan" ? (1 - (point.value + 1) / 2) : 1 - point.value) * 80}`)
+                        .map((point) => `${point.time * pixelsPerSecond},${(automationParameter === "pan" ? (1 - (point.value + 1) / 2) : 1 - point.value) * 64}`)
                         .join(" ")}
                       fill="none"
                       stroke="#e879f9"
@@ -1935,7 +2423,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                       <circle
                         key={point.id}
                         cx={point.time * pixelsPerSecond}
-                        cy={(automationParameter === "pan" ? (1 - (point.value + 1) / 2) : 1 - point.value) * 80}
+                        cy={(automationParameter === "pan" ? (1 - (point.value + 1) / 2) : 1 - point.value) * 64}
                         r="4"
                         fill="#f0abfc"
                         stroke="#701a75"
@@ -1994,17 +2482,104 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                 ))}
               </div>
             ))}
+            <div className="relative h-14 border-t border-emerald-900/60 bg-[#101217]">
+              <svg
+                  viewBox={`0 0 ${timelineWidth} 56`}
+                  preserveAspectRatio="none"
+                  className="absolute inset-0 h-full w-full"
+                  aria-label="Master volume automation. Click to add a point and double-click near a point to remove it."
+                  onClick={(event) => {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    const time = Math.max(0, (event.clientX - rect.left) / pixelsPerSecond);
+                    const value = Math.max(0, Math.min(1, 1 - (event.clientY - rect.top) / rect.height));
+                    addMasterAutomationPoint(time, value);
+                  }}
+                  onDoubleClick={(event) => {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    const time = (event.clientX - rect.left) / pixelsPerSecond;
+                    setMasterAutomation((current) => {
+                      const nearest = current.reduce<MasterAutomationPoint | null>((best, point) =>
+                        !best || Math.abs(point.time - time) < Math.abs(best.time - time) ? point : best, null);
+                      return nearest && Math.abs(nearest.time - time) < 0.5
+                        ? current.filter((point) => point.id !== nearest.id)
+                        : current;
+                    });
+                  }}
+                >
+                  <polyline
+                    points={masterAutomation.map((point) => `${point.time * pixelsPerSecond},${(1 - point.value) * 56}`).join(" ")}
+                    fill="none"
+                    stroke="#34d399"
+                    strokeWidth="2"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  {masterAutomation.map((point) => (
+                    <circle key={point.id} cx={point.time * pixelsPerSecond} cy={(1 - point.value) * 56} r="4" fill="#a7f3d0" />
+                  ))}
+              </svg>
+            </div>
           </div>
 
         </div>
       </div>
 
+      {busPanelOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4">
+          <section className="max-h-[80vh] w-full max-w-xl overflow-y-auto rounded-xl border border-zinc-700 bg-[#17191f] p-4 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-bold text-white">Subgroup buses</h2>
+                <p className="mt-1 text-[10px] text-zinc-400">Route tracks from their headers, then shape the shared level, pan, and reverb send.</p>
+              </div>
+              <button onClick={() => setBusPanelOpen(false)} className="rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-200 hover:bg-zinc-700">Close</button>
+            </div>
+            <button onClick={addMixerBus} className="mb-3 rounded bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-600">+ Add bus</button>
+            <div className="space-y-3">
+              {buses.map((bus) => (
+                <div key={bus.id} className="grid grid-cols-[minmax(5rem,1fr)_1fr_1fr_1fr_auto] items-center gap-3 rounded-lg border border-zinc-800 bg-[#101116] p-3">
+                  <input
+                    aria-label="Bus name"
+                    value={bus.name}
+                    onChange={(event) => setBuses((current) => current.map((item) => item.id === bus.id ? { ...item, name: event.target.value.slice(0, 60) } : item))}
+                    className="min-w-0 rounded bg-zinc-900 px-2 py-1 text-xs text-white"
+                  />
+                  <label className="text-[9px] text-zinc-400">Level
+                    <input type="range" min={0} max={1} step={0.01} value={bus.volume} onChange={(event) => setBuses((current) => current.map((item) => item.id === bus.id ? { ...item, volume: Number(event.target.value) } : item))} className="block w-full accent-sky-400" />
+                  </label>
+                  <label className="text-[9px] text-zinc-400">Pan
+                    <input type="range" min={-1} max={1} step={0.01} value={bus.pan} onChange={(event) => setBuses((current) => current.map((item) => item.id === bus.id ? { ...item, pan: Number(event.target.value) } : item))} className="block w-full accent-violet-400" />
+                  </label>
+                  <label className="text-[9px] text-zinc-400">Reverb
+                    <input type="range" min={0} max={1} step={0.01} value={bus.reverbSend} onChange={(event) => setBuses((current) => current.map((item) => item.id === bus.id ? { ...item, reverbSend: Number(event.target.value) } : item))} className="block w-full accent-fuchsia-400" />
+                  </label>
+                  <button
+                    onClick={() => {
+                      setBuses((current) => current.filter((item) => item.id !== bus.id));
+                      setTracks((current) => current.map((track) => track.busId === bus.id ? { ...track, busId: undefined } : track));
+                    }}
+                    className="rounded bg-zinc-800 px-2 py-1 text-[10px] text-zinc-300 hover:bg-rose-900"
+                    aria-label={`Remove ${bus.name}`}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+              {buses.length === 0 && <p className="rounded-lg border border-dashed border-zinc-700 p-5 text-center text-xs text-zinc-500">No buses yet. Add a bus, then route tracks to it from their track headers.</p>}
+            </div>
+          </section>
+        </div>
+      )}
+
       {/* 3. DOCKABLE BOTTOM BAR (BandLab Style Pill Dock) */}
-      <footer className="h-10 flex-none border-t border-[#1c1d22] bg-[#121316] px-4 flex items-center justify-between z-20">
-        <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
+      <footer
+        tabIndex={0}
+        aria-label="Studio tools. Scroll horizontally for additional tools."
+        className="flex h-9 flex-none items-center justify-start gap-3 overflow-x-auto overscroll-x-contain border-t border-[#1c1d22] bg-[#121316] px-2 z-20 focus-visible:outline focus-visible:outline-1 focus-visible:outline-sky-500"
+      >
+        <div className="flex w-max flex-none items-center gap-1.5">
           <button
             onClick={() => setSmartControlsOpen(!smartControlsOpen)}
-            className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
+            className={`inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold transition ${
               smartControlsOpen ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-white"
             }`}
           >
@@ -2013,7 +2588,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
 
           <button
             onClick={() => toggleModal("piano")}
-            className="px-3 py-1 rounded-full text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
+            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
           >
             <PianoIcon className="h-4 w-4" /> 88-Key Piano
           </button>
@@ -2026,7 +2601,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               }
               setPianoRollOpen(true);
             }}
-            className="px-3 py-1 rounded-full text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
+            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
           >
             Piano Roll
           </button>
@@ -2039,9 +2614,27 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               }
               setDrumEditorOpen(true);
             }}
-            className="px-3 py-1 rounded-full text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
+            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
           >
             Drum Pattern
+          </button>
+          <button
+            onClick={() => {
+              if (!selectedTrack) {
+                setStatusMsg("Add or select a track before opening the sampler.");
+                return;
+              }
+              setSamplerTrackId(selectedTrack.id);
+            }}
+            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:bg-zinc-800/80 hover:text-white"
+          >
+            Sampler
+          </button>
+          <button
+            onClick={() => setSceneLauncherOpen(true)}
+            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-900/40"
+          >
+            Live Scenes
           </button>
 
           <button
@@ -2053,7 +2646,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               toggleModal("amp");
             }}
             disabled={selectedTrack?.trackType !== "guitar-bass"}
-            className="px-3 py-1 rounded-full text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition disabled:cursor-not-allowed disabled:opacity-40"
           >
             <GuitarIcon className="h-4 w-4" /> Guitar Rig
           </button>
@@ -2063,56 +2656,56 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               setAiFeature("coach");
               toggleModal("ai");
             }}
-            className="px-3 py-1 rounded-full text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
+            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
           >
             AI Assistant
           </button>
 
           <button
             onClick={() => setAudioSettingsOpen(true)}
-            className="px-3 py-1 rounded-full text-xs font-semibold text-sky-400 hover:bg-zinc-800/80 transition"
+            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-sky-400 hover:bg-zinc-800/80 transition"
           >
             <MicIcon className="h-4 w-4" /> Audio Inputs ({activeInputLabel})
           </button>
           <button
             onClick={() => setActiveUtility("notes")}
-            className="whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
+            className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
           >
             Lyrics / Notes
           </button>
           <button
             onClick={() => setSoundLibraryOpen(true)}
-            className="whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
+            className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
           >
             Sound Browser
           </button>
           <button
             onClick={() => soundInputRef.current?.click()}
-            className="whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
+            className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
           >
             Import Audio
           </button>
           <button
             onClick={openBeats}
-            className="whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
+            className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
           >
             Beats
           </button>
           <button
             onClick={() => setTunerOpen(true)}
-            className="whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
+            className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
           >
             Tuner
           </button>
           <button
             onClick={() => setActiveUtility("shortcuts")}
-            className="whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
+            className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
           >
             Shortcuts
           </button>
         </div>
 
-        <div className="text-[11px] font-mono text-zinc-500">
+        <div className="ml-auto flex-none whitespace-nowrap text-[10px] font-mono text-zinc-500">
           ArtistPilot Pro Studio v2.0
         </div>
       </footer>
@@ -2173,13 +2766,11 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             if (selectedTrack) {
               setTracks((prev) => prev.map((track) => track.id === selectedTrack.id ? { ...track, inputDevice: devId } : track));
             }
+            if (monitoringEnabled && !isRecording) void setInputMonitoring(true, devId);
           }}
           isMonitoring={monitoringEnabled}
           onToggleMonitoring={() => {
-            const enabled = !monitoringEnabled;
-            setMonitoringEnabled(enabled);
-            const ctx = engine.current.ctx;
-            if (ctx) deviceManager.current.setMonitoring(ctx, enabled);
+            void setInputMonitoring(!monitoringEnabled);
           }}
           currentSettings={activeSettings}
           onUpdateSettings={(updated) => {
@@ -2217,6 +2808,8 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         ctx={engine.current.init()}
         outputNode={engine.current.masterGain ?? undefined}
         synthSettings={selectedTrack?.synthSettings ?? DEFAULT_SYNTH_SETTINGS}
+        projectKey={projectKey}
+        scale={projectScale}
         trackName={selectedTrack?.name ?? "Grand Piano"}
         onRecordMidiNote={handlePianoMidiNote}
       />
@@ -2259,6 +2852,74 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
 
       <ChromaticTuner isOpen={tunerOpen} onClose={() => setTunerOpen(false)} />
 
+      <SamplerPadModal
+        isOpen={samplerTrackId !== null}
+        track={tracks.find((track) => track.id === samplerTrackId) ?? null}
+        audioContext={engine.current.init()}
+        onChange={(sampler) => {
+          if (samplerTrackId === null) return;
+          setTracks((current) => current.map((track) => track.id === samplerTrackId ? { ...track, sampler } : track));
+        }}
+        onClose={() => setSamplerTrackId(null)}
+      />
+
+      {sceneLauncherOpen && (
+        <SceneLauncherModal
+          scenes={scenes}
+          tracks={getProjectTracks()}
+          isPlaying={activeSceneId !== null}
+          onCreate={captureScene}
+          onChange={(nextScene) => setScenes((current) => current.map((scene) => scene.id === nextScene.id ? nextScene : scene))}
+          onDelete={(sceneId) => {
+            setScenes((current) => current.filter((scene) => scene.id !== sceneId));
+            if (activeSceneId === sceneId) {
+              engine.current.stopScene();
+              setActiveSceneId(null);
+            }
+          }}
+          onLaunch={launchScene}
+          onStop={() => {
+            engine.current.stopScene();
+            setActiveSceneId(null);
+            setStatusMsg("Live scene stopped.");
+          }}
+          onClose={() => setSceneLauncherOpen(false)}
+        />
+      )}
+
+      {sharedProjectId && !hasEditLease && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
+          <section className="max-w-md rounded-xl border border-zinc-700 bg-[#15171d] p-5 text-center shadow-2xl">
+            <h2 className="text-sm font-bold text-white">Shared project is read-only</h2>
+            <p className="mt-2 text-xs text-zinc-400">
+              {editLockOwnerId && editLockExpiresAt && new Date(editLockExpiresAt).getTime() > Date.now()
+                ? `Another artist is editing this project. The lock expires ${new Date(editLockExpiresAt).toLocaleTimeString()}.`
+                : "Take the edit lock to make and save changes to this project."}
+            </p>
+            <button onClick={() => setCollaborationOpen(true)} className="mt-4 rounded bg-violet-700 px-4 py-2 text-xs font-semibold text-white hover:bg-violet-600">
+              Open collaboration controls
+            </button>
+          </section>
+        </div>
+      )}
+
+      <CollaborationPanel
+        isOpen={collaborationOpen}
+        projectId={sharedProjectId}
+        projectName={projectName}
+        revision={sharedRevision}
+        isOwner={sharedProjectIsOwner}
+        hasEditLease={hasEditLease}
+        lockOwnerId={editLockOwnerId}
+        lockExpiresAt={editLockExpiresAt}
+        onCreateShared={createSharedProject}
+        onSaveShared={saveSharedProject}
+        onLoadProject={loadSharedProject}
+        onClaim={claimSharedProject}
+        onRelease={releaseSharedProject}
+        onClose={() => setCollaborationOpen(false)}
+      />
+
       <AudioSettingsModal
         isOpen={audioSettingsOpen}
         onClose={() => setAudioSettingsOpen(false)}
@@ -2272,6 +2933,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           if (selectedTrack) {
             setTracks((prev) => prev.map((track) => track.id === selectedTrack.id ? { ...track, inputDevice: devId } : track));
           }
+          if (monitoringEnabled && !isRecording) void setInputMonitoring(true, devId);
         }}
         onSelectOutputDevice={async (devId) => {
           const ctx = engine.current.init();
@@ -2285,7 +2947,9 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           return routed;
         }}
         isMonitoring={monitoringEnabled}
-        onToggleMonitoring={(en) => setMonitoringEnabled(en)}
+        onToggleMonitoring={(enabled) => {
+          void setInputMonitoring(enabled);
+        }}
       />
 
       <ChannelEqModal

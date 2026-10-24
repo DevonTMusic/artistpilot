@@ -1,8 +1,14 @@
 import type {
   AudioRegion,
+  ArrangerSection,
   DrumPatternData,
   GuitarAmpSettings,
+  MasterAutomationPoint,
+  MixerBus,
   MidiNoteData,
+  SamplerData,
+  SamplerPad,
+  StudioScene,
   SynthSettings,
   TrackData,
   TrackAutomation,
@@ -22,13 +28,18 @@ interface SerializedRegion {
   audioDataUrl: string;
 }
 
-interface SerializedTrack extends Omit<TrackData, "regions"> {
+interface SerializedSampler extends Omit<SamplerData, "sample"> {
+  sampleDataUrl: string;
+}
+
+interface SerializedTrack extends Omit<TrackData, "regions" | "sampler"> {
   regions: SerializedRegion[];
+  sampler?: SerializedSampler;
 }
 
 interface SessionDocument {
   format: "artistpilot-session";
-  version: 2;
+  version: 3;
   meta: Record<string, unknown>;
   tracks: SerializedTrack[];
 }
@@ -78,16 +89,17 @@ function audioBufferToWav(buffer: AudioBuffer): Blob {
   return new Blob([output], { type: "audio/wav" });
 }
 
-export async function saveSessionFile(
+export async function serializeSessionFile(
   meta: Record<string, unknown>,
-  tracks: TrackData[],
-  projectName: string
-): Promise<void> {
+  tracks: TrackData[]
+): Promise<Blob> {
   const serializedTracks = await Promise.all(
-    tracks.map(async (track): Promise<SerializedTrack> => ({
-      ...track,
-      regions: await Promise.all(
-        track.regions.map(async (region): Promise<SerializedRegion> => {
+    tracks.map(async (track): Promise<SerializedTrack> => {
+      const { sampler, ...trackData } = track;
+      return {
+        ...trackData,
+        regions: await Promise.all(
+          track.regions.map(async (region): Promise<SerializedRegion> => {
           const blob = sourceBlobs.get(region.buffer) ?? audioBufferToWav(region.buffer);
           return {
             id: region.id,
@@ -99,18 +111,34 @@ export async function saveSessionFile(
             muted: region.muted,
             audioDataUrl: await blobToDataUrl(blob),
           };
-        })
-      ),
-    }))
+          })
+        ),
+        ...(sampler ? {
+          sampler: {
+            sampleName: sampler.sampleName,
+            pads: sampler.pads,
+            sampleDataUrl: await blobToDataUrl(sourceBlobs.get(sampler.sample) ?? audioBufferToWav(sampler.sample)),
+          },
+        } : {}),
+      };
+    })
   );
 
   const document: SessionDocument = {
     format: "artistpilot-session",
-    version: 2,
+    version: 3,
     meta,
     tracks: serializedTracks,
   };
-  const blob = new Blob([JSON.stringify(document)], { type: "application/json" });
+  return new Blob([JSON.stringify(document)], { type: "application/json" });
+}
+
+export async function saveSessionFile(
+  meta: Record<string, unknown>,
+  tracks: TrackData[],
+  projectName: string
+): Promise<void> {
+  const blob = await serializeSessionFile(meta, tracks);
   const url = URL.createObjectURL(blob);
   const anchor = window.document.createElement("a");
   anchor.href = url;
@@ -314,6 +342,143 @@ function parseAutomation(value: unknown): TrackAutomation | undefined {
   return automation;
 }
 
+export function parseArrangerSections(value: unknown): ArrangerSection[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 256) throw new Error("Arranger section data is invalid.");
+  return value.map((section, index) => {
+    if (!isRecord(section) ||
+      typeof section.id !== "string" ||
+      typeof section.name !== "string" ||
+      section.name.length > 40 ||
+      typeof section.color !== "string" ||
+      section.color.length > 40 ||
+      typeof section.startBar !== "number" ||
+      !Number.isInteger(section.startBar) ||
+      section.startBar < 1 ||
+      typeof section.endBar !== "number" ||
+      !Number.isInteger(section.endBar) ||
+      section.endBar <= section.startBar ||
+      section.endBar > 100000) {
+      throw new Error(`Arranger section ${index + 1} is invalid.`);
+    }
+    return {
+      id: section.id,
+      name: section.name,
+      color: section.color,
+      startBar: section.startBar,
+      endBar: section.endBar,
+    };
+  });
+}
+
+export function parseMixerBuses(value: unknown): MixerBus[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 64) throw new Error("Mixer bus data is invalid.");
+  return value.map((bus, index) => {
+    if (!isRecord(bus) ||
+      typeof bus.id !== "string" ||
+      typeof bus.name !== "string" ||
+      bus.name.length > 60 ||
+      typeof bus.volume !== "number" ||
+      !Number.isFinite(bus.volume) ||
+      bus.volume < 0 ||
+      bus.volume > 1 ||
+      typeof bus.pan !== "number" ||
+      !Number.isFinite(bus.pan) ||
+      bus.pan < -1 ||
+      bus.pan > 1 ||
+      typeof bus.reverbSend !== "number" ||
+      !Number.isFinite(bus.reverbSend) ||
+      bus.reverbSend < 0 ||
+      bus.reverbSend > 1) {
+      throw new Error(`Mixer bus ${index + 1} is invalid.`);
+    }
+    return {
+      id: bus.id,
+      name: bus.name,
+      volume: bus.volume,
+      pan: bus.pan,
+      reverbSend: bus.reverbSend,
+    };
+  });
+}
+
+export function parseMasterAutomation(value: unknown): MasterAutomationPoint[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 10000) throw new Error("Master automation data is invalid.");
+  return value.map((point, index) => {
+    if (!isRecord(point) ||
+      typeof point.id !== "string" ||
+      typeof point.time !== "number" ||
+      !Number.isFinite(point.time) ||
+      point.time < 0 ||
+      point.time > 600 ||
+      typeof point.value !== "number" ||
+      !Number.isFinite(point.value) ||
+      point.value < 0 ||
+      point.value > 1) {
+      throw new Error(`Master automation point ${index + 1} is invalid.`);
+    }
+    return { id: point.id, time: point.time, value: point.value };
+  });
+}
+
+export function parseStudioScenes(value: unknown): StudioScene[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 128) throw new Error("Scene data is invalid.");
+  return value.map((scene, index) => {
+    if (!isRecord(scene) ||
+      typeof scene.id !== "string" ||
+      typeof scene.name !== "string" ||
+      scene.name.length > 40 ||
+      typeof scene.color !== "string" ||
+      scene.color.length > 40 ||
+      !isRecord(scene.regionIdsByTrack)) {
+      throw new Error(`Scene ${index + 1} is invalid.`);
+    }
+    const regionIdsByTrack: Record<number, string[]> = {};
+    for (const [trackId, regionIds] of Object.entries(scene.regionIdsByTrack)) {
+      const numericTrackId = Number(trackId);
+      if (!Number.isInteger(numericTrackId) || numericTrackId < 0 ||
+        !Array.isArray(regionIds) ||
+        regionIds.length > 128 ||
+        regionIds.some((regionId) => typeof regionId !== "string")) {
+        throw new Error(`Scene ${index + 1} has invalid clip assignments.`);
+      }
+      regionIdsByTrack[numericTrackId] = regionIds;
+    }
+    const midiNotesByTrack: Record<number, MidiNoteData[]> = {};
+    if (scene.midiNotesByTrack !== undefined) {
+      if (!isRecord(scene.midiNotesByTrack)) throw new Error(`Scene ${index + 1} has invalid MIDI clips.`);
+      for (const [trackId, notes] of Object.entries(scene.midiNotesByTrack)) {
+        const numericTrackId = Number(trackId);
+        if (!Number.isInteger(numericTrackId) || numericTrackId < 0) throw new Error(`Scene ${index + 1} has invalid MIDI track assignments.`);
+        midiNotesByTrack[numericTrackId] = parseMidiNotes(notes);
+      }
+    }
+    const drumPatternsByTrack: Record<number, DrumPatternData> = {};
+    if (scene.drumPatternsByTrack !== undefined) {
+      if (!isRecord(scene.drumPatternsByTrack)) throw new Error(`Scene ${index + 1} has invalid drum clips.`);
+      for (const [trackId, pattern] of Object.entries(scene.drumPatternsByTrack)) {
+        const numericTrackId = Number(trackId);
+        const parsed = parseDrumPattern(pattern);
+        if (!Number.isInteger(numericTrackId) || numericTrackId < 0 || !parsed) {
+          throw new Error(`Scene ${index + 1} has invalid drum track assignments.`);
+        }
+        drumPatternsByTrack[numericTrackId] = parsed;
+      }
+    }
+    return {
+      id: scene.id,
+      name: scene.name,
+      color: scene.color,
+      regionIdsByTrack,
+      midiNotesByTrack,
+      drumPatternsByTrack,
+    };
+  });
+}
+
 export async function openSessionFile(file: File, ctx: AudioContext): Promise<{ meta: Record<string, unknown>; tracks: TrackData[] }> {
   let decoded: unknown;
   try {
@@ -323,10 +488,9 @@ export async function openSessionFile(file: File, ctx: AudioContext): Promise<{ 
   }
 
   if (!isRecord(decoded) || decoded.format !== "artistpilot-session" ||
-    (decoded.version !== 1 && decoded.version !== 2) || !Array.isArray(decoded.tracks)) {
+    (decoded.version !== 1 && decoded.version !== 2 && decoded.version !== 3) || !Array.isArray(decoded.tracks)) {
     throw new Error("Unsupported or invalid ArtistPilot session file.");
   }
-  if (decoded.tracks.length === 0) throw new Error("This session does not contain any tracks.");
   if (decoded.tracks.length > 12) throw new Error("This session contains more than the 12-track Studio limit.");
 
   const loadedTracks = await Promise.all(
@@ -371,6 +535,55 @@ export async function openSessionFile(file: File, ctx: AudioContext): Promise<{ 
         })
       );
 
+      let sampler: SamplerData | undefined;
+      if (rawTrack.sampler !== undefined) {
+        if (!isRecord(rawTrack.sampler) ||
+          typeof rawTrack.sampler.sampleName !== "string" ||
+          typeof rawTrack.sampler.sampleDataUrl !== "string" ||
+          !rawTrack.sampler.sampleDataUrl.startsWith("data:") ||
+          !Array.isArray(rawTrack.sampler.pads) ||
+          rawTrack.sampler.pads.length !== 8) {
+          throw new Error(`Track ${trackIndex + 1} has invalid sampler data.`);
+        }
+        const response = await fetch(rawTrack.sampler.sampleDataUrl);
+        if (!response.ok) throw new Error(`Could not read the sample for track ${trackIndex + 1}.`);
+        const sampleBlob = await response.blob();
+        const sample = await ctx.decodeAudioData(await sampleBlob.arrayBuffer());
+        const validKeys = new Set(["a", "s", "d", "f", "j", "k", "l", ";"]);
+        const seenKeys = new Set<string>();
+        const pads: SamplerPad[] = rawTrack.sampler.pads.map((rawPad, padIndex) => {
+          if (!isRecord(rawPad) ||
+            typeof rawPad.id !== "string" ||
+            typeof rawPad.name !== "string" ||
+            typeof rawPad.key !== "string" ||
+            !validKeys.has(rawPad.key.toLowerCase()) ||
+            seenKeys.has(rawPad.key.toLowerCase()) ||
+            typeof rawPad.startTime !== "number" ||
+            !Number.isFinite(rawPad.startTime) ||
+            typeof rawPad.endTime !== "number" ||
+            !Number.isFinite(rawPad.endTime) ||
+            rawPad.startTime < 0 ||
+            rawPad.endTime <= rawPad.startTime ||
+            rawPad.endTime > sample.duration + 0.05) {
+            throw new Error(`Sampler pad ${padIndex + 1} on track ${trackIndex + 1} is invalid.`);
+          }
+          seenKeys.add(rawPad.key.toLowerCase());
+          return {
+            id: rawPad.id,
+            name: rawPad.name,
+            key: rawPad.key.toLowerCase(),
+            startTime: rawPad.startTime,
+            endTime: Math.min(rawPad.endTime, sample.duration),
+          };
+        });
+        sourceBlobs.set(sample, sampleBlob);
+        sampler = {
+          sampleName: rawTrack.sampler.sampleName,
+          sample,
+          pads,
+        };
+      }
+
       return {
         id,
         name,
@@ -392,11 +605,17 @@ export async function openSessionFile(file: File, ctx: AudioContext): Promise<{ 
         inputDevice: typeof rawTrack.inputDevice === "string" ? rawTrack.inputDevice : undefined,
         monitoring: typeof rawTrack.monitoring === "boolean" ? rawTrack.monitoring : false,
         automation: parseAutomation(rawTrack.automation),
+        busId: typeof rawTrack.busId === "string" ? rawTrack.busId : undefined,
+        sampler,
       };
     })
   );
 
   const meta = isRecord(decoded.meta) ? { ...decoded.meta } : {};
   if (meta.masterSettings !== undefined) meta.masterSettings = parseProcessingSettings(meta.masterSettings);
+  if (meta.sections !== undefined) meta.sections = parseArrangerSections(meta.sections);
+  if (meta.buses !== undefined) meta.buses = parseMixerBuses(meta.buses);
+  if (meta.masterAutomation !== undefined) meta.masterAutomation = parseMasterAutomation(meta.masterAutomation);
+  if (meta.scenes !== undefined) meta.scenes = parseStudioScenes(meta.scenes);
   return { meta, tracks: loadedTracks };
 }
