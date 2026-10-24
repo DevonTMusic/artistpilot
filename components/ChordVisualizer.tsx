@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useLanguage } from "@/components/LanguageProvider";
 
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const NOTE_PITCH: Record<string, number> = {
@@ -52,13 +53,14 @@ function parseChord(value: string) {
 }
 
 function PianoDiagram({ root, intervals, chordName }: { root: number; intervals: number[]; chordName: string }) {
+  const { t } = useLanguage();
   const tones = new Set(intervals.map((interval) => (root + interval) % 12));
   const whiteNotes = [0, 2, 4, 5, 7, 9, 11];
   const blackNotes = [
     { pitch: 1, x: 32 }, { pitch: 3, x: 78 }, { pitch: 6, x: 170 }, { pitch: 8, x: 216 }, { pitch: 10, x: 262 },
   ];
   return (
-    <svg viewBox="0 0 322 126" className="w-full max-w-sm" role="img" aria-label={`${chordName} chord tones highlighted on a piano keyboard`}>
+    <svg viewBox="0 0 322 126" className="w-full max-w-sm" role="img" aria-label={t("chord.pianoAria", { chord: chordName })}>
       {whiteNotes.map((pitch, index) => (
         <g key={pitch}>
           <rect x={index * 46} y="5" width="46" height="116" rx="2" fill={tones.has(pitch) ? "#7dd3fc" : "#f4f4f5"} stroke="#71717a" />
@@ -86,6 +88,7 @@ function FretboardDiagram({
   intervals: number[];
   chordName: string;
 }) {
+  const { t } = useLanguage();
   const isBass = instrument === "Bass";
   const strings = isBass ? ["G", "D", "A", "E"] : instrument === "Ukulele" ? ["A", "E", "C", "G"] : ["E", "B", "G", "D", "A", "E"];
   const openPitches = isBass ? [43, 38, 33, 28] : instrument === "Ukulele" ? [69, 64, 60, 67] : [64, 59, 55, 50, 45, 40];
@@ -102,7 +105,7 @@ function FretboardDiagram({
 
   return (
     <div>
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full max-w-sm" role="img" aria-label={`${chordName} ${instrument.toLowerCase()} fingering diagram, strings shown high to low`}>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full max-w-sm" role="img" aria-label={t("chord.fretAria", { chord: chordName, instrument: t(instrument === "Bass" ? "instrument.bass" : instrument === "Ukulele" ? "instrument.ukulele" : "instrument.guitar") })}>
         {strings.map((name, stringIndex) => {
           const y = 22 + stringIndex * stringGap;
           return (
@@ -140,30 +143,32 @@ function FretboardDiagram({
         ))}
       </svg>
       {!shape && (
-        <p className="mt-1 text-[10px] text-zinc-500">Highlighted chord tones: root in blue, other chord tones in violet. Frets shown: 0–5.</p>
+        <p className="mt-1 text-[10px] text-zinc-500">{t("chord.highlightHelp")}</p>
       )}
-      {shape && <p className="mt-1 text-[10px] text-zinc-500">Open string symbols: circle = play open, × = do not play.</p>}
+      {shape && <p className="mt-1 text-[10px] text-zinc-500">{t("chord.openStringHelp")}</p>}
     </div>
   );
 }
 
 export function ChordVisualizer({ instrument, chord }: { instrument: string; chord: string }) {
+  const { t } = useLanguage();
   const parsed = parseChord(chord);
   if (!parsed) {
-    return <p className="text-xs text-amber-300">Enter a chord such as C, Am, F#m7, or Dsus4 to see its diagram.</p>;
+    return <p className="text-xs text-amber-300">{t("chord.invalid")}</p>;
   }
   const chordName = `${parsed.rootName}${parsed.quality}`;
   const noteNames = parsed.intervals.map((interval) => NOTE_NAMES[(parsed.root + interval) % 12]);
   const displayInstrument = ["Guitar", "Bass", "Ukulele", "Piano"].includes(instrument) ? instrument : "Piano";
+  const translatedInstrument = t(displayInstrument === "Bass" ? "instrument.bass" : displayInstrument === "Ukulele" ? "instrument.ukulele" : displayInstrument === "Piano" ? "instrument.piano" : "instrument.guitar");
 
   return (
     <section className="mt-4 rounded-xl border border-zinc-700 bg-[#101116] p-4">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <h3 className="text-sm font-bold text-white">{chordName} on {displayInstrument}</h3>
-          <p className="mt-1 text-[11px] text-zinc-400">Chord tones: {noteNames.join(" · ")}</p>
+          <h3 className="text-sm font-bold text-white">{t("chord.onInstrument", { chord: chordName, instrument: translatedInstrument })}</h3>
+          <p className="mt-1 text-[11px] text-zinc-400">{t("chord.tones")} {noteNames.join(" · ")}</p>
         </div>
-        <span className="text-[10px] text-zinc-500">Interactive visual reference</span>
+        <span className="text-[10px] text-zinc-500">{t("chord.visualReference")}</span>
       </div>
       {displayInstrument === "Piano"
         ? <PianoDiagram root={parsed.root} intervals={parsed.intervals} chordName={chordName} />

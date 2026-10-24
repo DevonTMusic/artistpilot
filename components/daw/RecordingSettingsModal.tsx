@@ -1,6 +1,7 @@
 // components/daw/RecordingSettingsModal.tsx
 "use client";
 import React, { useEffect, useRef, useState } from "react";
+import { useLanguage } from "@/components/LanguageProvider";
 import { AudioInputManager, AudioInputDevice } from "@/lib/daw/AudioInputManager";
 
 interface RecordingSettingsModalProps {
@@ -20,6 +21,7 @@ export function RecordingSettingsModal({
   onToggleMonitoring,
   monitoringEnabled,
 }: RecordingSettingsModalProps) {
+  const { t } = useLanguage();
   const [devices, setDevices] = useState<AudioInputDevice[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<string>("");
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -91,7 +93,7 @@ export function RecordingSettingsModal({
       {/* Header */}
       <div className="flex h-10 items-center justify-between border-b border-zinc-800 bg-[#1e2028] px-4 cursor-move">
         <span className="text-xs font-bold text-white flex items-center gap-1.5">
-          Audio Interface & Recording Input
+          {t("audio.recordingInput")}
         </span>
         <button onClick={onClose} className="text-xs text-zinc-400 hover:text-white font-bold">✕</button>
       </div>
@@ -99,7 +101,7 @@ export function RecordingSettingsModal({
       <div className="p-4 space-y-4">
         {/* Device Dropdown */}
         <div>
-          <label className="text-[10px] uppercase font-bold text-zinc-400 block mb-1.5">Input Audio Device</label>
+          <label className="text-[10px] uppercase font-bold text-zinc-400 block mb-1.5">{t("audio.inputDevice")}</label>
           <select
             value={selectedDevice}
             onChange={(e) => {
@@ -114,12 +116,12 @@ export function RecordingSettingsModal({
               </option>
             ))}
           </select>
-          <span className="text-[9px] text-zinc-500 mt-1 block">Compatible with Focusrite Scarlett Solo/2i2, Shure MV7, USB mics & audio interfaces</span>
+          <span className="text-[9px] text-zinc-500 mt-1 block">{t("audio.deviceSupport")}</span>
         </div>
 
         {/* Live Input Waveform Monitor */}
         <div>
-          <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-1.5">Live Waveform Oscilloscope</span>
+          <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-1.5">{t("audio.liveWaveform")}</span>
           <div className="h-16 w-full rounded-lg border border-zinc-800 overflow-hidden bg-black">
             <canvas ref={canvasRef} width={450} height={64} className="h-full w-full" />
           </div>
@@ -128,8 +130,8 @@ export function RecordingSettingsModal({
         {/* Direct Monitoring Toggle */}
         <div className="flex items-center justify-between p-3 rounded-lg bg-[#191b22] border border-zinc-800">
           <div>
-            <span className="text-xs font-bold text-white block">Direct Monitoring</span>
-            <span className="text-[10px] text-zinc-400">Listen to live vocals/guitars in your headphones</span>
+            <span className="text-xs font-bold text-white block">{t("audio.monitoring")}</span>
+            <span className="text-[10px] text-zinc-400">{t("audio.monitoringHelp")}</span>
           </div>
           <button
             onClick={() => onToggleMonitoring(!monitoringEnabled)}
@@ -139,7 +141,7 @@ export function RecordingSettingsModal({
                 : "bg-zinc-800 text-zinc-400 hover:text-white"
             }`}
           >
-            {monitoringEnabled ? "MONITORING ON" : "MUTED"}
+            {monitoringEnabled ? t("audio.monitoringOn") : t("audio.muted")}
           </button>
         </div>
       </div>

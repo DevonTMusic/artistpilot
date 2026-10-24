@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { useLanguage } from "@/components/LanguageProvider";
 
 interface InputDevice {
   deviceId: string;
@@ -62,6 +63,7 @@ export function detectPitch(samples: Float32Array, sampleRate: number): number |
 }
 
 export function ChromaticTuner({ isOpen, onClose, instrumentName }: ChromaticTunerProps) {
+  const { t } = useLanguage();
   const [devices, setDevices] = useState<InputDevice[]>([]);
   const [deviceId, setDeviceId] = useState("default");
   const [isListening, setIsListening] = useState(false);
@@ -112,7 +114,7 @@ export function ChromaticTuner({ isOpen, onClose, instrumentName }: ChromaticTun
     setError("");
     setPermissionRequested(true);
     try {
-      if (!navigator.mediaDevices?.getUserMedia) throw new Error("Microphone input is not available in this browser.");
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error(t("tuner.noMicrophone"));
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           deviceId: deviceId === "default" ? undefined : { exact: deviceId },
@@ -146,7 +148,7 @@ export function ChromaticTuner({ isOpen, onClose, instrumentName }: ChromaticTun
       update();
     } catch (cause) {
       stopListening();
-      setError(cause instanceof Error ? cause.message : "Could not start the tuner.");
+      setError(cause instanceof Error ? cause.message : t("tuner.startError"));
     }
   };
 
@@ -163,18 +165,18 @@ export function ChromaticTuner({ isOpen, onClose, instrumentName }: ChromaticTun
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4">
-      <section role="dialog" aria-modal="true" aria-label="Chromatic tuner" className="w-full max-w-md rounded-2xl border border-zinc-700 bg-[#15171d] p-5 text-zinc-200 shadow-2xl">
+      <section role="dialog" aria-modal="true" aria-label={t("tuner.title")} className="w-full max-w-md rounded-2xl border border-zinc-700 bg-[#15171d] p-5 text-zinc-200 shadow-2xl">
         <header className="mb-5 flex items-center justify-between">
           <div>
-            <h2 className="text-base font-bold text-white">Chromatic Tuner</h2>
+            <h2 className="text-base font-bold text-white">{t("tuner.title")}</h2>
             <p className="mt-1 text-xs text-zinc-400">
-              {instrumentName ? `${instrumentName} · ` : ""}Live pitch detection stays in your browser.
+              {instrumentName ? `${instrumentName} · ` : ""}{t("tuner.browserNote")}
             </p>
           </div>
-          <button onClick={onClose} aria-label="Close tuner" className="rounded px-2 py-1 text-zinc-400 hover:bg-zinc-800 hover:text-white">✕</button>
+          <button onClick={onClose} aria-label={t("tuner.close")} className="rounded px-2 py-1 text-zinc-400 hover:bg-zinc-800 hover:text-white">✕</button>
         </header>
         <label className="mb-5 block text-xs text-zinc-400">
-          Microphone
+          {t("tuner.microphone")}
           <select
             value={deviceId}
             onFocus={() => void refreshDevices()}
@@ -182,7 +184,7 @@ export function ChromaticTuner({ isOpen, onClose, instrumentName }: ChromaticTun
             disabled={isListening}
             className="mt-1 block w-full rounded-lg border border-zinc-700 bg-[#0d0f13] px-3 py-2 text-sm text-white disabled:opacity-60"
           >
-            <option value="default">System default</option>
+            <option value="default">{t("tuner.systemDefault")}</option>
             {devices.map((device) => (
               <option key={device.deviceId} value={device.deviceId}>{device.label}</option>
             ))}
@@ -199,29 +201,29 @@ export function ChromaticTuner({ isOpen, onClose, instrumentName }: ChromaticTun
               style={{ transform: `translateX(-50%) rotate(${needle * 0.8}deg)` }}
             />
             <span className="absolute bottom-0 left-0 text-[10px] text-zinc-500">♭</span>
-            <span className="absolute bottom-0 left-1/2 -translate-x-1/2 text-[10px] text-zinc-500">IN TUNE</span>
+            <span className="absolute bottom-0 left-1/2 -translate-x-1/2 text-[10px] text-zinc-500">{t("tuner.inTune")}</span>
             <span className="absolute bottom-0 right-0 text-[10px] text-zinc-500">♯</span>
           </div>
           <div className="text-5xl font-black tracking-tight text-white">
             {noteName}<span className="ml-1 text-2xl text-zinc-400">{octave}</span>
           </div>
           <div className={`mt-2 text-sm font-semibold ${frequency === null ? "text-zinc-500" : Math.abs(cents) <= 5 ? "text-emerald-400" : "text-amber-300"}`}>
-            {frequency === null ? (isListening ? "Listening…" : "Start listening to tune") : `${cents > 0 ? "+" : ""}${cents} cents`}
+            {frequency === null ? (isListening ? t("tuner.listening") : t("tuner.startListening")) : `${cents > 0 ? "+" : ""}${cents} cents`}
           </div>
           <div className="mt-1 font-mono text-xs text-zinc-500">
             {frequency === null ? "— Hz" : `${frequency.toFixed(1)} Hz`}
           </div>
         </div>
         {error && <p role="alert" className="mt-3 text-xs text-red-300">{error}</p>}
-        {!permissionRequested && <p className="mt-3 text-[11px] text-zinc-500">Your browser will ask for microphone permission when you start.</p>}
+        {!permissionRequested && <p className="mt-3 text-[11px] text-zinc-500">{t("tuner.permission")}</p>}
         <footer className="mt-4 flex justify-end gap-2">
           {isListening && (
             <button onClick={stopListening} className="rounded-lg border border-zinc-700 px-4 py-2 text-xs font-semibold text-zinc-300 hover:bg-zinc-800">
-              Stop
+              {t("tuner.stop")}
             </button>
           )}
           <button onClick={() => void startListening()} className="rounded-lg bg-sky-600 px-4 py-2 text-xs font-bold text-white hover:bg-sky-500">
-            {isListening ? "Restart" : "Start Tuner"}
+            {isListening ? t("tuner.restart") : t("tuner.start")}
           </button>
         </footer>
       </section>

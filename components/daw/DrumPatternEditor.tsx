@@ -2,6 +2,7 @@
 
 import React from "react";
 import { DrumPatternData } from "@/lib/AudioEngine";
+import { useLanguage } from "@/components/LanguageProvider";
 
 interface DrumPatternEditorProps {
   isOpen: boolean;
@@ -11,12 +12,12 @@ interface DrumPatternEditorProps {
 }
 
 const rows: Array<{ key: "kick" | "snare" | "hat" | "openHat" | "clap" | "percussion"; label: string }> = [
-  { key: "kick", label: "Kick" },
-  { key: "snare", label: "Snare" },
-  { key: "hat", label: "Closed hat" },
-  { key: "openHat", label: "Open hat" },
-  { key: "clap", label: "Clap" },
-  { key: "percussion", label: "Percussion" },
+  { key: "kick", label: "drums.kick" },
+  { key: "snare", label: "drums.snare" },
+  { key: "hat", label: "drums.closedHat" },
+  { key: "openHat", label: "drums.openHat" },
+  { key: "clap", label: "drums.clap" },
+  { key: "percussion", label: "drums.percussion" },
 ];
 
 interface DrumPatternEditorPropsExtended extends DrumPatternEditorProps {
@@ -34,6 +35,7 @@ export function DrumPatternEditor({
   playheadSec = 0,
   isPlaying = false,
 }: DrumPatternEditorPropsExtended) {
+  const { t } = useLanguage();
   if (!isOpen) return null;
   const stepCount = Math.max(16, Math.min(64, ...[
     pattern.kick.length,
@@ -68,35 +70,35 @@ export function DrumPatternEditor({
       <section className="w-full max-w-3xl rounded-xl border border-zinc-700 bg-[#15161b] p-5 text-white shadow-2xl">
         <header className="mb-5 flex items-center justify-between">
           <div>
-            <h2 className="font-bold">Drum pattern</h2>
-            <p className="text-xs text-zinc-400">Pattern playback follows the transport and project tempo.</p>
+            <h2 className="font-bold">{t("drums.title")}</h2>
+            <p className="text-xs text-zinc-400">{t("drums.help")}</p>
           </div>
-          <button onClick={onClose} className="rounded px-2 py-1 text-zinc-400 hover:bg-zinc-800 hover:text-white" aria-label="Close drum pattern editor">✕</button>
+          <button onClick={onClose} className="rounded px-2 py-1 text-zinc-400 hover:bg-zinc-800 hover:text-white" aria-label={t("drums.close")}>✕</button>
         </header>
         <div className="mb-4 flex flex-wrap items-center gap-4 text-xs">
           <label className="flex items-center gap-2 text-zinc-300">
-            Pattern length
+            {t("drums.length")}
             <select value={stepCount} onChange={(event) => changeLength(Number(event.target.value))} className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-white">
-              {[16, 32, 64].map((length) => <option key={length} value={length}>{length / 16} bar{length > 16 ? "s" : ""}</option>)}
+              {[16, 32, 64].map((length) => <option key={length} value={length}>{t(length === 16 ? "drums.barSingular" : "drums.barPlural", { count: length / 16 })}</option>)}
             </select>
           </label>
           <label className="flex items-center gap-2 text-zinc-300">
-            Swing
+            {t("drums.swing")}
             <input type="range" min={0} max={0.5} step={0.01} value={pattern.swing ?? 0} onChange={(event) => onChange({ ...pattern, swing: Number(event.target.value) })} className="accent-amber-400" />
             <span className="w-8 font-mono text-zinc-400">{Math.round((pattern.swing ?? 0) * 100)}%</span>
           </label>
-          <span className="ml-auto text-zinc-500">{isPlaying ? `${bpm} BPM · step ${currentStep + 1}` : `${bpm} BPM · stopped`}</span>
+          <span className="ml-auto text-zinc-500">{isPlaying ? `${bpm} BPM · ${t("drums.step")} ${currentStep + 1}` : `${bpm} BPM · ${t("drums.stopped")}`}</span>
         </div>
         <div className="space-y-2 overflow-x-auto">
           {rows.map(({ key, label }) => (
             <div key={key} className="grid min-w-[760px] grid-cols-[5rem_1fr] items-center gap-3">
-              <span className="text-xs font-semibold text-zinc-300">{label}</span>
+              <span className="text-xs font-semibold text-zinc-300">{t(label)}</span>
                   <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${stepCount}, minmax(0, 1fr))` }}>
                 {Array.from({ length: stepCount }, (_, index) => (
                   <button
                     key={index}
                     onClick={() => toggleStep(key, index)}
-                    aria-label={`${label} step ${index + 1} ${(pattern[key] ?? [])[index] ? "on" : "off"}`}
+                    aria-label={t("drums.stepState", { row: t(label), step: index + 1, state: (pattern[key] ?? [])[index] ? t("pianoRoll.on") : t("pianoRoll.off") })}
                     aria-pressed={Boolean((pattern[key] ?? [])[index])}
                     className={`aspect-square rounded border text-[9px] transition ${
                       (pattern[key] ?? [])[index]
@@ -112,7 +114,7 @@ export function DrumPatternEditor({
           ))}
         </div>
         <footer className="mt-5 flex justify-end">
-          <button onClick={onClose} className="rounded bg-violet-600 px-4 py-2 text-xs font-bold hover:bg-violet-500">Done</button>
+          <button onClick={onClose} className="rounded bg-violet-600 px-4 py-2 text-xs font-bold hover:bg-violet-500">{t("drums.done")}</button>
         </footer>
       </section>
     </div>

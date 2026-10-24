@@ -2,6 +2,7 @@
 "use client";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AICreditPacks, type CoachUsage } from "@/components/AICreditPacks";
+import { useLanguage } from "@/components/LanguageProvider";
 
 interface AiCoachModalProps {
   isOpen: boolean;
@@ -42,11 +43,12 @@ export function AiCoachModal({
   initialTab = "coach",
   initialQuestion,
 }: AiCoachModalProps) {
+  const { t } = useLanguage();
   const [tab, setTab] = useState<"coach" | "theory" | "guitar">(initialTab);
   const [messages, setMessages] = useState<Array<{ role: "ai" | "user"; text: string }>>([
     {
       role: "ai",
-      text: `Hey! I'm your ArtistPilot AI Studio Coach. You're currently writing at ${bpm} BPM in the key of ${currentKey}. Ask me for chord progressions, melody ideas, or instrument mixing advice!`,
+      text: t("coach.welcome", { bpm, key: currentKey }),
     },
   ]);
   const [inputText, setInputText] = useState("");
@@ -119,26 +121,26 @@ export function AiCoachModal({
       <div className="flex h-11 items-center justify-between border-b border-zinc-800 bg-[#21232d] px-4">
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-indigo-400 flex items-center gap-1.5">
-            AI Music Coach & Theory
+            {t("coach.title")}
           </span>
           <div className="flex rounded bg-black/40 p-0.5 text-[10px]">
             <button
               onClick={() => setTab("coach")}
               className={`px-2.5 py-1 rounded ${tab === "coach" ? "bg-indigo-600 text-white font-bold" : "text-zinc-400 hover:text-white"}`}
             >
-              AI Assistant
+              {t("coach.assistant")}
             </button>
             <button
               onClick={() => setTab("theory")}
               className={`px-2.5 py-1 rounded ${tab === "theory" ? "bg-indigo-600 text-white font-bold" : "text-zinc-400 hover:text-white"}`}
             >
-              Chords & Progressions
+              {t("coach.chordsTab")}
             </button>
             <button
               onClick={() => setTab("guitar")}
               className={`px-2.5 py-1 rounded ${tab === "guitar" ? "bg-indigo-600 text-white font-bold" : "text-zinc-400 hover:text-white"}`}
             >
-              Guitar Fingerings
+              {t("coach.guitarTab")}
             </button>
           </div>
         </div>
@@ -168,7 +170,7 @@ export function AiCoachModal({
               </div>
             ))}
             {loading && (
-              <div className="text-[11px] text-indigo-400 italic">AI Coach is analyzing your session...</div>
+              <div className="text-[11px] text-indigo-400 italic">{t("coach.analyzing")}</div>
             )}
             <AICreditPacks usage={usage} />
             {error && <div role="alert" className="rounded-lg border border-red-900 bg-red-950/50 p-2 text-[11px] text-red-200">{error}</div>}
@@ -179,7 +181,7 @@ export function AiCoachModal({
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && void handleSendMessage()}
-              placeholder="Ask for chords, melody ideas, or mixing advice..."
+              placeholder={t("coach.placeholder")}
               maxLength={1000}
               className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
@@ -187,7 +189,7 @@ export function AiCoachModal({
               onClick={() => void handleSendMessage()}
               className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-bold"
             >
-              {loading ? "Thinking…" : "Ask"}
+              {loading ? t("coach.thinking") : t("coach.ask")}
             </button>
           </div>
         </div>
@@ -197,22 +199,22 @@ export function AiCoachModal({
       {tab === "theory" && (
         <div className="flex-1 p-4 bg-[#13141a] overflow-y-auto space-y-4">
           <div className="bg-indigo-950/40 border border-indigo-800/60 rounded-xl p-3.5">
-            <span className="text-xs font-bold uppercase tracking-wider text-indigo-400">Recommended for Key of {currentKey}</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-indigo-400">{t("coach.recommended", { key: currentKey })}</span>
             <div className="flex items-center gap-3 my-2">
               {currentChords.chords.map((chord, i) => (
                 <div key={i} className="h-14 w-14 rounded-lg bg-indigo-600/30 border border-indigo-500 flex flex-col items-center justify-center">
                   <span className="text-base font-black text-white">{chord}</span>
-                  <span className="text-[8px] text-zinc-400 uppercase">CHORD {i + 1}</span>
+                  <span className="text-[8px] text-zinc-400 uppercase">{t("coach.chord", { number: i + 1 })}</span>
                 </div>
               ))}
             </div>
-            <p className="text-[11px] text-zinc-400 mt-1">Formula: <span className="text-indigo-300 font-mono">{currentChords.formula}</span> • Feel: <span className="text-zinc-300">{currentChords.mood}</span></p>
+            <p className="text-[11px] text-zinc-400 mt-1">{t("coach.formula")} <span className="text-indigo-300 font-mono">{currentChords.formula}</span> • {t("coach.feel")} <span className="text-zinc-300">{t(`coach.mood.${currentKey in CHORD_LIBRARY ? currentKey : "C"}`)}</span></p>
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-xs">
             {Object.entries(CHORD_LIBRARY).map(([k, val]) => (
               <div key={k} className="p-2.5 rounded-lg border border-zinc-800 bg-zinc-900/50">
-                <span className="font-bold text-white">Key of {k}</span>
+                <span className="font-bold text-white">{t("coach.recommended", { key: k })}</span>
                 <p className="text-zinc-400 text-[10px] mt-0.5">{val.chords.join(" - ")}</p>
               </div>
             ))}
@@ -223,16 +225,16 @@ export function AiCoachModal({
       {/* 4. Tab 3: Visual Guitar Fretboard & Chords for Visual Learners */}
       {tab === "guitar" && (
         <div className="flex-1 p-4 bg-[#13141a] overflow-y-auto space-y-3">
-          <p className="text-xs text-zinc-400">Standard E-A-D-G-B-E Guitar chord diagrams for beginners:</p>
+          <p className="text-xs text-zinc-400">{t("coach.guitarIntro")}</p>
           <div className="grid grid-cols-2 gap-3">
             {GUITAR_CHORDS.map((c) => (
               <div key={c.name} className="p-3 rounded-xl border border-zinc-800 bg-[#1b1c24] flex items-center justify-between">
                 <div>
-                  <h4 className="text-sm font-bold text-amber-400">{c.name}</h4>
-                  <p className="text-[10px] text-zinc-400 mt-0.5">Notes: {c.notes}</p>
+                  <h4 className="text-sm font-bold text-amber-400">{t(`coach.guitarChord.${GUITAR_CHORDS.indexOf(c)}`)}</h4>
+                  <p className="text-[10px] text-zinc-400 mt-0.5">{t("coach.notes")} {c.notes}</p>
                 </div>
                 <div className="text-right">
-                  <span className="text-[9px] uppercase font-bold text-zinc-500">Frets (Low to High)</span>
+                  <span className="text-[9px] uppercase font-bold text-zinc-500">{t("coach.frets")}</span>
                   <p className="font-mono text-xs font-bold text-white bg-black/60 px-2 py-0.5 rounded mt-0.5">{c.frets}</p>
                 </div>
               </div>

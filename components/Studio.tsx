@@ -1,6 +1,7 @@
 // components/Studio.tsx
 "use client";
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import { useLanguage } from "@/components/LanguageProvider";
 import { AudioEngine } from "@/lib/AudioEngine";
 import {
   TrackData,
@@ -107,6 +108,7 @@ const DEFAULT_AMP_SETTINGS: GuitarAmpSettings = {
 };
 
 export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
+  const { t, locale } = useLanguage();
   const engine = useRef<AudioEngine>(AudioEngine.getInstance());
   const deviceManager = useRef<AudioDeviceManager>(AudioDeviceManager.getInstance());
 
@@ -124,7 +126,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   });
 
   const [isMasterMode, setIsMasterMode] = useState(false);
-  const [projectName, setProjectName] = useState("New Project");
+  const [projectName, setProjectName] = useState(t("studio.newProject"));
   const [bpm, setBpm] = useState(Math.min(300, Math.max(30, defaultBpm)));
   const [projectKey, setProjectKey] = useState("D♭");
   const [projectScale, setProjectScale] = useState<"maj" | "min">("maj");
@@ -171,7 +173,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const [metronomeActive, setMetronomeActive] = useState(false);
 
   // Hardware Interface
-  const [activeInputLabel, setActiveInputLabel] = useState<string>("System Default Input");
+  const [activeInputLabel, setActiveInputLabel] = useState<string>(t("studio.systemDefaultInput"));
   const [activeInputId, setActiveInputId] = useState<string>("default");
   const [activeOutputId, setActiveOutputId] = useState<string>("default");
   const [monitoringEnabled, setMonitoringEnabled] = useState(false);
@@ -270,7 +272,13 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   );
   const addArrangerSection = () => {
     const startBar = Math.max(1, Math.floor(playheadSec / secondsPerBar) + 1);
-    const names = ["Intro", "Verse", "Chorus", "Bridge", "Outro"];
+    const names = [
+      t("studio.sectionIntro"),
+      t("studio.sectionVerse"),
+      t("studio.sectionChorus"),
+      t("studio.sectionBridge"),
+      t("studio.sectionOutro"),
+    ];
     const colors = ["bg-emerald-700", "bg-sky-700", "bg-violet-700", "bg-amber-700", "bg-rose-700"];
     const index = sections.length;
     setSections((current) => [...current, {
@@ -377,7 +385,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     const delay = isPlaying && remainder > 0.02 ? secondsPerBar - remainder : 0;
     engine.current.launchScene(getProjectTracks(), scene, bpm, timeSignature, delay, buses);
     setActiveSceneId(scene.id);
-    setStatusMsg(delay > 0 ? `Queued "${scene.name}" for the next bar.` : `Launched "${scene.name}".`);
+    setStatusMsg(t(delay > 0 ? "studio.statusSceneQueued" : "studio.statusSceneLaunched", { name: scene.name }));
   };
   const playbackState = useRef({
     tracks,
@@ -614,13 +622,13 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     }
     try {
       await startLiveInputMonitor(deviceIdOverride);
-      setStatusMsg("Live input monitoring is on. Headphones are recommended to prevent feedback.");
+      setStatusMsg(t("studio.statusMonitoring"));
     } catch (error) {
       deviceManager.current.cleanupStream();
       liveAnalyserRef.current = null;
       setMonitoringEnabled(false);
       console.error("Could not start live input monitoring:", error);
-      setStatusMsg(error instanceof Error ? error.message : "Could not start live input monitoring.");
+      setStatusMsg(error instanceof Error ? error.message : t("studio.statusMonitorError"));
     }
   };
 
@@ -648,7 +656,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       void startLiveInputMonitor().catch((error: unknown) => {
         setMonitoringEnabled(false);
         console.error("Could not resume live input monitoring:", error);
-        setStatusMsg(error instanceof Error ? error.message : "Could not resume live input monitoring.");
+        setStatusMsg(error instanceof Error ? error.message : t("studio.statusMonitorError"));
       });
     }
     setIsPlaying(false);
@@ -709,7 +717,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                 : t
             )
           );
-          setStatusMsg(`Deleted "${clip.name}"`);
+          setStatusMsg(t("studio.statusDeletedClip", { name: clip.name }));
         }
         return;
       }
@@ -720,7 +728,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         );
         if (clip) {
           setCopiedClip(clip);
-          setStatusMsg(`Copied "${clip.name}"`);
+          setStatusMsg(t("studio.statusCopiedClip", { name: clip.name }));
         }
         return;
       }
@@ -735,7 +743,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           setTracks((prev) =>
             prev.map((t) => (t.id === selectedTrackId ? { ...t, regions: [...t.regions, newRegion] } : t))
           );
-          setStatusMsg(`Pasted clip at ${playheadSec.toFixed(2)}s`);
+          setStatusMsg(t("studio.statusPastedClip", { time: playheadSec.toFixed(2) }));
         }
         return;
       }
@@ -764,7 +772,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                 : t
             )
           );
-          setStatusMsg(`Split clip at ${playheadSec.toFixed(2)}s`);
+          setStatusMsg(t("studio.statusSplitClip", { time: playheadSec.toFixed(2) }));
         }
         return;
       }
@@ -836,7 +844,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
 
     const armedAudioTracks = tracks.filter((t) => t.armed && t.category === "audio");
     if (armedAudioTracks.length === 0) {
-      setStatusMsg("Arm an audio track (●) to record.");
+      setStatusMsg(t("studio.statusArmAudio"));
       return;
     }
 
@@ -871,7 +879,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               deviceManager.current.cleanupStream();
               return;
             }
-            setStatusMsg(`Count-in: ${i + 1} of ${countInBeats}`);
+            setStatusMsg(t("studio.statusCountIn", { current: i + 1, total: countInBeats }));
             triggerMetronomeClick(i === 0);
             await new Promise((res) => setTimeout(res, beatMs));
           }
@@ -914,10 +922,10 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             setTracks((prev) =>
               prev.map((t) => (t.id === track.id ? { ...t, regions: [...t.regions, newRegion] } : t))
             );
-            setStatusMsg(`Recording added to ${track.name}.`);
+            setStatusMsg(t("studio.statusRecordingAdded", { track: track.name }));
           } catch (error) {
             console.error("Could not decode recorded audio:", error);
-            setStatusMsg(`Could not decode the recording for ${track.name}. Try a different browser or input.`);
+            setStatusMsg(t("studio.statusRecordingDecode", { track: track.name }));
           }
         };
 
@@ -927,7 +935,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
 
       setIsRecording(true);
       if (!isPlaying) handlePlay();
-      setStatusMsg("Recording live audio...");
+      setStatusMsg(t("studio.statusRecordingLive"));
     } catch (error) {
       activeMediaRecorders.current.forEach((recorder) => {
         if (recorder.state !== "inactive") {
@@ -937,7 +945,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       activeMediaRecorders.current = [];
       liveAnalyserRef.current = null;
       deviceManager.current.cleanupStream();
-      setStatusMsg(error instanceof Error ? error.message : "Microphone or audio interface access failed.");
+      setStatusMsg(error instanceof Error ? error.message : t("studio.statusRecordError"));
     }
   };
 
@@ -964,7 +972,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         offset: region.offset + firstDuration,
         duration: region.duration - firstDuration,
       };
-      setStatusMsg(`Split "${region.name}" at ${split.toFixed(2)}s.`);
+      setStatusMsg(t("studio.statusSplitRegion", { name: region.name, time: split.toFixed(2) }));
       return {
         ...track,
         regions: track.regions.flatMap((item) => item.id === regionId
@@ -979,7 +987,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     const region = track?.regions.find((item) => item.id === regionId);
     if (!region) return;
     if (loopEndSec <= region.startTime + region.duration) {
-      setStatusMsg("Set the loop end after this clip to repeat it into the loop range.");
+      setStatusMsg(t("studio.statusLoopEnd"));
       return;
     }
     const repeated: AudioRegion[] = [];
@@ -998,7 +1006,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     setTracks((current) => current.map((item) => item.id === trackId
       ? { ...item, regions: [...item.regions, ...repeated] }
       : item));
-    setStatusMsg(`Repeated "${region.name}" ${repeated.length} time${repeated.length === 1 ? "" : "s"}.`);
+    setStatusMsg(t(repeated.length === 1 ? "studio.statusRepeatedOne" : "studio.statusRepeated", { name: region.name, count: repeated.length }));
   };
 
   const reverseClip = (trackId: number, regionId: string) => {
@@ -1031,10 +1039,10 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             : clip),
         }
         : item));
-      setStatusMsg(`Reversed "${region.name}" without changing the source audio.`);
+      setStatusMsg(t("studio.statusReversed", { name: region.name }));
     } catch (error) {
       console.error("Could not reverse audio clip:", error);
-      setStatusMsg(error instanceof Error ? error.message : "Could not reverse this clip.");
+      setStatusMsg(error instanceof Error ? error.message : t("studio.statusReverseError"));
     }
   };
 
@@ -1047,7 +1055,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     );
     const second = first ? ordered[ordered.indexOf(first) + 1] : undefined;
     if (!first || !second) {
-      setStatusMsg("Join needs two adjacent audio clips on the selected track.");
+      setStatusMsg(t("studio.statusJoinAdjacent"));
       return;
     }
     try {
@@ -1082,10 +1090,10 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       setTracks((current) => current.map((item) => item.id === trackId
         ? { ...item, regions: [...item.regions.filter((region) => region.id !== first.id && region.id !== second.id), joined] }
         : item));
-      setStatusMsg(`Joined "${first.name}" and "${second.name}".`);
+      setStatusMsg(t("studio.statusJoined", { first: first.name, second: second.name }));
     } catch (error) {
       console.error("Could not join adjacent clips:", error);
-      setStatusMsg("Could not join those clips.");
+      setStatusMsg(t("studio.statusJoinError"));
     }
   };
 
@@ -1108,9 +1116,9 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           : item));
         if (fileBpm && fileBpm >= 30 && fileBpm <= 300) setBpm(Math.round(fileBpm));
         setSelectedTrackId(trackId);
-        setStatusMsg(`Imported ${notes.length} MIDI notes from "${file.name}".`);
+        setStatusMsg(t("studio.statusImportedMidi", { count: notes.length, name: file.name }));
       } catch (error) {
-        setStatusMsg(error instanceof Error ? `Could not import MIDI: ${error.message}` : "Could not import this MIDI file.");
+        setStatusMsg(error instanceof Error ? t("studio.statusMidiImportDetail", { detail: error.message }) : t("studio.statusMidiImportError"));
       }
       return;
     }
@@ -1130,20 +1138,20 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       setTracks((prev) => prev.map((item) =>
         item.id === trackId ? { ...item, regions: [...item.regions, region] } : item
       ));
-      setStatusMsg(`Imported "${file.name}" to ${track.name}.`);
+      setStatusMsg(t("studio.statusImportedAudio", { file: file.name, track: track.name }));
     } catch (error) {
       console.error("Could not import audio file:", error);
-      setStatusMsg(`Could not import "${file.name}". Use a browser-supported audio format.`);
+      setStatusMsg(t("studio.statusImportError", { name: file.name }));
     }
   };
 
   const deleteTrack = (id: number) => {
     if (isRecording) {
-      setStatusMsg("Stop recording before removing a track.");
+      setStatusMsg(t("studio.statusStopBeforeRemove"));
       return;
     }
     if (tracks.length <= 1) {
-      setStatusMsg("A Studio project must keep at least one track.");
+      setStatusMsg(t("studio.statusKeepTrack"));
       return;
     }
     setTracks((prev) => prev.filter((t) => t.id !== id));
@@ -1178,7 +1186,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
 
   const applyAutoMix = () => {
     if (tracks.length === 0) {
-      setStatusMsg("Add tracks before applying Auto Mix.");
+      setStatusMsg(t("studio.statusAutoMixNeedsTracks"));
       return;
     }
     const levelByCategory = { audio: 0.72, midi: 0.62, drum: 0.68 };
@@ -1187,7 +1195,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       volume: levelByCategory[track.category ?? "audio"],
       pan: track.category === "midi" ? 0 : track.pan,
     })));
-    setStatusMsg("Auto Mix applied balanced starting levels. Adjust the faders to taste.");
+    setStatusMsg(t("studio.statusAutoMix"));
   };
 
   const quantizeTrackRegions = (trackId: number) => {
@@ -1202,7 +1210,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         }),
       }
       : track));
-    setStatusMsg(`Aligned ${tracks.find((track) => track.id === trackId)?.name ?? "track"} regions to the ${quantizeGridSteps === 1 ? "1/16" : "1/8"} grid.`);
+    setStatusMsg(t("studio.statusAligned", { track: tracks.find((track) => track.id === trackId)?.name ?? t("studio.noTrack"), grid: quantizeGridSteps === 1 ? "1/16" : "1/8" }));
   };
 
   const addAutomationPoint = (
@@ -1260,7 +1268,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     if (!drumTrack) {
       handleAddTrackType("drum");
       setDrumEditorOpen(true);
-      setStatusMsg("Added a drum track. Edit its kick, snare, and hat pattern.");
+      setStatusMsg(t("studio.statusAddedDrums"));
       return;
     }
     setSelectedTrackId(drumTrack.id);
@@ -1286,7 +1294,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       ? selectedTrack
       : tracks.find((track) => track.category === "audio");
     if (!target) {
-      setStatusMsg("Add an audio track before importing a sound.");
+      setStatusMsg(t("studio.statusImportNeedsTrack"));
       setDiscoverModalOpen(true);
       return;
     }
@@ -1296,11 +1304,11 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   // Add Track from Discover Modal (Screenshot 2 functionality)
   const handleAddTrackType = (type: "vocal" | "guitar" | "bass" | "piano" | "drum", preset?: SoundPreset) => {
     if (tracks.length >= 12) {
-      setStatusMsg("Studio supports up to 12 tracks.");
+      setStatusMsg(t("studio.statusTrackLimit"));
       return;
     }
     const id = nextTrackId.current++;
-    let name = "Audio Track";
+    let name = t("studio.audioTrack");
     let category: "audio" | "midi" | "drum" = "audio";
     let trackType: TrackCompatibilityType = "vocal";
     let color = "bg-[#e53e3e]";
@@ -1380,22 +1388,22 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
 
   const saveProject = async () => {
     if (isRecording) {
-      setStatusMsg("Stop recording before saving so the current take is included.");
+      setStatusMsg(t("studio.statusStopBeforeSave"));
       return;
     }
     try {
       await saveSessionFile(getProjectMeta(), getProjectTracks(), projectName);
-      setStatusMsg(`Saved "${projectName || "ArtistPilot Project"}" to a local session file.`);
+      setStatusMsg(t("studio.statusSavedLocal", { name: projectName || t("studio.newProject") }));
     } catch (error) {
       console.error("Could not save studio session:", error);
-      setStatusMsg(error instanceof Error ? `Could not save session: ${error.message}` : "Could not save the session file.");
+      setStatusMsg(error instanceof Error ? t("studio.statusSaveDetail", { detail: error.message }) : t("studio.statusSaveError"));
     }
   };
 
   const loadProject = async (file?: File, fromSharedProject = false): Promise<boolean> => {
     if (!file) return false;
     if (isRecording) {
-      setStatusMsg("Stop recording before opening another session.");
+      setStatusMsg(t("studio.statusStopBeforeOpen"));
       return false;
     }
     try {
@@ -1451,11 +1459,11 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       setLoopStartSec(loadedLoopStart);
       setLoopEndSec(Math.max(loadedLoopStart + 0.5, loadedLoopEnd));
       setPlayheadSec(0);
-      setStatusMsg(`Opened "${file.name}".`);
+      setStatusMsg(t("studio.statusOpened", { name: file.name }));
       return true;
     } catch (error) {
       console.error("Could not open studio session:", error);
-      setStatusMsg(error instanceof Error ? `Could not open session: ${error.message}` : "Could not open this session file.");
+      setStatusMsg(error instanceof Error ? t("studio.statusOpenDetail", { detail: error.message }) : t("studio.statusOpenError"));
       return false;
     }
   };
@@ -1478,7 +1486,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     setHasEditLease(true);
     setEditLockOwnerId(null);
     setEditLockExpiresAt(result.lockExpiresAt ?? null);
-    setStatusMsg("Shared project created. Create an invite link to collaborate.");
+    setStatusMsg(t("studio.statusSharedCreated"));
   };
 
   const saveSharedProject = async () => {
@@ -1497,7 +1505,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     const result = await response.json() as { revision?: number; error?: string };
     if (!response.ok || typeof result.revision !== "number") throw new Error(result.error ?? "Could not save the shared project revision.");
     setSharedRevision(result.revision);
-    setStatusMsg(`Saved shared revision ${result.revision}.`);
+    setStatusMsg(t("studio.statusSharedSaved", { revision: result.revision }));
   };
 
   const claimSharedProject = async (targetProjectId = sharedProjectId) => {
@@ -1553,7 +1561,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       await claimSharedProject(projectId);
     } catch (error) {
       if (error instanceof Error && error.message === "Another collaborator currently holds the edit lock.") {
-        setStatusMsg(error.message);
+        setStatusMsg(t("studio.statusLockHeld"));
         return;
       }
       throw error;
@@ -1580,7 +1588,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       await sharedProjectLoaderRef.current(result.projectId);
     };
     void acceptInvite().catch((error: unknown) => {
-      if (!cancelled) setStatusMsg(error instanceof Error ? error.message : "Could not accept this Studio invitation.");
+      if (!cancelled) setStatusMsg(error instanceof Error ? error.message : t("studio.statusInvitationError"));
     });
     return () => { cancelled = true; };
   }, []);
@@ -1601,14 +1609,14 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           setHasEditLease(false);
           setEditLockOwnerId(payload.result?.editorId ?? null);
           setEditLockExpiresAt(payload.result?.expiresAt ?? null);
-          setStatusMsg(payload.error ?? "The shared edit lock was lost. This project is now read-only.");
+          setStatusMsg(payload.error ?? t("studio.statusLockLost"));
           return;
         }
         setEditLockOwnerId(payload.result.editorId ?? null);
         setEditLockExpiresAt(payload.result.expiresAt ?? null);
       })().catch((error: unknown) => {
         setHasEditLease(false);
-        setStatusMsg(error instanceof Error ? `Could not renew edit lock: ${error.message}` : "Could not renew the shared edit lock.");
+        setStatusMsg(error instanceof Error ? t("studio.statusLockDetail", { detail: error.message }) : t("studio.statusLockError"));
       });
     }, 60_000);
     return () => window.clearInterval(interval);
@@ -1617,11 +1625,11 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const exportProject = async () => {
     if (isExporting) return;
     if (isRecording) {
-      setStatusMsg("Stop recording before exporting the mix.");
+      setStatusMsg(t("studio.statusStopBeforeExport"));
       return;
     }
     setIsExporting(true);
-    setStatusMsg("Rendering WAV mixdown…");
+    setStatusMsg(t("studio.statusRenderingMix"));
     try {
       const blob = await engine.current.exportMasterWav(
         getProjectTracks(),
@@ -1638,10 +1646,10 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       anchor.download = `${projectName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "artistpilot-project"}.wav`;
       anchor.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 5000);
-      setStatusMsg("WAV mixdown exported.");
+      setStatusMsg(t("studio.statusExportedMix"));
     } catch (error) {
       console.error("Could not export studio mixdown:", error);
-      setStatusMsg(error instanceof Error ? `Could not export WAV: ${error.message}` : "Could not export the WAV mixdown.");
+      setStatusMsg(error instanceof Error ? t("studio.statusWavExportDetail", { detail: error.message }) : t("studio.statusWavExportError"));
     } finally {
       setIsExporting(false);
     }
@@ -1650,18 +1658,18 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const exportStems = async () => {
     if (isExportingStems || isExporting) return;
     if (isRecording) {
-      setStatusMsg("Stop recording before exporting stems.");
+      setStatusMsg(t("studio.statusStopBeforeStems"));
       return;
     }
     const exportableTracks = getProjectTracks().filter((track) =>
       track.regions.length > 0 || (track.midiNotes?.length ?? 0) > 0 || track.category === "drum"
     );
     if (exportableTracks.length === 0) {
-      setStatusMsg("Add audio or instrument content before exporting stems.");
+      setStatusMsg(t("studio.statusNoStems"));
       return;
     }
     setIsExportingStems(true);
-    setStatusMsg(`Rendering ${exportableTracks.length} WAV stems…`);
+    setStatusMsg(t("studio.statusRenderingStems", { count: exportableTracks.length }));
     try {
       const duration = projectDuration + 1;
       for (const [index, track] of exportableTracks.entries()) {
@@ -1675,10 +1683,10 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         window.setTimeout(() => URL.revokeObjectURL(url), 10000);
         await new Promise((resolve) => window.setTimeout(resolve, 150));
       }
-      setStatusMsg(`Exported ${exportableTracks.length} unmastered WAV stems.`);
+      setStatusMsg(t("studio.statusExportedStems", { count: exportableTracks.length }));
     } catch (error) {
       console.error("Could not export studio stems:", error);
-      setStatusMsg(error instanceof Error ? `Could not export stems: ${error.message}` : "Could not export stems.");
+      setStatusMsg(error instanceof Error ? t("studio.statusStemsExportDetail", { detail: error.message }) : t("studio.statusStemsExportError"));
     } finally {
       setIsExportingStems(false);
     }
@@ -1781,7 +1789,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         : preset.category === "keys" ? "piano"
         : "drum";
       handleAddTrackType(trackType, preset);
-      setStatusMsg(`Added a ${preset.category} track with the "${preset.name}" sound preset.`);
+      setStatusMsg(t("studio.statusPresetTrack", { category: t(`sound.${preset.category}`), name: preset.name }));
       return;
     }
     setSelectedTrackId(target.id);
@@ -1794,7 +1802,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       ...(preset.synth ? { synthSettings: { ...DEFAULT_SYNTH_SETTINGS, ...track.synthSettings, ...preset.synth } } : {}),
       ...(preset.drums ? { drumPattern: { ...DEFAULT_DRUM_PATTERN, ...track.drumPattern, ...preset.drums } } : {}),
     })));
-    setStatusMsg(`Applied "${preset.name}" to ${target.name}. Press Play to audition it.`);
+    setStatusMsg(t("studio.statusPresetApplied", { preset: preset.name, track: target.name }));
   };
   const [meterNumerator, meterDenominator] = timeSignature.split("/").map(Number);
   const beatSeconds = (60 / bpm) * (4 / meterDenominator);
@@ -1841,7 +1849,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       {/* 1. BANDLAB-STYLE MODERN TOP TRANSPORT BAR (Screenshot 1) */}
       <header
         tabIndex={0}
-        aria-label="Studio transport and project controls. Scroll horizontally for additional controls."
+        aria-label={t("studio.transportAria")}
         className="flex h-11 flex-none items-center gap-4 overflow-x-auto overscroll-x-contain border-b border-[#1c1d22] bg-[#121316] px-2 shadow-md z-30 focus-visible:outline focus-visible:outline-1 focus-visible:outline-sky-500"
       >
         
@@ -1851,44 +1859,44 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             <button
               onClick={undoTrackChanges}
               disabled={trackHistoryRef.current.undo.length === 0}
-              aria-label="Undo"
-              title={`Undo track change (${trackHistoryRef.current.undo.length} available)`}
+              aria-label={t("studio.undo")}
+              title={t("studio.undoChange", { count: trackHistoryRef.current.undo.length })}
               className="flex h-7 items-center gap-1 rounded bg-[#20222a] px-1.5 text-[10px] text-zinc-200 hover:bg-zinc-700 disabled:opacity-30"
-            ><span aria-hidden="true">↶</span> Undo</button>
+            ><span aria-hidden="true">↶</span> {t("studio.undo")}</button>
             <button
               onClick={redoTrackChanges}
               disabled={trackHistoryRef.current.redo.length === 0}
-              aria-label="Redo"
-              title="Redo track change"
+              aria-label={t("studio.redo")}
+              title={t("studio.redoChange")}
               className="flex h-7 items-center gap-1 rounded bg-[#20222a] px-1.5 text-[10px] text-zinc-200 hover:bg-zinc-700 disabled:opacity-30"
-            ><span aria-hidden="true">↷</span> Redo</button>
+            ><span aria-hidden="true">↷</span> {t("studio.redo")}</button>
           </div>
           <button
             onClick={() => setDiscoverModalOpen(true)}
             className="flex h-7 items-center gap-1 rounded-lg bg-[#24262e] border border-zinc-700/80 px-2 text-[11px] font-bold text-white hover:border-red-500 hover:text-white transition shadow-sm"
           >
-            <span>+</span> Add Track
+            <span>+</span> {t("studio.addTrack")}
           </button>
           <button
             onClick={() => setWelcomeOpen(true)}
             className="h-7 rounded bg-[#20222a] px-2 text-[10px] font-semibold text-zinc-300 hover:bg-zinc-700 hover:text-white"
-            title="Open the Studio guide"
+            title={t("studio.titleOpenGuide")}
           >
-            Studio Guide
+            {t("studio.openGuide")}
           </button>
 
           <input
-            aria-label="Project name"
+            aria-label={t("studio.projectNameAria")}
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
             className="w-36 bg-transparent text-xs font-bold text-white focus:outline-none rounded px-1.5 py-0.5 truncate"
           />
 
           <div className="h-4 w-[1px] bg-zinc-800" />
-          <button onClick={() => void saveProject()} className="rounded bg-[#20222a] px-2 py-1 text-[10px] font-semibold text-zinc-200 hover:bg-zinc-700">Save</button>
-          <button onClick={() => fileInputRef.current?.click()} className="rounded bg-[#20222a] px-2 py-1 text-[10px] font-semibold text-zinc-200 hover:bg-zinc-700">Open</button>
-          <button onClick={() => setCollaborationOpen(true)} className="rounded bg-violet-900/60 px-2 py-1 text-[10px] font-semibold text-violet-200 hover:bg-violet-800">Collaborate</button>
-          <button onClick={() => setBusPanelOpen(true)} className="rounded bg-[#20222a] px-2 py-1 text-[10px] font-semibold text-zinc-200 hover:bg-zinc-700">Buses</button>
+          <button onClick={() => void saveProject()} className="rounded bg-[#20222a] px-2 py-1 text-[10px] font-semibold text-zinc-200 hover:bg-zinc-700">{t("studio.save")}</button>
+          <button onClick={() => fileInputRef.current?.click()} className="rounded bg-[#20222a] px-2 py-1 text-[10px] font-semibold text-zinc-200 hover:bg-zinc-700">{t("studio.open")}</button>
+          <button onClick={() => setCollaborationOpen(true)} className="rounded bg-violet-900/60 px-2 py-1 text-[10px] font-semibold text-violet-200 hover:bg-violet-800">{t("studio.collaborate")}</button>
+          <button onClick={() => setBusPanelOpen(true)} className="rounded bg-[#20222a] px-2 py-1 text-[10px] font-semibold text-zinc-200 hover:bg-zinc-700">{t("studio.buses")}</button>
 
           {/* Metronome & Count-In Pill */}
           <div className="flex items-center gap-1">
@@ -1897,7 +1905,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               className={`h-7 px-2.5 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
                 metronomeActive ? "bg-amber-500/20 text-amber-300 border border-amber-500/60" : "bg-[#1c1d24] text-zinc-400 hover:text-white"
               }`}
-              title="Metronome Click"
+              title={t("studio.metronome")}
             >
               <BellIcon className="h-4 w-4" />
             </button>
@@ -1906,7 +1914,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               className={`h-7 px-2.5 rounded-lg text-[11px] font-bold transition ${
                 countInActive ? "bg-purple-600 text-white shadow" : "bg-[#1c1d24] text-zinc-500"
               }`}
-              title={`${meterNumerator}-Beat Count-In`}
+              title={t("studio.countIn", { beats: meterNumerator })}
             >
               {Array.from({ length: meterNumerator }, (_, index) => index + 1).join("")}
             </button>
@@ -1919,26 +1927,26 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           <div className="flex items-center gap-1 rounded-lg border border-zinc-800 bg-[#1a1b22] px-1.5 py-0.5 text-[11px]">
             <input
               type="number"
-              aria-label="Tempo in beats per minute"
+              aria-label={t("studio.tempoAria")}
               value={bpm}
               min={30}
               max={300}
               onChange={(e) => setBpm(Math.min(300, Math.max(30, Number(e.target.value) || 120)))}
               className="w-8 bg-transparent text-xs font-bold text-white focus:outline-none"
             />
-            <span className="text-[9px] text-zinc-500">bpm</span>
+            <span className="text-[9px] text-zinc-500">{t("studio.bpm")}</span>
           </div>
           <button
             onClick={tapTempo}
             className="rounded-lg border border-zinc-800 bg-[#1a1b22] px-2 py-1 text-[10px] font-bold text-zinc-300 hover:bg-zinc-700 hover:text-white"
-            title="Tap four or more times to set tempo"
+            title={t("studio.tapTempoHelp")}
           >
-            Tap
+            {t("studio.tap")}
           </button>
 
           {/* 4 / 4 Time Signature */}
           <select
-            aria-label="Time signature"
+            aria-label={t("studio.timeSignature")}
             value={timeSignature}
             onChange={(event) => setTimeSignature(event.target.value as typeof timeSignature)}
             className="bg-[#1a1b22] px-2 py-1 rounded-lg border border-zinc-800 text-xs font-bold text-zinc-300"
@@ -1963,7 +1971,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               onClick={() => setProjectScale(projectScale === "maj" ? "min" : "maj")}
               className="font-bold text-zinc-400 hover:text-white text-[11px]"
             >
-              {projectScale}
+              {t(projectScale === "maj" ? "music.majorShort" : "music.minorShort")}
             </button>
           </div>
 
@@ -1974,7 +1982,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               className={`h-8 w-10 rounded-lg font-bold flex items-center justify-center transition shadow ${
                 isPlaying ? "bg-amber-500 text-black" : "bg-[#24262e] text-white hover:bg-zinc-700"
               }`}
-              title="Play / Pause"
+              title={t("studio.playPause")}
             >
               {isPlaying ? <PauseIcon className="w-3.5 h-3.5 fill-current" /> : <PlayIcon className="w-3.5 h-3.5 fill-current" />}
             </button>
@@ -1982,7 +1990,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             <button
               onClick={() => { handleStop(); setPlayheadSec(0); }}
               className="h-8 w-8 rounded-lg flex items-center justify-center bg-[#1a1b22] hover:bg-zinc-700 text-zinc-400 hover:text-white transition"
-              title="Return to Start"
+              title={t("studio.returnStart")}
             >
               <RewindIcon className="w-3.5 h-3.5 fill-current" />
             </button>
@@ -1992,7 +2000,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               className={`h-8 w-8 rounded-full flex items-center justify-center ml-1 transition ${
                 isRecording ? "bg-red-500 animate-pulse text-white shadow-[0_0_12px_#ef4444]" : "bg-[#e53e3e] hover:bg-red-600 text-white"
               }`}
-              title="Record Armed Tracks"
+              title={t("studio.record")}
             >
               <div className="h-3 w-3 rounded-full bg-white shadow-sm" />
             </button>
@@ -2002,7 +2010,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               className={`h-8 w-8 rounded-lg flex items-center justify-center ml-1 transition ${
                 isLooping ? "bg-amber-500/25 text-amber-300 border border-amber-500/60" : "bg-[#1a1b22] text-zinc-400 hover:text-white"
               }`}
-              title="Cycle Loop Range"
+              title={t("studio.toggleLoop")}
             >
               <LoopIcon className="w-3.5 h-3.5" />
             </button>
@@ -2011,14 +2019,14 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           {/* Timecode Clock (e.g. 00:00.0) */}
           <div className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-[#1a1b22] px-2 py-1 text-[11px] font-mono font-bold text-zinc-200">
             <span>{formatTimecode(playheadSec)}</span>
-            <span className="text-[9px] text-zinc-500">BAR {currentBar} · BEAT {currentBeat}</span>
+            <span className="text-[9px] text-zinc-500">{t("studio.barBeat", { bar: currentBar, beat: currentBeat })}</span>
           </div>
         </div>
 
         {/* Right: Master Output Volume Fader with +0.0 dB readout & Export */}
         <div className="ml-auto flex flex-none items-center gap-2 whitespace-nowrap">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-zinc-400">VOL</span>
+            <span className="text-[10px] text-zinc-400">{t("studio.volume").toUpperCase()}</span>
             <input
               type="range"
               min={0}
@@ -2032,7 +2040,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           </div>
 
           <select
-            aria-label="Mastering preset"
+            aria-label={t("studio.masterPreset")}
             value={masterPreset}
             onChange={(event) => {
               const preset = event.target.value as typeof masterPreset;
@@ -2045,10 +2053,10 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             }}
             className="h-8 rounded-lg border border-zinc-700 bg-[#20222a] px-2 text-[10px] font-semibold text-zinc-200"
           >
-            <option value="custom">Mastering</option>
-            <option value="warm">Warm</option>
-            <option value="clear">Clear</option>
-            <option value="loud">Loud</option>
+            <option value="custom">{t("studio.mastering")}</option>
+            <option value="warm">{t("studio.warm")}</option>
+            <option value="clear">{t("studio.clear")}</option>
+            <option value="loud">{t("studio.loud")}</option>
           </select>
 
           <div className="flex items-center gap-1">
@@ -2057,14 +2065,14 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               disabled={isExporting || isExportingStems}
               className="h-7 rounded-lg bg-gradient-to-r from-red-500 to-rose-600 px-2.5 text-[11px] font-bold text-white shadow hover:brightness-110 active:scale-95 transition disabled:cursor-wait disabled:opacity-60"
             >
-              {isExporting ? "Rendering…" : "Export Mix"}
+              {isExporting ? t("studio.rendering") : t("studio.exportMix")}
             </button>
             <button
               onClick={() => void exportStems()}
               disabled={isExporting || isExportingStems}
               className="h-7 rounded-lg border border-zinc-700 bg-[#20222a] px-2 text-[9px] font-semibold text-zinc-200 hover:bg-zinc-700 disabled:cursor-wait disabled:opacity-60"
             >
-              {isExportingStems ? "Stems…" : "Stems"}
+              {isExportingStems ? `${t("studio.stems")}…` : t("studio.stems")}
             </button>
           </div>
         </div>
@@ -2083,29 +2091,29 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         <div className="w-56 flex-none border-r border-[#1a1b20] bg-[#121316] flex flex-col z-10 shadow-lg">
           <div
             tabIndex={0}
-            aria-label="Track editing tools. Scroll horizontally for more."
+            aria-label={t("studio.tracksAria")}
             className="h-7 w-full min-w-0 flex-none overflow-x-auto border-b border-[#1a1b20] px-2 font-bold text-zinc-400 text-[9px]"
           >
             <div className="flex w-max min-w-full items-center justify-between gap-2">
-            <span className="flex-none whitespace-nowrap">TRACKS ({tracks.length})</span>
+            <span className="flex-none whitespace-nowrap">{t("studio.trackCount", { count: tracks.length })}</span>
             <div className="flex flex-none items-center gap-1 font-normal">
               <button
                 onClick={applyAutoMix}
                 className="rounded bg-sky-900/40 px-1.5 py-0.5 text-[9px] text-sky-300 hover:bg-sky-800/60"
-                title="Apply a balanced local starting mix"
+                title={t("studio.titleAutoMix")}
               >
-                Auto Mix
+                {t("studio.autoMix")}
               </button>
               <button
                 onClick={() => setIsSnapEnabled((enabled) => !enabled)}
                 aria-pressed={isSnapEnabled}
-                title="Snap clips to the beat grid"
+                title={t("studio.titleSnap")}
                 className={`rounded px-1.5 py-0.5 text-[9px] ${isSnapEnabled ? "bg-amber-500/20 text-amber-300" : "text-zinc-500 hover:text-white"}`}
               >
-                Snap {isSnapEnabled ? "On" : "Off"}
+                {t("studio.snap")} {isSnapEnabled ? t("studio.on") : t("studio.off")}
               </button>
               <select
-                aria-label="Quantize grid"
+                aria-label={t("studio.quantizeGrid")}
                 value={quantizeGridSteps}
                 onChange={(event) => setQuantizeGridSteps(Number(event.target.value))}
                 className="rounded border border-zinc-700 bg-[#17181f] px-1 py-0.5 text-[9px] text-zinc-300"
@@ -2117,17 +2125,17 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                 onClick={() => quantizeTrackRegions(selectedTrackId)}
                 disabled={!selectedTrack?.regions.length}
                 className="rounded bg-violet-900/40 px-1.5 py-0.5 text-[9px] text-violet-300 hover:bg-violet-800/60 disabled:opacity-30"
-                title="Align selected track audio regions to the quantize grid"
+                title={t("studio.titleAlign")}
               >
-                Align
+                {t("studio.align")}
               </button>
               <button
                 onClick={() => joinAdjacentRegions(selectedTrackId)}
                 disabled={!selectedTrack?.regions || selectedTrack.regions.length < 2}
                 className="rounded bg-emerald-900/40 px-1.5 py-0.5 text-[9px] text-emerald-300 hover:bg-emerald-800/60 disabled:opacity-30"
-                title="Join the first adjacent audio clips on the selected track"
+                title={t("studio.titleJoin")}
               >
-                Join
+                {t("studio.join")}
               </button>
               <button
                 onClick={() => setIsAutomationMode((active) => !active)}
@@ -2138,31 +2146,31 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               </button>
               {isAutomationMode && (
                 <select
-                  aria-label="Automation parameter"
+                  aria-label={t("studio.automationParameter")}
                   value={automationParameter}
                   onChange={(event) => setAutomationParameter(event.target.value as typeof automationParameter)}
                   className="rounded border border-zinc-700 bg-[#17181f] px-1 py-0.5 text-[9px] text-zinc-300"
                 >
-                  <option value="volume">Volume</option>
-                  <option value="pan">Pan</option>
-                  <option value="reverbSend">Reverb</option>
+                  <option value="volume">{t("studio.volume")}</option>
+                  <option value="pan">{t("studio.pan")}</option>
+                  <option value="reverbSend">{t("studio.reverb")}</option>
                 </select>
               )}
-              <button onClick={() => setPixelsPerSecond((value) => Math.max(25, value - 5))} aria-label="Zoom out" className="rounded px-1 text-sm hover:bg-zinc-800">−</button>
+              <button onClick={() => setPixelsPerSecond((value) => Math.max(25, value - 5))} aria-label={t("studio.zoomOut")} className="rounded px-1 text-sm hover:bg-zinc-800">−</button>
               <span>{pixelsPerSecond}px/s</span>
-              <button onClick={() => setPixelsPerSecond((value) => Math.min(100, value + 5))} aria-label="Zoom in" className="rounded px-1 text-sm hover:bg-zinc-800">+</button>
+              <button onClick={() => setPixelsPerSecond((value) => Math.min(100, value + 5))} aria-label={t("studio.zoomIn")} className="rounded px-1 text-sm hover:bg-zinc-800">+</button>
             </div>
             </div>
           </div>
 
           <div className="flex h-9 flex-none items-center justify-between border-b border-[#1a1b20] bg-[#101116] px-2">
-            <span className="text-[9px] font-bold uppercase tracking-wide text-zinc-500">Arranger</span>
+            <span className="text-[9px] font-bold uppercase tracking-wide text-zinc-500">{t("studio.arranger")}</span>
             <button
               onClick={addArrangerSection}
               className="rounded bg-zinc-800 px-2 py-1 text-[9px] font-semibold text-zinc-200 hover:bg-zinc-700"
-              title="Add a four-bar song section at the playhead"
+              title={t("studio.sectionTitle")}
             >
-              + Section
+              {t("studio.addSection")}
             </button>
           </div>
 
@@ -2175,13 +2183,13 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           >
             {tracks.length === 0 && (
               <div className="flex min-h-48 flex-col items-center justify-center gap-3 px-6 text-center">
-                <p className="text-sm font-semibold text-zinc-300">Your session is ready for its first track.</p>
-                <p className="max-w-sm text-xs text-zinc-500">Add audio, an instrument, guitar, bass, or drums to start building your arrangement.</p>
+                <p className="text-sm font-semibold text-zinc-300">{t("studio.readyTitle")}</p>
+                <p className="max-w-sm text-xs text-zinc-500">{t("studio.readyText")}</p>
                 <button
                   onClick={() => setDiscoverModalOpen(true)}
                   className="rounded-lg bg-sky-600 px-4 py-2 text-xs font-bold text-white hover:bg-sky-500"
                 >
-                  Add your first track
+                  {t("studio.addFirstTrack")}
                 </button>
               </div>
             )}
@@ -2216,8 +2224,8 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                     />
                   </div>
                   <select
-                    aria-label={`${track.name} output bus`}
-                    title="Route track to a subgroup bus"
+                    aria-label={t("studio.outputBus")}
+                    title={t("studio.outputBus")}
                     value={track.busId ?? ""}
                     onClick={(event) => event.stopPropagation()}
                     onChange={(event) => setTracks((current) => current.map((item) => item.id === track.id
@@ -2225,7 +2233,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                       : item))}
                     className="w-14 truncate rounded border border-zinc-700 bg-[#17181f] px-1 py-0.5 text-[8px] text-zinc-300"
                   >
-                    <option value="">Main</option>
+                    <option value="">{t("studio.main")}</option>
                     {buses.map((bus) => <option key={bus.id} value={bus.id}>{bus.name}</option>)}
                   </select>
                   <button
@@ -2269,7 +2277,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                         setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, solo: !t.solo } : t));
                       }}
                       className={`px-1.5 py-0.5 rounded ${track.solo ? "bg-amber-500 text-black" : "bg-[#1c1e26] text-zinc-400"}`}
-                      title="Solo track"
+                      title={t("studio.solo")}
                     >
                       S
                     </button>
@@ -2290,7 +2298,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                   max={1}
                   step={0.05}
                   value={track.pan}
-                  aria-label={`${track.name} pan`}
+                  aria-label={t("studio.trackPanAria", { track: track.name })}
                   onChange={(e) => setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, pan: Number(e.target.value) } : t))}
                   className="h-1 w-full accent-violet-400"
                 />
@@ -2301,8 +2309,8 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               className={`flex h-14 flex-none items-center justify-between border-t border-emerald-900/60 px-2 ${isMasterMode ? "bg-emerald-950/50" : "bg-[#111319]"}`}
             >
               <div>
-                <p className="text-[10px] font-bold tracking-wide text-emerald-300">MASTER</p>
-                <p className="text-[8px] text-zinc-500">Automation + safety limiter</p>
+                <p className="text-[10px] font-bold tracking-wide text-emerald-300">{t("studio.master")}</p>
+                <p className="text-[8px] text-zinc-500">{t("studio.masterSafety")}</p>
               </div>
               <button
                 onClick={(event) => {
@@ -2441,7 +2449,10 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                       const rect = event.currentTarget.getBoundingClientRect();
                       removeNearestAutomationPoint(track.id, (event.clientX - rect.left) / pixelsPerSecond);
                     }}
-                    aria-label={`${automationParameter} automation for ${track.name}. Click to add a point, double-click near a point to remove it.`}
+                    aria-label={t("studio.trackAutomationAria", {
+                      parameter: t(automationParameter === "reverbSend" ? "studio.reverb" : `studio.${automationParameter}`),
+                      track: track.name,
+                    })}
                   >
                     <polyline
                       points={(track.automation?.[automationParameter] ?? [])
@@ -2482,7 +2493,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                       width={400}
                       height={70}
                       data-track-id={track.id}
-                      aria-label={`Live recording waveform for ${track.name}`}
+                      aria-label={t("studio.liveWaveformAria", { track: track.name })}
                       className="h-full w-full"
                     />
                   </div>
@@ -2520,7 +2531,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                   viewBox={`0 0 ${timelineWidth} 56`}
                   preserveAspectRatio="none"
                   className="absolute inset-0 h-full w-full"
-                  aria-label="Master volume automation. Click to add a point and double-click near a point to remove it."
+                  aria-label={t("studio.volumeAutomationAria")}
                   onClick={(event) => {
                     const rect = event.currentTarget.getBoundingClientRect();
                     const time = Math.max(0, (event.clientX - rect.left) / pixelsPerSecond);
@@ -2561,17 +2572,17 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           <section className="max-h-[80vh] w-full max-w-xl overflow-y-auto rounded-xl border border-zinc-700 bg-[#17191f] p-4 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-bold text-white">Subgroup buses</h2>
-                <p className="mt-1 text-[10px] text-zinc-400">Route tracks from their headers, then shape the shared level, pan, and reverb send.</p>
+                <h2 className="text-sm font-bold text-white">{t("studio.subgroupBuses")}</h2>
+                <p className="mt-1 text-[10px] text-zinc-400">{t("studio.subgroupHelp")}</p>
               </div>
-              <button onClick={() => setBusPanelOpen(false)} className="rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-200 hover:bg-zinc-700">Close</button>
+              <button onClick={() => setBusPanelOpen(false)} className="rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-200 hover:bg-zinc-700">{t("studio.close")}</button>
             </div>
-            <button onClick={addMixerBus} className="mb-3 rounded bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-600">+ Add bus</button>
+            <button onClick={addMixerBus} className="mb-3 rounded bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-600">{t("studio.addBus")}</button>
             <div className="space-y-3">
               {buses.map((bus) => (
                 <div key={bus.id} className="grid grid-cols-[minmax(5rem,1fr)_1fr_1fr_1fr_auto] items-center gap-3 rounded-lg border border-zinc-800 bg-[#101116] p-3">
                   <input
-                    aria-label="Bus name"
+                    aria-label={t("studio.busName")}
                     value={bus.name}
                     onChange={(event) => setBuses((current) => current.map((item) => item.id === bus.id ? { ...item, name: event.target.value.slice(0, 60) } : item))}
                     className="min-w-0 rounded bg-zinc-900 px-2 py-1 text-xs text-white"
@@ -2591,13 +2602,13 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                       setTracks((current) => current.map((track) => track.busId === bus.id ? { ...track, busId: undefined } : track));
                     }}
                     className="rounded bg-zinc-800 px-2 py-1 text-[10px] text-zinc-300 hover:bg-rose-900"
-                    aria-label={`Remove ${bus.name}`}
+                    aria-label={t("studio.removeBusAria", { bus: bus.name })}
                   >
                     Remove
                   </button>
                 </div>
               ))}
-              {buses.length === 0 && <p className="rounded-lg border border-dashed border-zinc-700 p-5 text-center text-xs text-zinc-500">No buses yet. Add a bus, then route tracks to it from their track headers.</p>}
+              {buses.length === 0 && <p className="rounded-lg border border-dashed border-zinc-700 p-5 text-center text-xs text-zinc-500">{t("studio.noBuses")}</p>}
             </div>
           </section>
         </div>
@@ -2606,7 +2617,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       {/* 3. DOCKABLE BOTTOM BAR (BandLab Style Pill Dock) */}
       <footer
         tabIndex={0}
-        aria-label="Studio tools. Scroll horizontally for additional tools."
+        aria-label={t("studio.toolsAria")}
         className="flex h-9 flex-none items-center justify-start gap-3 overflow-x-auto overscroll-x-contain border-t border-[#1c1d22] bg-[#121316] px-2 z-20 focus-visible:outline focus-visible:outline-1 focus-visible:outline-sky-500"
       >
         <div className="flex w-max flex-none items-center gap-1.5">
@@ -2616,64 +2627,64 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               smartControlsOpen ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-white"
             }`}
           >
-            Controls
+            {t("studio.controls")}
           </button>
 
           <button
             onClick={() => toggleModal("piano")}
             className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
           >
-            <PianoIcon className="h-4 w-4" /> 88-Key Piano
+            <PianoIcon className="h-4 w-4" /> {t("studio.piano")}
           </button>
 
           <button
             onClick={() => {
               if (selectedTrack?.category !== "midi") {
-                setStatusMsg("Select an Instruments track to edit MIDI notes.");
+                setStatusMsg(t("studio.selectMidi"));
                 return;
               }
               setPianoRollOpen(true);
             }}
             className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
           >
-            Piano Roll
+            {t("studio.pianoRoll")}
           </button>
 
           <button
             onClick={() => {
               if (selectedTrack?.category !== "drum") {
-                setStatusMsg("Select a Drum Machine track to edit its pattern.");
+                setStatusMsg(t("studio.selectDrums"));
                 return;
               }
               setDrumEditorOpen(true);
             }}
             className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
           >
-            Drum Pattern
+            {t("studio.drumPattern")}
           </button>
           <button
             onClick={() => {
               if (!selectedTrack) {
-                setStatusMsg("Add or select a track before opening the sampler.");
+                setStatusMsg(t("studio.selectSampler"));
                 return;
               }
               setSamplerTrackId(selectedTrack.id);
             }}
             className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:bg-zinc-800/80 hover:text-white"
           >
-            Sampler
+            {t("studio.sampler")}
           </button>
           <button
             onClick={() => setSceneLauncherOpen(true)}
             className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-900/40"
           >
-            Live Scenes
+            {t("studio.liveScenes")}
           </button>
 
           <button
             onClick={() => {
               if (selectedTrack?.trackType !== "guitar-bass") {
-                setStatusMsg("Select a Guitar or Bass track to open its amp and pedal rack.");
+                setStatusMsg(t("studio.selectAmp"));
                 return;
               }
               toggleModal("amp");
@@ -2681,7 +2692,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             disabled={selectedTrack?.trackType !== "guitar-bass"}
             className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <GuitarIcon className="h-4 w-4" /> Guitar Rig
+            <GuitarIcon className="h-4 w-4" /> {t("studio.guitarRig")}
           </button>
 
           <button
@@ -2691,55 +2702,55 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             }}
             className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
           >
-            AI Assistant
+            {t("studio.aiAssistant")}
           </button>
 
           <button
             onClick={() => setAudioSettingsOpen(true)}
             className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-sky-400 hover:bg-zinc-800/80 transition"
           >
-            <MicIcon className="h-4 w-4" /> Audio Inputs ({activeInputLabel})
+            <MicIcon className="h-4 w-4" /> {t("studio.audioInputs", { device: activeInputLabel })}
           </button>
           <button
             onClick={() => setActiveUtility("notes")}
             className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
           >
-            Lyrics / Notes
+            {t("studio.lyricsNotes")}
           </button>
           <button
             onClick={() => setSoundLibraryOpen(true)}
             className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
           >
-            Sound Browser
+            {t("studio.soundBrowser")}
           </button>
           <button
             onClick={() => soundInputRef.current?.click()}
             className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
           >
-            Import Audio
+            {t("studio.importAudio")}
           </button>
           <button
             onClick={openBeats}
             className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
           >
-            Beats
+            {t("studio.beats")}
           </button>
           <button
             onClick={() => setTunerOpen(true)}
             className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
           >
-            Tuner
+            {t("studio.tuner")}
           </button>
           <button
             onClick={() => setActiveUtility("shortcuts")}
             className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
           >
-            Shortcuts
+            {t("studio.shortcutsButton")}
           </button>
         </div>
 
         <div className="ml-auto flex-none whitespace-nowrap text-[10px] font-mono text-zinc-500">
-          ArtistPilot Pro Studio v2.0
+          {t("studio.version")}
         </div>
       </footer>
 
@@ -2748,36 +2759,36 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           <section
             role="dialog"
             aria-modal="true"
-            aria-label={activeUtility === "notes" ? "Lyrics and notes" : "Keyboard shortcuts"}
+            aria-label={activeUtility === "notes" ? t("studio.lyricsNotes") : t("studio.shortcuts")}
             className="w-full max-w-xl rounded-xl border border-zinc-700 bg-[#17191f] p-5 shadow-2xl"
           >
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-sm font-bold text-white">
-                {activeUtility === "notes" ? "Lyrics / Notes" : "Studio Shortcuts"}
+                {activeUtility === "notes" ? t("studio.lyricsNotes") : t("studio.shortcuts")}
               </h2>
-              <button onClick={() => setActiveUtility(null)} aria-label="Close" className="px-2 text-zinc-400 hover:text-white">✕</button>
+              <button onClick={() => setActiveUtility(null)} aria-label={t("studio.closeUtility")} className="px-2 text-zinc-400 hover:text-white">✕</button>
             </div>
             {activeUtility === "notes" ? (
               <textarea
                 value={lyricsNotes}
                 onChange={(event) => setLyricsNotes(event.target.value)}
-                placeholder="Write lyrics, song ideas, or session notes..."
+                placeholder={t("studio.lyricsPlaceholder")}
                 className="h-64 w-full resize-y rounded-lg border border-zinc-700 bg-[#0c0d0f] p-3 text-sm text-zinc-200 outline-none focus:border-sky-500"
               />
             ) : (
               <dl className="grid grid-cols-[1fr_auto] gap-x-8 gap-y-2 text-sm">
-                <dt>Play / pause</dt><dd className="font-mono text-sky-300">Space</dd>
-                <dt>Record</dt><dd className="font-mono text-sky-300">R</dd>
-                <dt>Toggle loop</dt><dd className="font-mono text-sky-300">C</dd>
-                <dt>Return to start</dt><dd className="font-mono text-sky-300">Enter</dd>
-                <dt>Copy / paste clip</dt><dd className="font-mono text-sky-300">⌘/Ctrl+C, ⌘/Ctrl+V</dd>
-                <dt>Split clip at playhead</dt><dd className="font-mono text-sky-300">⌘/Ctrl+T</dd>
-                <dt>Delete clip under playhead</dt><dd className="font-mono text-sky-300">Delete</dd>
+                <dt>{t("studio.playPause")}</dt><dd className="font-mono text-sky-300">Space</dd>
+                <dt>{t("studio.record")}</dt><dd className="font-mono text-sky-300">R</dd>
+                <dt>{t("studio.toggleLoop")}</dt><dd className="font-mono text-sky-300">C</dd>
+                <dt>{t("studio.returnStart")}</dt><dd className="font-mono text-sky-300">Enter</dd>
+                <dt>{t("studio.copyPaste")}</dt><dd className="font-mono text-sky-300">⌘/Ctrl+C, ⌘/Ctrl+V</dd>
+                <dt>{t("studio.splitClip")}</dt><dd className="font-mono text-sky-300">⌘/Ctrl+T</dd>
+                <dt>{t("studio.deleteClip")}</dt><dd className="font-mono text-sky-300">Delete</dd>
               </dl>
             )}
             <div className="mt-4 flex justify-end">
               <button onClick={() => setActiveUtility(null)} className="rounded-lg bg-sky-700 px-4 py-2 text-xs font-bold text-white hover:bg-sky-600">
-                Done
+                {t("studio.done")}
               </button>
             </div>
           </section>
@@ -2787,7 +2798,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       {/* 4. BOTTOM SMART DYNAMICS & EQ CONSOLE (When Controls is open) */}
       {smartControlsOpen && (
         <TrackControlsPanel
-          trackName={selectedTrack?.name ?? "Track"}
+          trackName={selectedTrack?.name ?? t("studio.noTrack")}
           isMasterMode={isMasterMode}
           onToggleMasterMode={(isMaster) => setIsMasterMode(isMaster)}
           devices={devices}
@@ -2795,7 +2806,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           onSelectDevice={(devId) => {
             setActiveInputId(devId);
             const input = devices.find((device) => device.deviceId === devId);
-            setActiveInputLabel(input?.label ?? "System Default Input");
+            setActiveInputLabel(input?.label ?? t("studio.systemDefaultInput"));
             if (selectedTrack) {
               setTracks((prev) => prev.map((track) => track.id === selectedTrack.id ? { ...track, inputDevice: devId } : track));
             }
@@ -2843,7 +2854,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         synthSettings={selectedTrack?.synthSettings ?? DEFAULT_SYNTH_SETTINGS}
         projectKey={projectKey}
         scale={projectScale}
-        trackName={selectedTrack?.name ?? "Grand Piano"}
+        trackName={selectedTrack?.name ?? t("studio.defaultPiano")}
         onRecordMidiNote={handlePianoMidiNote}
       />
 
@@ -2866,9 +2877,9 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           <button
             onClick={() => setPianoRollOpen(false)}
             className="absolute right-3 top-1 z-10 rounded px-2 py-1 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-white"
-            aria-label="Close piano roll"
+            aria-label={t("studio.closePianoRoll")}
           >
-            Close ✕
+            {t("studio.close")} ✕
           </button>
         </div>
       )}
@@ -2914,7 +2925,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           onStop={() => {
             engine.current.stopScene();
             setActiveSceneId(null);
-            setStatusMsg("Live scene stopped.");
+            setStatusMsg(t("studio.statusSceneStopped"));
           }}
           onClose={() => setSceneLauncherOpen(false)}
         />
@@ -2923,14 +2934,14 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       {sharedProjectId && !hasEditLease && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
           <section className="max-w-md rounded-xl border border-zinc-700 bg-[#15171d] p-5 text-center shadow-2xl">
-            <h2 className="text-sm font-bold text-white">Shared project is read-only</h2>
+            <h2 className="text-sm font-bold text-white">{t("studio.readOnlyTitle")}</h2>
             <p className="mt-2 text-xs text-zinc-400">
               {editLockOwnerId && editLockExpiresAt && new Date(editLockExpiresAt).getTime() > Date.now()
-                ? `Another artist is editing this project. The lock expires ${new Date(editLockExpiresAt).toLocaleTimeString()}.`
-                : "Take the edit lock to make and save changes to this project."}
+                ? t("studio.lockExpires", { time: new Date(editLockExpiresAt).toLocaleTimeString(locale) })
+                : t("studio.takeEditLock")}
             </p>
             <button onClick={() => setCollaborationOpen(true)} className="mt-4 rounded bg-violet-700 px-4 py-2 text-xs font-semibold text-white hover:bg-violet-600">
-              Open collaboration controls
+              {t("studio.openCollaboration")}
             </button>
           </section>
         </div>
@@ -2973,9 +2984,9 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           const routed = await deviceManager.current.setOutputDevice(ctx, devId);
           if (routed) {
             setActiveOutputId(devId);
-            setStatusMsg("Audio output changed.");
+            setStatusMsg(t("studio.statusOutputChanged"));
           } else {
-            setStatusMsg("This browser does not support selecting an audio output device.");
+            setStatusMsg(t("studio.statusOutputUnsupported"));
           }
           return routed;
         }}
@@ -2988,7 +2999,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       <ChannelEqModal
         isOpen={windowState.eq.open}
         onClose={() => toggleModal("eq")}
-        trackName={selectedTrack?.name ?? "Track"}
+        trackName={selectedTrack?.name ?? t("studio.noTrack")}
         settings={activeSettings}
         onSettingsChange={(updated) => {
           if (isMasterMode) setMasterSettings(updated);
@@ -2999,7 +3010,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       <GuitarAmpModal
         isOpen={windowState.amp.open}
         onClose={() => toggleModal("amp")}
-        trackName={selectedTrack?.name ?? "Guitar Track"}
+        trackName={selectedTrack?.name ?? t("studio.defaultGuitarTrack")}
         settings={selectedTrack?.ampSettings ?? DEFAULT_AMP_SETTINGS}
         enabled={selectedTrack?.ampEnabled ?? false}
         onSettingsChange={(settings) => setTracks((prev) => prev.map((track) => track.id === selectedTrackId ? { ...track, ampSettings: settings } : track))}
@@ -3015,11 +3026,26 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         scale={projectScale}
         initialTab={aiFeature === "palette" ? "theory" : "coach"}
         initialQuestion={aiFeature === "songstarter"
-          ? "Suggest a few original chord progression options for this project and explain one small way I can develop each."
+          ? t("studio.songStarterQuestion")
           : undefined}
       />
 
-      <StudioWelcomeModal isOpen={welcomeOpen} onClose={closeWelcome} />
+      <StudioWelcomeModal
+        isOpen={welcomeOpen}
+        onClose={closeWelcome}
+        onAddTrack={() => {
+          closeWelcome();
+          setDiscoverModalOpen(true);
+        }}
+        onPlay={() => {
+          closeWelcome();
+          handlePlay();
+        }}
+        onSave={() => {
+          closeWelcome();
+          void saveProject();
+        }}
+      />
 
     </div>
   );

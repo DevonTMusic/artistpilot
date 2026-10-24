@@ -4,7 +4,10 @@ import Nav from "@/components/Nav";
 import SettingsPanels from "@/components/SettingsPanels";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe";
+import { getLocale, translate } from "@/lib/i18n/server";
 export default async function Settings() {
+  const locale = await getLocale();
+  const t = (key: string, values?: Record<string, string | number>) => translate(locale, key, values);
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) redirect("/login");
@@ -19,26 +22,26 @@ export default async function Settings() {
   }
   const billing = (
     <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-      <h2 className="text-xl font-bold">Subscription and billing</h2>
+      <h2 className="text-xl font-bold">{t("settings.billingTitle")}</h2>
       <dl className="mt-4 space-y-3">
-        <div><dt className="text-sm text-zinc-400">Plan</dt><dd className="font-bold">{p?.is_paid ? "ArtistPilot Pro, $15/month" : "No active plan"}</dd></div>
-        <div><dt className="text-sm text-zinc-400">Payment method</dt>
-          <dd className="font-bold">{card ? <span className="capitalize">{card.brand} ending in {card.last4}, expires {card.exp}</span> : p?.stripe_customer_id ? "No card on file" : p?.is_paid ? "None on file (demo access)" : "None yet"}</dd></div>
+        <div><dt className="text-sm text-zinc-400">{t("settings.plan")}</dt><dd className="font-bold">{p?.is_paid ? t("settings.activePlan") : t("settings.noPlan")}</dd></div>
+        <div><dt className="text-sm text-zinc-400">{t("settings.paymentMethod")}</dt>
+          <dd className="font-bold">{card ? <span className="capitalize">{t("settings.cardEnding", { brand: card.brand, last4: card.last4, exp: card.exp })}</span> : p?.stripe_customer_id ? t("settings.noCard") : p?.is_paid ? t("settings.demoPayment") : t("settings.noneYet")}</dd></div>
       </dl>
       <div className="mt-5 flex flex-wrap gap-3">
         {p?.stripe_customer_id && (
-          <form action="/api/portal" method="post"><button className="rounded-lg border border-zinc-700 px-4 py-2.5 font-bold hover:border-violet-500">Update payment method, invoices or cancel</button></form>
+          <form action="/api/portal" method="post"><button className="rounded-lg border border-zinc-700 px-4 py-2.5 font-bold hover:border-violet-500">{t("settings.billingAction")}</button></form>
         )}
-        {!p?.is_paid && <Link href="/dashboard" className="rounded-lg bg-gradient-to-r from-violet-500 to-blue-500 px-4 py-2.5 font-bold">Get ArtistPilot Pro</Link>}
+        {!p?.is_paid && <Link href="/dashboard" className="rounded-lg bg-gradient-to-r from-violet-500 to-blue-500 px-4 py-2.5 font-bold">{t("settings.getPlan")}</Link>}
       </div>
-      <p className="mt-3 text-sm text-zinc-500">Payments are handled by Stripe. ArtistPilot never sees or stores your full card number.</p>
+      <p className="mt-3 text-sm text-zinc-500">{t("settings.stripeNote")}</p>
     </section>
   );
   return (<>
     <Nav signedIn />
     <main className="mx-auto max-w-2xl px-5 py-12">
-      <h1 className="text-3xl font-extrabold">Settings</h1>
-      <p className="mb-6 mt-1 text-zinc-400">Signed in as {user.email}</p>
+      <h1 className="text-3xl font-extrabold">{t("settings.title")}</h1>
+      <p className="mb-6 mt-1 text-zinc-400">{t("settings.signedInAs", { email: user.email ?? "" })}</p>
       <SettingsPanels billing={billing} init={{
         displayName: p?.display_name ?? "", instrument: p?.main_instrument ?? "Guitar", bpm: p?.default_bpm ?? 92, goal: p?.weekly_goal ?? 5,
         reminders: !!p?.notify_reminders, news: !!p?.notify_news, isDemo: user.email === "demo@demo.com",

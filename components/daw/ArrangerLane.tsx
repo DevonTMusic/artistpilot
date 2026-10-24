@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import { ArrangerSection } from "@/lib/AudioEngine";
+import { useLanguage } from "@/components/LanguageProvider";
 
 interface ArrangerLaneProps {
   sections: ArrangerSection[];
@@ -21,6 +22,7 @@ interface SectionDrag {
 }
 
 export function ArrangerLane({ sections, width, pixelsPerBar, onSeek, onCommit, onRename, onDelete }: ArrangerLaneProps) {
+  const { t } = useLanguage();
   const [previewSections, setPreviewSections] = useState(sections);
   const dragRef = useRef<SectionDrag | null>(null);
   const previewRef = useRef(sections);
@@ -73,14 +75,14 @@ export function ArrangerLane({ sections, width, pixelsPerBar, onSeek, onCommit, 
         backgroundSize: `${pixelsPerBar}px 100%`,
       }}
       className="relative h-9 flex-none border-b border-zinc-800 bg-[#101116]"
-      aria-label="Arranger sections"
+      aria-label={t("arranger.sections")}
     >
       {previewSections.map((section) => (
         <div
           key={section.id}
           role="button"
           tabIndex={0}
-          title={`${section.name}, bars ${section.startBar}–${section.endBar - 1}. Click to locate; drag to move.`}
+          title={t("arranger.sectionTitle", { name: section.name, start: section.startBar, end: section.endBar - 1 })}
           onPointerDown={(event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -113,21 +115,21 @@ export function ArrangerLane({ sections, width, pixelsPerBar, onSeek, onCommit, 
           <span className="truncate">{section.name}</span>
           <button
             type="button"
-            title={`Rename ${section.name}`}
+            title={t("arranger.rename", { name: section.name })}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
-              const name = window.prompt("Section name", section.name)?.trim();
+              const name = window.prompt(t("arranger.prompt"), section.name)?.trim();
               if (name) onRename(section.id, name.slice(0, 40));
             }}
             className="ml-auto px-1 text-[8px] opacity-70 hover:opacity-100"
           >
-            Edit
+            {t("arranger.edit")}
           </button>
           <span className="px-1 text-[8px] opacity-70">{section.startBar}-{section.endBar - 1}</span>
           <button
             type="button"
-            title={`Delete ${section.name}`}
+            title={t("arranger.delete", { name: section.name })}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
@@ -139,7 +141,7 @@ export function ArrangerLane({ sections, width, pixelsPerBar, onSeek, onCommit, 
           </button>
           <span
             data-resize="true"
-            aria-label={`Resize ${section.name}`}
+            aria-label={t("arranger.resize", { name: section.name })}
             className="absolute right-0 top-0 h-full w-2 cursor-ew-resize"
           />
         </div>

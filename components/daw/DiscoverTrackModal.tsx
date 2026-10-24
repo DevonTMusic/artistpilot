@@ -1,6 +1,7 @@
 // components/daw/DiscoverTrackModal.tsx
 "use client";
 import React from "react";
+import { useLanguage } from "@/components/LanguageProvider";
 import { MicIcon, PianoIcon, GuitarIcon, BassIcon, DrumIcon } from "./StudioIcons";
 
 interface DiscoverTrackModalProps {
@@ -16,6 +17,7 @@ export function DiscoverTrackModal({
   onSelectTrackType,
   onOpenAiSongStarter,
 }: DiscoverTrackModalProps) {
+  const { t } = useLanguage();
   if (!isOpen) return null;
 
   return (
@@ -24,7 +26,7 @@ export function DiscoverTrackModal({
         
         {/* Title Bar */}
         <div className="flex h-12 items-center justify-between border-b border-zinc-800/80 px-6">
-          <h2 className="text-sm font-bold text-white tracking-wide">Discover</h2>
+          <h2 className="text-sm font-bold text-white tracking-wide">{t("discover.title")}</h2>
           <button
             onClick={onClose}
             className="h-7 w-7 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center font-bold text-sm"
@@ -48,10 +50,10 @@ export function DiscoverTrackModal({
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-white">Palette</span>
+                  <span className="text-xs font-bold text-white">{t("discover.palette")}</span>
                   <span className="text-[9px] bg-blue-500 text-white font-bold px-1 rounded">AI</span>
                 </div>
-                <p className="text-[10px] text-zinc-400 mt-0.5">Find matching chord loops</p>
+                <p className="text-[10px] text-zinc-400 mt-0.5">{t("discover.paletteText")}</p>
               </div>
             </button>
 
@@ -67,15 +69,15 @@ export function DiscoverTrackModal({
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-white">SongStarter</span>
+                  <span className="text-xs font-bold text-white">{t("discover.songStarter")}</span>
                   <span className="text-[9px] bg-blue-500 text-white font-bold px-1 rounded">AI</span>
                 </div>
-                <p className="text-[10px] text-zinc-400 mt-0.5">Generate musical progressions</p>
+                <p className="text-[10px] text-zinc-400 mt-0.5">{t("discover.songStarterText")}</p>
               </div>
             </button>
           </div>
 
-          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 block">New Track</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 block">{t("discover.newTrack")}</span>
 
           {/* 2. Track Category Tiles (Exact BandLab Look) */}
           <div className="grid grid-cols-2 gap-3.5">
@@ -92,8 +94,8 @@ export function DiscoverTrackModal({
                 <MicIcon className="w-6 h-6 fill-white" />
               </div>
               <div>
-                <span className="text-xs font-bold text-white block">Voice / Audio</span>
-                <p className="text-[10px] text-zinc-400 mt-0.5">Capture your voice or any sound</p>
+                <span className="text-xs font-bold text-white block">{t("discover.voice")}</span>
+                <p className="text-[10px] text-zinc-400 mt-0.5">{t("discover.voiceText")}</p>
               </div>
             </button>
 
@@ -110,10 +112,10 @@ export function DiscoverTrackModal({
               </div>
               <div>
                 <div className="flex items-center gap-1">
-                  <span className="text-xs font-bold text-white">Instruments</span>
+                  <span className="text-xs font-bold text-white">{t("discover.instruments")}</span>
                   <span className="text-[8px] bg-zinc-800 text-zinc-300 px-1 rounded uppercase font-bold">MIDI</span>
                 </div>
-                <p className="text-[10px] text-zinc-400 mt-0.5">Use your keyboard or connect MIDI</p>
+                <p className="text-[10px] text-zinc-400 mt-0.5">{t("discover.instrumentsText")}</p>
               </div>
             </button>
 
@@ -130,10 +132,10 @@ export function DiscoverTrackModal({
               </div>
               <div>
                 <div className="flex items-center gap-1">
-                  <span className="text-xs font-bold text-white">Drum Machine</span>
+                  <span className="text-xs font-bold text-white">{t("discover.drums")}</span>
                   <span className="text-[8px] bg-zinc-800 text-zinc-300 px-1 rounded uppercase font-bold">MIDI</span>
                 </div>
-                <p className="text-[10px] text-zinc-400 mt-0.5">Create beats in seconds</p>
+                <p className="text-[10px] text-zinc-400 mt-0.5">{t("discover.drumsText")}</p>
               </div>
             </button>
 
@@ -149,8 +151,8 @@ export function DiscoverTrackModal({
                 <BassIcon className="w-6 h-6 fill-white" />
               </div>
               <div>
-                <span className="text-xs font-bold text-white block">Guitar</span>
-                <p className="text-[10px] text-zinc-400 mt-0.5">Plug in a guitar to use amp rig</p>
+                <span className="text-xs font-bold text-white block">{t("discover.guitar")}</span>
+                <p className="text-[10px] text-zinc-400 mt-0.5">{t("discover.guitarText")}</p>
               </div>
             </button>
 
@@ -166,8 +168,8 @@ export function DiscoverTrackModal({
                 <GuitarIcon className="w-6 h-6 fill-white" />
               </div>
               <div>
-                <span className="text-xs font-bold text-white block">Bass</span>
-                <p className="text-[10px] text-zinc-400 mt-0.5">Plug in a bass to use bass amp</p>
+                <span className="text-xs font-bold text-white block">{t("discover.bass")}</span>
+                <p className="text-[10px] text-zinc-400 mt-0.5">{t("discover.bassText")}</p>
               </div>
             </button>
 

@@ -2,6 +2,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import { AudioDeviceManager, DeviceInfo } from "@/lib/daw/AudioDeviceManager";
+import { useLanguage } from "@/components/LanguageProvider";
 
 interface AudioSettingsModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ export function AudioSettingsModal({
   isMonitoring,
   onToggleMonitoring,
 }: AudioSettingsModalProps) {
+  const { t } = useLanguage();
   const manager = useRef<AudioDeviceManager>(AudioDeviceManager.getInstance());
   const [inputs, setInputs] = useState<DeviceInfo[]>([]);
   const [outputs, setOutputs] = useState<DeviceInfo[]>([]);
@@ -102,7 +104,7 @@ export function AudioSettingsModal({
         setMeterError("");
         updateMeter();
       } catch (error) {
-        setMeterError(error instanceof Error ? error.message : "Could not access the selected input.");
+        setMeterError(error instanceof Error ? error.message : t("audio.inputAccessError"));
       }
     };
     void startPreview();
@@ -125,7 +127,7 @@ export function AudioSettingsModal({
         <div className="flex h-11 items-center justify-between border-b border-zinc-800 bg-[#1c1e26] px-4">
           <div className="flex items-center gap-2">
             <span className="text-sm font-bold text-white flex items-center gap-1.5">
-              Audio Interface & System Settings
+              {t("audio.systemTitle")}
             </span>
           </div>
           <button onClick={onClose} className="h-6 w-6 rounded hover:bg-red-500 text-zinc-400 hover:text-white flex items-center justify-center font-bold text-xs">
@@ -138,15 +140,15 @@ export function AudioSettingsModal({
           {/* Permission Alert if labels are hidden */}
           {!permissionGranted && (
             <div className="p-3 bg-amber-950/40 border border-amber-800/60 rounded-xl text-xs text-amber-200">
-              <span className="font-bold block mb-0.5">Microphone Permission Required</span>
-              Allow browser audio permissions so ArtistPilot can identify available audio devices by name.
+              <span className="font-bold block mb-0.5">{t("audio.permissionTitle")}</span>
+              {t("audio.permissionHelp")}
             </div>
           )}
 
           {/* 1. Input Device Selector */}
           <div>
             <div className="flex justify-between items-center mb-1.5">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Audio Input Device</label>
+              <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">{t("audio.inputLabel")}</label>
               <span className="text-[10px] text-sky-400 font-mono truncate max-w-[200px]">{activeInputDeviceName}</span>
             </div>
 
@@ -156,11 +158,11 @@ export function AudioSettingsModal({
                 const devId = e.target.value;
                 setSelectedInput(devId);
                 const found = inputs.find((d) => d.deviceId === devId);
-                onSelectInputDevice(devId, found?.label ?? "Audio Input");
+                onSelectInputDevice(devId, found?.label ?? t("audio.inputLabel"));
               }}
               className="w-full rounded-lg bg-[#0d0e12] border border-zinc-700/80 p-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-sky-500"
             >
-              <option value="default">System Default Input</option>
+              <option value="default">{t("audio.defaultInput")}</option>
               {inputs.map((d) => (
                 <option key={d.deviceId} value={d.deviceId}>
                   {d.label}
@@ -172,9 +174,9 @@ export function AudioSettingsModal({
           {/* 2. Real-time Hardware VU Meter */}
           <div>
             <div className="flex justify-between text-[10px] text-zinc-400 mb-1">
-              <span>Input Signal Level</span>
+              <span>{t("audio.inputLevel")}</span>
               <span className={isClipping ? "text-red-500 font-black animate-pulse" : "text-zinc-400"}>
-                {isClipping ? "PEAK / CLIPPING" : `${inputLevel}%`}
+                {isClipping ? t("audio.clipping") : `${inputLevel}%`}
               </span>
             </div>
             
@@ -191,7 +193,7 @@ export function AudioSettingsModal({
 
           {/* 3. Output Device Selector */}
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 block mb-1.5">Audio Output Device</label>
+            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 block mb-1.5">{t("audio.outputLabel")}</label>
             <select
               value={selectedOutput}
               onChange={(e) => {
@@ -203,28 +205,28 @@ export function AudioSettingsModal({
                     setOutputError("");
                   } else {
                     setSelectedOutput(activeOutputDeviceId);
-                    setOutputError("This browser could not route audio to that output. Playback remains on the current output.");
+                    setOutputError(t("audio.outputRouteError"));
                   }
                 })();
               }}
               className="w-full rounded-lg bg-[#0d0e12] border border-zinc-700/80 p-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-sky-500"
             >
-              <option value="default">System Default Speakers / Headphones</option>
+              <option value="default">{t("audio.defaultOutput")}</option>
               {outputs.map((d) => (
                 <option key={d.deviceId} value={d.deviceId}>
                   {d.label}
                 </option>
               ))}
             </select>
-            <span className="text-[9px] text-zinc-500 mt-1 block">Output routing depends on support in your browser and audio device.</span>
+            <span className="text-[9px] text-zinc-500 mt-1 block">{t("audio.routingNote")}</span>
             {outputError && <p role="alert" className="mt-1 text-[10px] text-amber-300">{outputError}</p>}
           </div>
 
           {/* 4. Direct Monitoring Switch */}
           <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#181a22] border border-zinc-800">
             <div>
-              <span className="text-xs font-bold text-white block">Direct Low-Latency Monitoring</span>
-              <span className="text-[10px] text-zinc-400">Route live microphone / guitar signal directly to your headphones</span>
+              <span className="text-xs font-bold text-white block">{t("audio.directLatency")}</span>
+              <span className="text-[10px] text-zinc-400">{t("audio.routeHelp")}</span>
             </div>
             <button
               onClick={() => onToggleMonitoring(!isMonitoring)}
@@ -232,14 +234,14 @@ export function AudioSettingsModal({
                 isMonitoring ? "bg-sky-500 text-black shadow-sky-500/50" : "bg-zinc-800 text-zinc-400 hover:text-white"
               }`}
             >
-              {isMonitoring ? "MONITORING ON" : "MUTED"}
+              {isMonitoring ? t("audio.monitoringOn") : t("audio.muted")}
             </button>
           </div>
 
           {/* 5. Audio Engine Stats */}
           <div className="p-3 bg-black/40 rounded-xl border border-zinc-900 grid grid-cols-2 gap-2 text-[10px] font-mono text-zinc-400">
-            <div>Sample Rate: <span className="text-white font-bold">{ctx?.sampleRate ?? 44100} Hz</span></div>
-            <div>Latency State: <span className="text-emerald-400 font-bold">Interactive (Low)</span></div>
+            <div>{t("audio.sampleRate")}: <span className="text-white font-bold">{ctx?.sampleRate ?? 44100} Hz</span></div>
+            <div>{t("audio.latencyState")}: <span className="text-emerald-400 font-bold">{t("audio.interactiveLow")}</span></div>
           </div>
 
         </div>
@@ -249,13 +251,13 @@ export function AudioSettingsModal({
             onClick={() => manager.current.refreshDevices()}
             className="text-xs text-sky-400 hover:text-sky-300 font-semibold"
           >
-            ↻ Rescan Hardware
+            ↻ {t("audio.rescan")}
           </button>
           <button
             onClick={onClose}
             className="rounded-lg bg-zinc-700 hover:bg-zinc-600 px-4 py-1.5 text-xs font-bold text-white"
           >
-            Done
+            {t("audio.done")}
           </button>
         </div>
 

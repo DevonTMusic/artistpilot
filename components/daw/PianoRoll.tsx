@@ -2,6 +2,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { SynthSettings } from "@/lib/AudioEngine";
+import { useLanguage } from "@/components/LanguageProvider";
 
 export interface MidiNote {
   id: string;
@@ -43,6 +44,7 @@ export function PianoRoll({
   synthSettings,
   onSynthSettingsChange,
 }: PianoRollProps) {
+  const { t } = useLanguage();
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [quantizeStep, setQuantizeStep] = useState(1);
   const [scaleLock, setScaleLock] = useState(false);
@@ -166,7 +168,7 @@ export function PianoRoll({
       {/* Header with Quantize & Transpose Toolbar */}
       <div className="flex h-8 items-center justify-between border-b border-zinc-800 bg-[#1c1d24] px-4 text-xs font-semibold">
         <span className="text-zinc-200">
-          Piano Roll — <span className="text-[#d4af37]">{instrumentName}</span>
+          {t("pianoRoll.title")} <span className="text-[#d4af37]">{instrumentName}</span>
         </span>
 
         <div className="flex items-center gap-2">
@@ -174,12 +176,12 @@ export function PianoRoll({
           <button
             onClick={() => quantizeNotes(quantizeStep)}
             className="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-[10px] text-white"
-            title={`Align note starts and ends to ${quantizeStep === 1 ? "1/16" : "1/8"} grid`}
+            title={t("pianoRoll.align", { grid: quantizeStep === 1 ? "1/16" : "1/8" })}
           >
-            Quantize ({quantizeStep === 1 ? "1/16" : "1/8"})
+            {t("pianoRoll.quantize")} ({quantizeStep === 1 ? "1/16" : "1/8"})
           </button>
           <select
-            aria-label="Piano roll quantize grid"
+            aria-label={t("pianoRoll.quantize")}
             value={quantizeStep}
             onChange={(event) => setQuantizeStep(Number(event.target.value))}
             className="rounded border border-zinc-700 bg-zinc-900 px-1 py-0.5 text-[10px]"
@@ -191,25 +193,25 @@ export function PianoRoll({
             onClick={() => setScaleLock((enabled) => !enabled)}
             aria-pressed={scaleLock}
             className={`rounded px-2 py-0.5 text-[10px] ${scaleLock ? "bg-sky-700 text-white" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}
-            title={`Constrain note entry to ${projectKey} ${scale === "maj" ? "major" : "minor"}`}
+            title={t("pianoRoll.scaleTitle", { key: projectKey, scale: t(scale === "maj" ? "music.major" : "music.minor") })}
           >
-            Scale {scaleLock ? "On" : "Off"}
+            {t("pianoRoll.scale")} {scaleLock ? t("pianoRoll.on") : t("pianoRoll.off")}
           </button>
           <button
             onClick={correctNotePitches}
             disabled={!notes.length || !onUpdateNotes}
             className="rounded bg-sky-900/70 px-2 py-0.5 text-[10px] text-sky-200 hover:bg-sky-800 disabled:opacity-40"
-            title={`Move existing MIDI notes to the nearest note in ${projectKey} ${scale === "maj" ? "major" : "minor"}`}
+            title={t("pianoRoll.pitchTitle", { key: projectKey, scale: t(scale === "maj" ? "music.major" : "music.minor") })}
           >
-            Pitch Correct
+            {t("pianoRoll.pitchCorrect")}
           </button>
           <button
             onClick={() => setChordMode((enabled) => !enabled)}
             aria-pressed={chordMode}
             className={`rounded px-2 py-0.5 text-[10px] ${chordMode ? "bg-violet-700 text-white" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}
-            title="Add a triad when entering a root note"
+            title={t("pianoRoll.chordTitle")}
           >
-            Chord {chordMode ? "On" : "Off"}
+            {t("pianoRoll.chord")} {chordMode ? t("pianoRoll.on") : t("pianoRoll.off")}
           </button>
           {synthSettings && onSynthSettingsChange && (
             <button
@@ -217,13 +219,13 @@ export function PianoRoll({
               aria-expanded={synthControlsOpen}
               className={`rounded px-2 py-0.5 text-[10px] ${synthControlsOpen ? "bg-emerald-700 text-white" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}
             >
-              Synth {synthControlsOpen ? "Hide" : "Controls"}
+              {t("pianoRoll.synth")} {synthControlsOpen ? t("pianoRoll.hide") : t("track.controls")}
             </button>
           )}
 
           {/* Transpose */}
           <div className="flex items-center gap-1 border-l border-zinc-700 pl-2 text-[10px]">
-            <span>Transpose:</span>
+            <span>{t("pianoRoll.transpose")}</span>
             <button onClick={() => transposeNotes(-1)} className="px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700">-1</button>
             <button onClick={() => transposeNotes(1)} className="px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700">+1</button>
             <button onClick={() => transposeNotes(12)} className="px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700">+Oct</button>
@@ -233,18 +235,18 @@ export function PianoRoll({
 
       {synthControlsOpen && synthSettings && onSynthSettingsChange && (
         <div className="grid grid-cols-2 gap-3 border-b border-zinc-800 bg-[#191a21] px-4 py-3 text-[10px] sm:grid-cols-4">
-          <label className="text-zinc-400">Waveform
+          <label className="text-zinc-400">{t("pianoRoll.waveform")}
             <select value={synthSettings.waveform} onChange={(event) => onSynthSettingsChange({ ...synthSettings, waveform: event.target.value as OscillatorType })} className="mt-1 block w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-white">
               {["sine", "square", "sawtooth", "triangle"].map((wave) => <option key={wave} value={wave}>{wave}</option>)}
             </select>
           </label>
           {([
-            ["Attack", "attack", 0.001, 2, 0.001],
-            ["Decay", "decay", 0.001, 2, 0.001],
-            ["Sustain", "sustain", 0, 1, 0.01],
-            ["Release", "release", 0.001, 3, 0.001],
-            ["Cutoff", "cutoff", 40, 20000, 10],
-            ["Resonance", "resonance", 0.1, 20, 0.1],
+            [t("pianoRoll.attack"), "attack", 0.001, 2, 0.001],
+            [t("pianoRoll.decay"), "decay", 0.001, 2, 0.001],
+            [t("pianoRoll.sustain"), "sustain", 0, 1, 0.01],
+            [t("pianoRoll.release"), "release", 0.001, 3, 0.001],
+            [t("pianoRoll.cutoff"), "cutoff", 40, 20000, 10],
+            [t("pianoRoll.resonance"), "resonance", 0.1, 20, 0.1],
           ] as const).map(([label, key, min, max, step]) => (
             <label key={key} className="text-zinc-400">{label} · {synthSettings[key].toFixed(key === "cutoff" ? 0 : 2)}
               <input type="range" min={min} max={max} step={step} value={synthSettings[key]} onChange={(event) => onSynthSettingsChange({ ...synthSettings, [key]: Number(event.target.value) })} className="mt-2 block w-full accent-emerald-400" />
@@ -323,7 +325,7 @@ export function PianoRoll({
 
       {/* Velocity Lane */}
       <div className="h-16 flex-none border-t border-zinc-800 bg-[#111217] flex items-center px-4">
-        <span className="text-[9px] font-bold text-zinc-500 uppercase mr-3">Velocity Lane</span>
+        <span className="text-[9px] font-bold text-zinc-500 uppercase mr-3">{t("pianoRoll.velocity")}</span>
         <div className="flex-1 flex gap-1 h-10 items-end">
           {notes.map((n) => (
             <div key={n.id} className="flex flex-col items-center flex-1">
