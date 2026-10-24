@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { AICreditPacks, type CoachUsage } from "@/components/AICreditPacks";
 import { ChordVisualizer, normalizeChordName } from "@/components/ChordVisualizer";
 
 function findChord(text: string): string | null {
@@ -17,12 +18,14 @@ export default function IdeaLab() {
   const [visualChord, setVisualChord] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [usage, setUsage] = useState<CoachUsage | null>(null);
   async function ask(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setAnswer("");
     setError("");
     try {
       const r = await fetch("/api/coach", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instrument, message }) });
-      const j = await r.json() as { text?: string; error?: string };
+      const j = await r.json() as { text?: string; error?: string; usage?: CoachUsage };
+      if (j.usage) setUsage(j.usage);
       if (!r.ok) {
         setError(j.error || "Something went wrong. Try again.");
         return;
@@ -47,6 +50,7 @@ export default function IdeaLab() {
           <textarea className={field + " mt-1 font-normal"} rows={4} maxLength={1000} required value={message} onChange={(e) => setMessage(e.target.value)} placeholder="I have a four-chord idea in A minor and want to make the verse feel different from the chorus." /></label>
         <button disabled={busy} className="rounded-lg bg-gradient-to-r from-violet-500 to-blue-500 px-5 py-3 font-bold disabled:opacity-60">{busy ? "Thinking..." : "Ask the coach"}</button>
       </form>
+      <AICreditPacks usage={usage} />
       {error && <p className="mt-4 rounded-lg border border-rose-900 bg-rose-950/30 p-3 text-sm text-rose-300" role="alert">{error}</p>}
       {answer && (
         <>
