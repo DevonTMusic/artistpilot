@@ -10,7 +10,7 @@ Create a Neon Postgres project and configure these environment variables in `.en
 | --- | --- |
 | `DATABASE_URL` | Neon Postgres connection string. Use the direct connection string for the schema migration. |
 | `BETTER_AUTH_SECRET` | A private random secret of at least 32 characters. Generate one with `openssl rand -base64 32`; keep it out of source control. |
-| `BETTER_AUTH_URL` | The app's origin, such as `http://localhost:3000` locally or `https://artistpilot.com` in production. Do not append `/api/auth`. |
+| `BETTER_AUTH_URL` | Recommended app origin, such as `http://localhost:3000` locally or `https://artistpilot.com` in production. Do not append `/api/auth`. If omitted in a Vercel deployment, Better Auth accepts the `artistpilot-*.vercel.app` preview hosts and falls back to `https://artistpilot.com`. |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL, only needed for shared Studio file storage. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service-role key, only needed for shared Studio file storage. Keep it server-only. |
 | `GEMINI_API_KEY` | Server-side key for the AI music coach. |
