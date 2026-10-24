@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { useLanguage } from "@/components/LanguageProvider";
 
 interface SharedProject {
   id: string;
@@ -57,6 +58,7 @@ export function CollaborationPanel({
   onRelease,
   onClose,
 }: CollaborationPanelProps) {
+  const { locale, t } = useLanguage();
   const [projects, setProjects] = useState<SharedProject[]>([]);
   const [members, setMembers] = useState<SharedMember[]>([]);
   const [invites, setInvites] = useState<SharedInvite[]>([]);
@@ -69,12 +71,12 @@ export function CollaborationPanel({
     setError("");
     const response = await fetch("/api/studio/shared", { cache: "no-store" });
     const result = await response.json() as { projects?: SharedProject[]; error?: string };
-    if (!response.ok) throw new Error(result.error ?? "Could not list shared projects.");
+    if (!response.ok) throw new Error(result.error ?? t("collab.listError"));
     setProjects(result.projects ?? []);
     if (projectId && isOwner) {
       const manageResponse = await fetch(`/api/studio/shared?manage=${encodeURIComponent(projectId)}`, { cache: "no-store" });
       const manageResult = await manageResponse.json() as { members?: SharedMember[]; invites?: SharedInvite[]; error?: string };
-      if (!manageResponse.ok) throw new Error(manageResult.error ?? "Could not load collaborators.");
+      if (!manageResponse.ok) throw new Error(manageResult.error ?? t("collab.manageError"));
       setMembers(manageResult.members ?? []);
       setInvites(manageResult.invites ?? []);
     } else {
@@ -86,7 +88,7 @@ export function CollaborationPanel({
   useEffect(() => {
     if (!isOpen) return;
     refreshProjects().catch((cause: unknown) => {
-      setError(cause instanceof Error ? cause.message : "Could not load shared projects.");
+      setError(cause instanceof Error ? cause.message : t("collab.loadError"));
     });
   }, [isOpen, projectId, isOwner]);
 
@@ -101,26 +103,26 @@ export function CollaborationPanel({
       await refreshProjects();
       setStatus(successMessage);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Collaboration action failed.");
+      setError(cause instanceof Error ? cause.message : t("collab.actionError"));
     } finally {
       setBusy(false);
     }
   };
 
   const createInvite = async () => {
-    if (!projectId) throw new Error("Share this project first.");
+    if (!projectId) throw new Error(t("collab.shareFirst"));
     const form = new FormData();
     form.set("action", "invite");
     form.set("projectId", projectId);
     const response = await fetch("/api/studio/shared", { method: "POST", body: form });
     const result = await response.json() as { inviteUrl?: string; error?: string };
-    if (!response.ok || !result.inviteUrl) throw new Error(result.error ?? "Could not create an invitation link.");
+    if (!response.ok || !result.inviteUrl) throw new Error(result.error ?? t("collab.createInviteError"));
     setInviteUrl(result.inviteUrl);
     try {
       await navigator.clipboard.writeText(result.inviteUrl);
-      setStatus("Invitation link copied. Share it directly with the artist.");
+      setStatus(t("collab.copied"));
     } catch {
-      setStatus("Invitation link is ready below. Copy it to share with the artist.");
+      setStatus(t("collab.copyReady"));
     }
   };
 
@@ -128,14 +130,14 @@ export function CollaborationPanel({
     action: "revoke-invite" | "remove-member",
     value: string
   ) => {
-    if (!projectId) throw new Error("Open a shared project first.");
+    if (!projectId) throw new Error(t("collab.openFirst"));
     const form = new FormData();
     form.set("action", action);
     form.set("projectId", projectId);
     form.set(action === "revoke-invite" ? "inviteId" : "userId", value);
     const response = await fetch("/api/studio/shared", { method: "POST", body: form });
     const result = await response.json() as { error?: string };
-    if (!response.ok) throw new Error(result.error ?? "Could not update collaborator access.");
+    if (!response.ok) throw new Error(result.error ?? t("collab.updateError"));
   };
 
   const currentOwnerId = isOwner || projects.find((project) => project.id === projectId)?.isOwner;
@@ -146,43 +148,43 @@ export function CollaborationPanel({
       <section className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-zinc-700 bg-[#15171d] p-4 shadow-2xl">
         <header className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-bold text-white">Collaborate on a Studio project</h2>
-            <p className="mt-1 text-[10px] text-zinc-400">Invite links grant project access. One artist edits at a time; changes are saved as numbered revisions.</p>
+            <h2 className="text-sm font-bold text-white">{t("collab.title")}</h2>
+            <p className="mt-1 text-[10px] text-zinc-400">{t("collab.help")}</p>
           </div>
-          <button onClick={onClose} className="rounded bg-zinc-800 px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-700">Close</button>
+          <button onClick={onClose} className="rounded bg-zinc-800 px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-700">{t("collab.close")}</button>
         </header>
 
         <div className="mb-4 rounded-lg border border-zinc-800 bg-[#101116] p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
-              <p className="truncate text-xs font-semibold text-white">{projectId ? projectName : "This project is only on this device"}</p>
+              <p className="truncate text-xs font-semibold text-white">{projectId ? projectName : t("collab.localOnly")}</p>
               {projectId ? (
                 <p className="mt-1 text-[10px] text-zinc-500">
-                  Revision {revision} · {hasEditLease ? "You hold the edit lock" : lockOwnerId && !lockExpired ? `Editing: ${lockOwnerId.slice(0, 8)}` : "Available to edit"}
-                  {lockExpiresAt && !lockExpired ? ` · lock expires ${new Date(lockExpiresAt).toLocaleTimeString()}` : ""}
+                  {t("collab.revision", { revision })} · {hasEditLease ? t("collab.holdLock") : lockOwnerId && !lockExpired ? t("collab.editing", { user: lockOwnerId.slice(0, 8) }) : t("collab.available")}
+                  {lockExpiresAt && !lockExpired ? t("collab.lockExpires", { time: new Date(lockExpiresAt).toLocaleTimeString(locale) }) : ""}
                 </p>
               ) : (
-                <p className="mt-1 text-[10px] text-zinc-500">Sharing uploads this project and its sample audio to private cloud storage.</p>
+                <p className="mt-1 text-[10px] text-zinc-500">{t("collab.shareUpload")}</p>
               )}
             </div>
             <div className="flex gap-2">
               {!projectId ? (
-                <button disabled={busy} onClick={() => void run(onCreateShared, "Shared project created.")} className="rounded bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-600 disabled:opacity-50">Share this project</button>
+                <button disabled={busy} onClick={() => void run(onCreateShared, t("collab.created"))} className="rounded bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-600 disabled:opacity-50">{t("collab.share")}</button>
               ) : (
                 <>
-                  <button disabled={busy} onClick={() => void run(onSaveShared, "Shared project saved.")} className="rounded bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-600 disabled:opacity-50">{hasEditLease ? "Save revision" : "Save unavailable"}</button>
-                  {currentOwnerId && <button disabled={busy} onClick={() => void run(createInvite, "Invitation link ready.")} className="rounded bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50">Create invite link</button>}
+                  <button disabled={busy} onClick={() => void run(onSaveShared, t("collab.saved"))} className="rounded bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-600 disabled:opacity-50">{hasEditLease ? t("collab.saveRevision") : t("collab.saveUnavailable")}</button>
+                  {currentOwnerId && <button disabled={busy} onClick={() => void run(createInvite, t("collab.inviteReady"))} className="rounded bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50">{t("collab.invite")}</button>}
                   {hasEditLease
-                    ? <button disabled={busy} onClick={() => void run(onRelease, "Edit lock released.")} className="rounded bg-zinc-800 px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50">Release lock</button>
-                    : <button disabled={busy} onClick={() => void run(onClaim, "Edit lock acquired.")} className="rounded bg-violet-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-600 disabled:opacity-50">Take edit lock</button>}
+                    ? <button disabled={busy} onClick={() => void run(onRelease, t("collab.lockReleased"))} className="rounded bg-zinc-800 px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50">{t("collab.releaseLock")}</button>
+                    : <button disabled={busy} onClick={() => void run(onClaim, t("collab.lockAcquired"))} className="rounded bg-violet-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-600 disabled:opacity-50">{t("collab.takeLock")}</button>}
                 </>
               )}
             </div>
           </div>
           {inviteUrl && (
             <div className="mt-3 flex gap-2">
-              <input aria-label="Invitation link" readOnly value={inviteUrl} className="min-w-0 flex-1 rounded border border-zinc-700 bg-black px-2 py-1.5 text-[10px] text-zinc-300" />
-              <button onClick={() => void navigator.clipboard.writeText(inviteUrl)} className="rounded bg-zinc-800 px-2 text-[10px] text-zinc-200 hover:bg-zinc-700">Copy</button>
+              <input aria-label={t("collab.inviteLabel")} readOnly value={inviteUrl} className="min-w-0 flex-1 rounded border border-zinc-700 bg-black px-2 py-1.5 text-[10px] text-zinc-300" />
+              <button onClick={() => void navigator.clipboard.writeText(inviteUrl)} className="rounded bg-zinc-800 px-2 text-[10px] text-zinc-200 hover:bg-zinc-700">{t("collab.copy")}</button>
             </div>
           )}
         </div>
@@ -190,51 +192,51 @@ export function CollaborationPanel({
         {projectId && isOwner && (
           <div className="mb-4 grid gap-3 sm:grid-cols-2">
             <section className="rounded-lg border border-zinc-800 bg-[#101116] p-3">
-              <h3 className="mb-2 text-[10px] font-bold uppercase tracking-wide text-zinc-400">Collaborators</h3>
+              <h3 className="mb-2 text-[10px] font-bold uppercase tracking-wide text-zinc-400">{t("collab.collaborators")}</h3>
               <div className="space-y-2">
                 {members.map((member) => (
                   <div key={member.user_id} className="flex items-center justify-between gap-2 text-[10px]">
                     <span className="truncate text-zinc-300">{member.user_id.slice(0, 8)} · {member.role}</span>
-                    <button disabled={busy} onClick={() => void run(() => manageCollaborator("remove-member", member.user_id), "Collaborator access removed.")} className="rounded bg-rose-950/60 px-2 py-1 text-rose-300 hover:bg-rose-900 disabled:opacity-50">Remove</button>
+                    <button disabled={busy} onClick={() => void run(() => manageCollaborator("remove-member", member.user_id), t("collab.removed"))} className="rounded bg-rose-950/60 px-2 py-1 text-rose-300 hover:bg-rose-900 disabled:opacity-50">{t("collab.remove")}</button>
                   </div>
                 ))}
-                {members.length === 0 && <p className="text-[10px] text-zinc-500">No invited collaborators yet.</p>}
+                {members.length === 0 && <p className="text-[10px] text-zinc-500">{t("collab.noCollaborators")}</p>}
               </div>
             </section>
             <section className="rounded-lg border border-zinc-800 bg-[#101116] p-3">
-              <h3 className="mb-2 text-[10px] font-bold uppercase tracking-wide text-zinc-400">Invitation links</h3>
+              <h3 className="mb-2 text-[10px] font-bold uppercase tracking-wide text-zinc-400">{t("collab.invites")}</h3>
               <div className="space-y-2">
                 {invites.map((invite) => {
                   const expired = new Date(invite.expires_at).getTime() <= Date.now();
                   const inactive = Boolean(invite.revoked_at) || expired;
                   return (
                     <div key={invite.id} className="flex items-center justify-between gap-2 text-[10px]">
-                      <span className="text-zinc-400">{invite.revoked_at ? "Revoked" : expired ? "Expired" : `Expires ${new Date(invite.expires_at).toLocaleDateString()}`}</span>
-                      {!inactive && <button disabled={busy} onClick={() => void run(() => manageCollaborator("revoke-invite", invite.id), "Invitation link revoked.")} className="rounded bg-rose-950/60 px-2 py-1 text-rose-300 hover:bg-rose-900 disabled:opacity-50">Revoke</button>}
+                      <span className="text-zinc-400">{invite.revoked_at ? t("collab.revoked") : expired ? t("collab.expired") : t("collab.expires", { date: new Date(invite.expires_at).toLocaleDateString(locale) })}</span>
+                      {!inactive && <button disabled={busy} onClick={() => void run(() => manageCollaborator("revoke-invite", invite.id), t("collab.revokedStatus"))} className="rounded bg-rose-950/60 px-2 py-1 text-rose-300 hover:bg-rose-900 disabled:opacity-50">{t("collab.revoke")}</button>}
                     </div>
                   );
                 })}
-                {invites.length === 0 && <p className="text-[10px] text-zinc-500">No invitation links created yet.</p>}
+                {invites.length === 0 && <p className="text-[10px] text-zinc-500">{t("collab.noInvites")}</p>}
               </div>
             </section>
           </div>
         )}
 
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">Shared with you</h3>
-          <button disabled={busy} onClick={() => void refreshProjects().catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Could not refresh projects."))} className="text-[10px] text-sky-300 hover:text-white">Refresh</button>
+          <h3 className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">{t("collab.sharedWithYou")}</h3>
+          <button disabled={busy} onClick={() => void refreshProjects().catch((cause: unknown) => setError(cause instanceof Error ? cause.message : t("collab.refreshError")))} className="text-[10px] text-sky-300 hover:text-white">{t("collab.refresh")}</button>
         </div>
         <div className="space-y-2">
           {projects.map((project) => (
             <div key={project.id} className={`flex items-center justify-between gap-3 rounded-lg border p-3 ${project.id === projectId ? "border-sky-800 bg-sky-950/20" : "border-zinc-800 bg-[#101116]"}`}>
               <div className="min-w-0">
                 <p className="truncate text-xs font-semibold text-zinc-200">{project.name}</p>
-                <p className="mt-1 text-[9px] text-zinc-500">Revision {project.revision} · {project.isOwner ? "Owner" : "Collaborator"} · {project.lock_user_id ? `Editor ${project.lock_user_id.slice(0, 8)}` : "No active editor"}</p>
+                <p className="mt-1 text-[9px] text-zinc-500">{t("collab.revision", { revision: project.revision })} · {project.isOwner ? t("collab.owner") : t("collab.member")} · {project.lock_user_id ? t("collab.editor", { user: project.lock_user_id.slice(0, 8) }) : t("collab.noEditor")}</p>
               </div>
-              <button disabled={busy || project.id === projectId} onClick={() => void run(() => onLoadProject(project.id), "Shared project opened.")} className="rounded bg-zinc-800 px-3 py-1.5 text-[10px] text-zinc-200 hover:bg-zinc-700 disabled:opacity-40">Open</button>
+              <button disabled={busy || project.id === projectId} onClick={() => void run(() => onLoadProject(project.id), t("collab.opened"))} className="rounded bg-zinc-800 px-3 py-1.5 text-[10px] text-zinc-200 hover:bg-zinc-700 disabled:opacity-40">{t("collab.open")}</button>
             </div>
           ))}
-          {projects.length === 0 && <p className="rounded-lg border border-dashed border-zinc-700 p-4 text-center text-[10px] text-zinc-500">No shared projects yet.</p>}
+          {projects.length === 0 && <p className="rounded-lg border border-dashed border-zinc-700 p-4 text-center text-[10px] text-zinc-500">{t("collab.none")}</p>}
         </div>
         {(status || error) && <p role={error ? "alert" : "status"} className={`mt-3 rounded p-2 text-[10px] ${error ? "bg-rose-950/60 text-rose-300" : "bg-emerald-950/40 text-emerald-300"}`}>{error || status}</p>}
       </section>

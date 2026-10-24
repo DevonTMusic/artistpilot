@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ProcessingSettings } from "@/lib/daw/TrackProcessor";
 import { DeviceInfo } from "@/lib/daw/AudioDeviceManager";
+import { useLanguage } from "@/components/LanguageProvider";
 
 interface TrackControlsPanelProps {
   trackName: string;
@@ -104,6 +105,7 @@ export function TrackControlsPanel({
   onOpenAdvancedEq,
   onClosePanel,
 }: TrackControlsPanelProps) {
+  const { t } = useLanguage();
   const [activeSnapshot, setActiveSnapshot] = useState<"A" | "B">("A");
   const [snapshotA, setSnapshotA] = useState<ProcessingSettings>(currentSettings);
   const [snapshotB, setSnapshotB] = useState<ProcessingSettings>(currentSettings);
@@ -145,7 +147,7 @@ export function TrackControlsPanel({
                 !isMasterMode ? "bg-[#387ec7] text-white shadow-sm" : "text-zinc-400 hover:text-white"
               }`}
             >
-              Track
+              {t("track.track")}
             </button>
             <button
               onClick={() => onToggleMasterMode(true)}
@@ -153,7 +155,7 @@ export function TrackControlsPanel({
                 isMasterMode ? "bg-[#387ec7] text-white shadow-sm" : "text-zinc-400 hover:text-white"
               }`}
             >
-              Master
+              {t("track.master")}
             </button>
           </div>
 
@@ -165,7 +167,7 @@ export function TrackControlsPanel({
                 : "bg-black/20 border-zinc-700 text-zinc-300 hover:bg-zinc-700/50"
             }`}
           >
-            Compare ({activeSnapshot})
+            {t("track.compare", { snapshot: activeSnapshot })}
           </button>
         </div>
 
@@ -176,7 +178,7 @@ export function TrackControlsPanel({
               activeTab === "controls" ? "bg-[#387ec7] text-white" : "text-zinc-400 hover:text-white"
             }`}
           >
-            Controls
+            {t("track.controls")}
           </button>
           <button
             onClick={() => {
@@ -187,13 +189,13 @@ export function TrackControlsPanel({
               activeTab === "eq" ? "bg-[#387ec7] text-white" : "text-zinc-400 hover:text-white"
             }`}
           >
-            EQ
+            {t("track.eq")}
           </button>
         </div>
 
         <div className="flex items-center gap-3">
           <span className="text-[11px] font-medium text-zinc-400">
-            {isMasterMode ? "Master Bus" : trackName}
+            {isMasterMode ? t("track.masterBus") : trackName}
           </span>
           <button onClick={onClosePanel} className="text-zinc-400 hover:text-white text-xs font-bold">
             ✕
@@ -208,13 +210,13 @@ export function TrackControlsPanel({
         <div className="w-56 flex-none border-r border-[#1a1b22] p-2 flex flex-col bg-[#262830] overflow-y-auto">
           <div className="space-y-2 pb-3">
             <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 block">
-              Recording Settings
+              {t("track.recordingSettings")}
             </span>
 
             {/* Record Level Slider */}
             <div>
               <div className="flex justify-between text-[10px] text-zinc-400 mb-0.5">
-                <span>Record Level</span>
+                <span>{t("track.recordLevel")}</span>
                 <span className="font-mono text-white">{Math.round(currentSettings.inputGain * 100)}%</span>
               </div>
               <input
@@ -230,13 +232,13 @@ export function TrackControlsPanel({
 
             {/* Input selector */}
             <div>
-              <label className="text-[9px] text-zinc-400 block mb-0.5">Input</label>
+              <label className="text-[9px] text-zinc-400 block mb-0.5">{t("track.input")}</label>
               <select
                 value={activeDeviceId}
                 onChange={(e) => onSelectDevice(e.target.value)}
                 className="w-full bg-[#18191f] border border-zinc-700 text-[11px] text-white rounded p-1 focus:outline-none"
               >
-                <option value="default">System Default Input</option>
+                <option value="default">{t("track.defaultInput")}</option>
                 {devices.map((d) => (
                   <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
                 ))}
@@ -245,14 +247,14 @@ export function TrackControlsPanel({
 
             {/* Monitoring toggle */}
             <div className="flex items-center justify-between pt-0.5">
-              <span className="text-xs text-zinc-300">Monitoring</span>
+              <span className="text-xs text-zinc-300">{t("track.monitoring")}</span>
               <button
                 onClick={onToggleMonitoring}
                 className={`px-3 py-1 rounded text-xs font-bold transition ${
                   isMonitoring ? "bg-sky-500 text-black shadow-sky-500/50" : "bg-zinc-800 text-zinc-400"
                 }`}
               >
-                {isMonitoring ? "ON" : "OFF"}
+                {isMonitoring ? t("track.on") : t("track.off")}
               </button>
             </div>
 
@@ -265,7 +267,7 @@ export function TrackControlsPanel({
                   onChange={(e) => updateProp("compEnabled", e.target.checked)}
                   className="accent-sky-500"
                 />
-                Compressor enabled
+                {t("track.compressorEnabled")}
               </label>
               <div className="flex justify-between items-center text-[10px] mb-1">
                 <label className="flex items-center gap-1.5 text-zinc-300 cursor-pointer">
@@ -275,7 +277,7 @@ export function TrackControlsPanel({
                     onChange={(e) => updateProp("gateEnabled", e.target.checked)}
                     className="accent-sky-500 rounded"
                   />
-                  <span className="font-bold">Noise Gate</span>
+                  <span className="font-bold">{t("track.noiseGate")}</span>
                 </label>
                 <span className="font-mono text-zinc-400">{currentSettings.gateThreshold} dB</span>
               </div>
@@ -297,10 +299,10 @@ export function TrackControlsPanel({
                   onChange={(event) => updateProp("deEsserEnabled", event.target.checked)}
                   className="accent-sky-500"
                 />
-                De-esser enabled
+                {t("track.deEsserEnabled")}
               </label>
               <div className="mb-1 flex items-center justify-between text-[10px] text-zinc-400">
-                <span>Sibilance reduction</span>
+                <span>{t("track.sibilanceReduction")}</span>
                 <span className="font-mono">{Math.round((currentSettings.deEsserAmount ?? 0) * 100)}%</span>
               </div>
               <input
@@ -322,10 +324,10 @@ export function TrackControlsPanel({
           
           {/* COMPRESSOR */}
           <div className="flex flex-col items-center border-r border-sky-400/20 pr-6 flex-none">
-            <span className="text-[10px] font-black tracking-wider text-sky-200 uppercase mb-1.5">COMPRESSOR</span>
+            <span className="text-[10px] font-black tracking-wider text-sky-200 uppercase mb-1.5">{t("track.compressor")}</span>
             <div className="flex items-center gap-3">
               <RotaryKnob
-                label="AMOUNT"
+                label={t("track.amount")}
                 value={Math.round(currentSettings.compAmount * 100)}
                 min={0}
                 max={100}
@@ -353,10 +355,10 @@ export function TrackControlsPanel({
 
           {/* EQUALIZER (True Rotating Dials) */}
           <div className="flex flex-col items-center border-r border-sky-400/20 px-6 flex-none">
-            <span className="text-[10px] font-black tracking-wider text-sky-200 uppercase mb-1.5">EQUALIZER</span>
+            <span className="text-[10px] font-black tracking-wider text-sky-200 uppercase mb-1.5">{t("track.equalizer")}</span>
             <div className="flex items-center gap-4">
               <RotaryKnob
-                label="LOW"
+                label={t("track.low")}
                 value={currentSettings.lowGain}
                 min={-12}
                 max={12}
@@ -365,7 +367,7 @@ export function TrackControlsPanel({
                 color="text-sky-200"
               />
               <RotaryKnob
-                label="MID"
+                label={t("track.mid")}
                 value={currentSettings.midGain}
                 min={-12}
                 max={12}
@@ -375,7 +377,7 @@ export function TrackControlsPanel({
                 indicatorColor="bg-cyan-400"
               />
               <RotaryKnob
-                label="HIGH"
+                label={t("track.high")}
                 value={currentSettings.highGain}
                 min={-12}
                 max={12}
@@ -395,17 +397,17 @@ export function TrackControlsPanel({
                 >
                   HPF
                 </button>
-                <span className="text-[7px] text-sky-200 mt-1 font-bold uppercase">LOW CUT</span>
+                <span className="text-[7px] text-sky-200 mt-1 font-bold uppercase">{t("track.lowCut")}</span>
               </div>
             </div>
           </div>
 
           {/* SENDS (Rotating Circular Dials) */}
           <div className="flex flex-col items-center pl-6 flex-none">
-            <span className="text-[10px] font-black tracking-wider text-sky-200 uppercase mb-1.5">SENDS</span>
+            <span className="text-[10px] font-black tracking-wider text-sky-200 uppercase mb-1.5">{t("track.sends")}</span>
             <div className="flex items-center gap-4">
               <RotaryKnob
-                label="AMBIENCE"
+                label={t("track.ambience")}
                 value={Math.round(currentSettings.ambienceSend * 100)}
                 min={0}
                 max={100}
@@ -414,7 +416,7 @@ export function TrackControlsPanel({
                 color="text-sky-200"
               />
               <RotaryKnob
-                label="REVERB"
+                label={t("track.reverb")}
                 value={Math.round(currentSettings.reverbSend * 100)}
                 min={0}
                 max={100}

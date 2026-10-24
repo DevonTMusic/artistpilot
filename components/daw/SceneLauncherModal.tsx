@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { StudioScene, TrackData } from "@/lib/AudioEngine";
+import { useLanguage } from "@/components/LanguageProvider";
 
 interface SceneLauncherModalProps {
   scenes: StudioScene[];
@@ -25,39 +26,40 @@ export function SceneLauncherModal({
   onStop,
   onClose,
 }: SceneLauncherModalProps) {
+  const { t } = useLanguage();
   return (
     <div className="fixed inset-0 z-[72] flex items-center justify-center bg-black/80 p-4">
       <section className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-xl border border-zinc-700 bg-[#15171d] shadow-2xl">
         <header className="flex items-center justify-between gap-3 border-b border-zinc-800 p-4">
           <div>
-            <h2 className="text-sm font-bold text-white">Live scene launcher</h2>
-            <p className="mt-1 text-[10px] text-zinc-400">When transport is running, scenes queue to the next bar; otherwise they start immediately. Audio regions loop until stopped or another scene launches.</p>
+            <h2 className="text-sm font-bold text-white">{t("scene.title")}</h2>
+            <p className="mt-1 text-[10px] text-zinc-400">{t("scene.help")}</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={onCreate} className="rounded bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-600">+ Capture scene</button>
-            <button onClick={onStop} disabled={!isPlaying} className="rounded bg-rose-900/70 px-3 py-1.5 text-xs text-rose-100 hover:bg-rose-800 disabled:opacity-40">Stop scene</button>
-            <button onClick={onClose} className="rounded bg-zinc-800 px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-700">Close</button>
+            <button onClick={onCreate} className="rounded bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-600">{t("scene.capture")}</button>
+            <button onClick={onStop} disabled={!isPlaying} className="rounded bg-rose-900/70 px-3 py-1.5 text-xs text-rose-100 hover:bg-rose-800 disabled:opacity-40">{t("scene.stop")}</button>
+            <button onClick={onClose} className="rounded bg-zinc-800 px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-700">{t("scene.close")}</button>
           </div>
         </header>
         <div className="max-h-[75vh] overflow-auto p-4">
           {scenes.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-zinc-700 p-10 text-center text-xs text-zinc-500">Capture a scene from the current tracks, then choose clips and launch it.</div>
+            <div className="rounded-lg border border-dashed border-zinc-700 p-10 text-center text-xs text-zinc-500">{t("scene.empty")}</div>
           ) : (
             <div className="space-y-3">
               {scenes.map((scene) => (
                 <div key={scene.id} className="rounded-lg border border-zinc-800 bg-[#101116] p-3">
                   <div className="mb-3 flex items-center gap-2">
                     <input
-                      aria-label="Scene name"
+                      aria-label={t("scene.name")}
                       value={scene.name}
                       onChange={(event) => onChange({ ...scene, name: event.target.value.slice(0, 40) })}
                       className="min-w-0 flex-1 rounded bg-zinc-900 px-2 py-1 text-xs font-semibold text-white"
                     />
-                    <button onClick={() => onLaunch(scene)} className="rounded bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-600">Launch</button>
-                    <button onClick={() => onDelete(scene.id)} className="rounded bg-zinc-800 px-2 py-1.5 text-[10px] text-zinc-300 hover:bg-rose-900">Delete</button>
+                    <button onClick={() => onLaunch(scene)} className="rounded bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-600">{t("scene.launch")}</button>
+                    <button onClick={() => onDelete(scene.id)} className="rounded bg-zinc-800 px-2 py-1.5 text-[10px] text-zinc-300 hover:bg-rose-900">{t("scene.delete")}</button>
                   </div>
                   {tracks.length === 0 ? (
-                    <p className="text-[10px] text-zinc-500">Add tracks before assigning clips.</p>
+                    <p className="text-[10px] text-zinc-500">{t("scene.noTracks")}</p>
                   ) : (
                     <div className="flex gap-2 overflow-x-auto pb-1">
                       {tracks.map((track) => {
@@ -77,7 +79,7 @@ export function SceneLauncherModal({
                                 }}
                                 className="w-full rounded bg-black px-1.5 py-1 text-[9px] text-white"
                               >
-                                <option value="">No clip</option>
+                                <option value="">{t("scene.noClip")}</option>
                                 {track.regions.map((region) => <option key={region.id} value={region.id}>{region.name}</option>)}
                               </select>
                             </label>
@@ -99,7 +101,7 @@ export function SceneLauncherModal({
                                   onChange({ ...scene, midiNotesByTrack });
                                 }}
                               />
-                              <span className="truncate">{track.name} MIDI {track.midiNotes?.length ? `(${track.midiNotes.length})` : "(empty)"}</span>
+                              <span className="truncate">{track.name} MIDI {track.midiNotes?.length ? `(${track.midiNotes.length})` : t("scene.emptyTrack")}</span>
                             </label>
                           );
                         }
@@ -117,7 +119,7 @@ export function SceneLauncherModal({
                                 onChange({ ...scene, drumPatternsByTrack });
                               }}
                             />
-                            <span className="truncate">{track.name} Beat {track.drumPattern ? "included" : "(empty)"}</span>
+                            <span className="truncate">{track.name} {t("scene.beat")} {track.drumPattern ? t("scene.included") : t("scene.emptyTrack")}</span>
                           </label>
                         );
                       })}

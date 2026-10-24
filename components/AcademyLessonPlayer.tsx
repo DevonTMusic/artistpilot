@@ -6,6 +6,8 @@ import CompleteButton from "@/components/CompleteButton";
 import { ChordVisualizer } from "@/components/ChordVisualizer";
 import { ChromaticTuner } from "@/components/daw/ChromaticTuner";
 import type { Lesson } from "@/lib/lessons";
+import { useLanguage } from "@/components/LanguageProvider";
+import { spanishLessons } from "@/lib/i18n/lessonTranslations";
 
 const AUDIO_EXAMPLES: Record<string, string[]> = {
   "guitar-1": ["E2", "A2", "D3", "G3", "B3", "E4"],
@@ -67,9 +69,14 @@ export function AcademyLessonPlayer({
   nextId?: string;
   done: boolean;
 }) {
+  const { locale, t } = useLanguage();
+  const localizedLesson = locale === "es" ? spanishLessons[lesson.id] ?? lesson : lesson;
   const steps = [
-    ...lesson.body.map((text, index) => ({ title: `Learn ${index + 1}`, text })),
-    { title: "Practice", text: lesson.practice },
+    ...localizedLesson.body.map((text, index) => ({
+      title: t("lesson.learnStep", { step: index + 1 }),
+      text,
+    })),
+    { title: locale === "es" ? "Práctica" : "Practice", text: localizedLesson.practice },
   ];
   const [currentStep, setCurrentStep] = useState(0);
   const [stepTried, setStepTried] = useState(false);
@@ -204,13 +211,13 @@ export function AcademyLessonPlayer({
       <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 sm:p-7">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold text-violet-300">{lesson.instrument} · Guided lesson</p>
+            <p className="text-xs font-semibold text-violet-300">{localizedLesson.instrument} · {t("lesson.guided")}</p>
             <h2 className="mt-1 text-lg font-bold text-white">{steps[currentStep].title}</h2>
           </div>
-          <span className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-400">Step {currentStep + 1} of {steps.length}</span>
+          <span className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-400">{t("lesson.step", { current: currentStep + 1, total: steps.length })}</span>
         </div>
 
-        <div className="mb-5 flex gap-1.5" aria-label="Lesson progress">
+        <div className="mb-5 flex gap-1.5" role="progressbar" aria-label={t("lesson.progress")} aria-valuemin={1} aria-valuemax={steps.length} aria-valuenow={currentStep + 1}>
           {steps.map((step, index) => (
             <div key={step.title} className={`h-1.5 flex-1 rounded-full ${index <= currentStep ? "bg-violet-400" : "bg-zinc-700"}`} />
           ))}
@@ -220,7 +227,7 @@ export function AcademyLessonPlayer({
 
         {LESSON_CHORDS[lesson.id] && (
           <div className="mt-4">
-            <div className="flex flex-wrap gap-2" aria-label="Choose a chord to view">
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t("lesson.chooseChord")}>
               {LESSON_CHORDS[lesson.id].map((chord) => (
                 <button
                   key={chord}
@@ -229,7 +236,7 @@ export function AcademyLessonPlayer({
                   aria-pressed={selectedVisualChord === chord}
                   className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${selectedVisualChord === chord ? "border-sky-500 bg-sky-950/40 text-sky-200" : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"}`}
                 >
-                  View {chord}
+                  {t("lesson.view", { chord })}
                 </button>
               ))}
             </div>
@@ -243,11 +250,11 @@ export function AcademyLessonPlayer({
             onClick={audioPlaying ? stopAudio : () => void playAudioExample()}
             className="rounded-lg border border-sky-700/70 bg-sky-950/30 px-3 py-2 text-xs font-semibold text-sky-200 hover:bg-sky-900/50"
           >
-            {audioPlaying ? "Stop reference" : `Play ${lesson.instrument.toLowerCase()} reference tones`}
+            {audioPlaying ? t("lesson.stopAudio") : t("lesson.playAudio", { instrument: localizedLesson.instrument.toLowerCase() })}
           </button>
           {canTune && (
             <button type="button" onClick={() => setTunerOpen(true)} className="rounded-lg border border-zinc-700 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-800">
-              Open chromatic tuner
+              {t("lesson.openTuner")}
             </button>
           )}
           {currentStep === steps.length - 1 && (
@@ -257,19 +264,19 @@ export function AcademyLessonPlayer({
               aria-pressed={stepTried}
               className={`rounded-lg border px-3 py-2 text-xs font-semibold ${stepTried ? "border-emerald-700 bg-emerald-950/40 text-emerald-200" : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"}`}
             >
-              {stepTried ? "Practice checked" : "I tried the practice"}
+              {stepTried ? t("lesson.practiceChecked") : t("lesson.tryPractice")}
             </button>
           )}
         </div>
 
-        <p className="mt-3 text-[11px] text-zinc-500">Reference audio is synthesized in your browser to help you hear pitch and sequence; it is not a recording of the instrument.</p>
+        <p className="mt-3 text-[11px] text-zinc-400">{t("lesson.audioNote")}</p>
 
         <div className="mt-6 flex items-center justify-between gap-3 border-t border-zinc-800 pt-4">
-          <button type="button" onClick={goBack} disabled={currentStep === 0} className="rounded-lg px-3 py-2 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 disabled:opacity-30">Previous step</button>
+          <button type="button" onClick={goBack} disabled={currentStep === 0} className="rounded-lg px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-800 disabled:opacity-40">{t("lesson.previousStep")}</button>
           {currentStep < steps.length - 1 ? (
-            <button type="button" onClick={advance} className="rounded-lg bg-violet-600 px-4 py-2 text-xs font-bold text-white hover:bg-violet-500">Next step</button>
+            <button type="button" onClick={advance} className="rounded-lg bg-violet-600 px-4 py-2 text-xs font-bold text-white hover:bg-violet-500">{t("lesson.nextStep")}</button>
           ) : (
-            <span className="text-xs font-semibold text-emerald-300">Practice step reached</span>
+            <span role="status" className="text-xs font-semibold text-emerald-200">{t("lesson.practiceReached")}</span>
           )}
         </div>
       </section>
@@ -277,19 +284,19 @@ export function AcademyLessonPlayer({
       {currentStep === steps.length - 1 && (
         <section className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-violet-500/50 bg-violet-950/20 p-5">
           <div>
-            <h2 className="font-bold text-white">Save your progress</h2>
-            <p className="mt-1 text-xs text-zinc-400">Finish the lesson when you are ready, then continue to the next one.</p>
+            <h2 className="font-bold text-white">{t("lesson.saveProgress")}</h2>
+            <p className="mt-1 text-xs text-zinc-300">{t("lesson.finishHint")}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <CompleteButton lessonId={lesson.id} done={done} />
-            {nextId && <Link href={`/academy/${nextId}`} className="rounded-lg border border-zinc-700 px-4 py-3 text-xs font-bold text-white hover:bg-zinc-800">Next lesson</Link>}
+            {nextId && <Link href={`/academy/${nextId}`} className="rounded-lg border border-zinc-700 px-4 py-3 text-xs font-bold text-white hover:bg-zinc-800">{t("lesson.nextLesson")}</Link>}
           </div>
         </section>
       )}
 
       <div className="mt-5 flex justify-between text-xs">
-        {previousId ? <Link href={`/academy/${previousId}`} className="text-zinc-400 hover:text-white">← Previous lesson</Link> : <span />}
-        <Link href="/academy" className="text-zinc-400 hover:text-white">All instruments</Link>
+        {previousId ? <Link href={`/academy/${previousId}`} className="text-zinc-300 hover:text-white">← {t("lesson.previousLesson")}</Link> : <span />}
+        <Link href="/academy" className="text-zinc-300 hover:text-white">{t("lesson.allInstruments")}</Link>
       </div>
 
       <ChromaticTuner isOpen={tunerOpen} onClose={() => setTunerOpen(false)} instrumentName={lesson.instrument} />

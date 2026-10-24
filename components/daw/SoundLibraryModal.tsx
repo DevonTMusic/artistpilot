@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { SOUND_LIBRARY, SoundCategory, SoundPreset, soundPresetSummary } from "@/lib/daw/soundLibrary";
+import { useLanguage } from "@/components/LanguageProvider";
 
 interface SoundLibraryModalProps {
   isOpen: boolean;
@@ -10,15 +11,16 @@ interface SoundLibraryModalProps {
 }
 
 const categories: Array<{ id: SoundCategory | "all"; label: string }> = [
-  { id: "all", label: "All sounds" },
-  { id: "vocals", label: "Vocals" },
-  { id: "guitar", label: "Guitar" },
-  { id: "bass", label: "Bass" },
-  { id: "keys", label: "Keys & synths" },
-  { id: "drums", label: "Drums" },
+  { id: "all", label: "sound.all" },
+  { id: "vocals", label: "sound.vocals" },
+  { id: "guitar", label: "sound.guitar" },
+  { id: "bass", label: "sound.bass" },
+  { id: "keys", label: "sound.keys" },
+  { id: "drums", label: "sound.drums" },
 ];
 
 export function SoundLibraryModal({ isOpen, onClose, onApply }: SoundLibraryModalProps) {
+  const { t } = useLanguage();
   const [category, setCategory] = useState<SoundCategory | "all">("all");
   const [query, setQuery] = useState("");
   const [appliedPresetId, setAppliedPresetId] = useState<string | null>(null);
@@ -36,13 +38,13 @@ export function SoundLibraryModal({ isOpen, onClose, onApply }: SoundLibraryModa
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">
-      <section role="dialog" aria-modal="true" aria-label="Sound preset library" className="flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-zinc-700 bg-[#13151a] text-white shadow-2xl">
+      <section role="dialog" aria-modal="true" aria-label={t("sound.title")} className="flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-zinc-700 bg-[#13151a] text-white shadow-2xl">
         <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
           <div>
-            <h2 className="text-base font-bold">Sound Library</h2>
-            <p className="mt-1 text-xs text-zinc-400">{SOUND_LIBRARY.length} built-in, editable instrument patches and effect starting points. Import your own audio locally for sample-based sounds.</p>
+            <h2 className="text-base font-bold">{t("sound.title")}</h2>
+            <p className="mt-1 text-xs text-zinc-400">{t("sound.description", { count: SOUND_LIBRARY.length })}</p>
           </div>
-          <button onClick={onClose} aria-label="Close sound library" className="rounded px-2 py-1 text-zinc-400 hover:bg-zinc-800 hover:text-white">✕</button>
+          <button onClick={onClose} aria-label={t("sound.close")} className="rounded px-2 py-1 text-zinc-400 hover:bg-zinc-800 hover:text-white">✕</button>
         </header>
 
         <div className="space-y-3 border-b border-zinc-800 p-4">
@@ -50,8 +52,8 @@ export function SoundLibraryModal({ isOpen, onClose, onApply }: SoundLibraryModa
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search names, styles, or tags..."
-            aria-label="Search sound library"
+            placeholder={t("sound.search")}
+            aria-label={t("sound.searchLabel")}
             className="w-full rounded-lg border border-zinc-700 bg-[#0c0d10] px-3 py-2 text-sm outline-none focus:border-sky-500"
           />
           <div className="flex gap-2 overflow-x-auto pb-1">
@@ -62,7 +64,7 @@ export function SoundLibraryModal({ isOpen, onClose, onApply }: SoundLibraryModa
                 aria-pressed={category === item.id}
                 className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${category === item.id ? "bg-sky-500 text-black" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}
               >
-                {item.label}
+                {t(item.label)}
               </button>
             ))}
           </div>
@@ -86,11 +88,11 @@ export function SoundLibraryModal({ isOpen, onClose, onApply }: SoundLibraryModa
                 }}
                 className={`mt-3 rounded-lg px-3 py-1.5 text-xs font-bold ${appliedPresetId === preset.id ? "bg-emerald-700 text-white" : "bg-zinc-700 text-zinc-100 hover:bg-sky-600"}`}
               >
-                {appliedPresetId === preset.id ? "Applied" : "Apply preset"}
+                {appliedPresetId === preset.id ? t("sound.applied") : t("sound.apply")}
               </button>
             </article>
           ))}
-          {results.length === 0 && <p className="col-span-full py-10 text-center text-sm text-zinc-500">No presets match that search.</p>}
+          {results.length === 0 && <p className="col-span-full py-10 text-center text-sm text-zinc-500">{t("sound.noResults")}</p>}
         </div>
       </section>
     </div>

@@ -1,3 +1,7 @@
+"use client";
+
+import { useLanguage } from "@/components/LanguageProvider";
+
 // Original illustrations drawn as SVG. Swap any of these for real photos later (see README note).
 const bars = (n: number, seed: number, amp: number) =>
   Array.from({ length: n }, (_, i) => Math.max(0.14, Math.abs(Math.sin(i * 0.9 + seed) * Math.cos(i * 0.31 + seed * 2))) * amp);
@@ -7,9 +11,10 @@ const Defs = ({ id }: { id: string }) => (
 );
 
 export function StudioArt({ className = "" }: P) {
+  const { t } = useLanguage();
   const rows: [string, number][] = [["#a78bfa", 1], ["#8b5cf6", 2.3], ["#60a5fa", 3.1], ["#38bdf8", 4.7]];
   return (
-    <svg viewBox="0 0 600 380" className={className} role="img" aria-label="A recording studio timeline with four audio tracks">
+    <svg viewBox="0 0 600 380" className={className} role="img" aria-label={t("art.studioTimeline")}>
       <Defs id="sa-g" />
       <rect x="4" y="4" width="592" height="372" rx="20" fill="#1b1b1f" stroke="#33333c" strokeWidth="2" />
       <rect x="4" y="4" width="592" height="44" rx="20" fill="#25252b" />
@@ -30,8 +35,9 @@ export function StudioArt({ className = "" }: P) {
   );
 }
 export function MicArt({ className = "" }: P) {
+  const { t } = useLanguage();
   return (
-    <svg viewBox="0 0 300 300" className={className} role="img" aria-label="A studio microphone">
+    <svg viewBox="0 0 300 300" className={className} role="img" aria-label={t("art.microphone")}>
       <Defs id="mi-g" />
       {[60, 90, 120].map((r) => <circle key={r} cx="150" cy="120" r={r} fill="none" stroke="url(#mi-g)" strokeOpacity={0.4 - r / 400} strokeWidth="2" />)}
       <rect x="112" y="50" width="76" height="110" rx="38" fill="#25252b" stroke="url(#mi-g)" strokeWidth="4" />
@@ -42,8 +48,9 @@ export function MicArt({ className = "" }: P) {
   );
 }
 export function GuitarArt({ className = "" }: P) {
+  const { t } = useLanguage();
   return (
-    <svg viewBox="0 0 300 300" className={className} role="img" aria-label="An electric guitar">
+    <svg viewBox="0 0 300 300" className={className} role="img" aria-label={t("art.guitar")}>
       <Defs id="gu-g" />
       <g transform="translate(150 150) rotate(40) scale(0.85) translate(-150 -150)">
         <rect x="141" y="14" width="18" height="170" rx="4" fill="#44444d" />
@@ -58,8 +65,9 @@ export function GuitarArt({ className = "" }: P) {
   );
 }
 export function PianoArt({ className = "" }: P) {
+  const { t } = useLanguage();
   return (
-    <svg viewBox="0 0 300 300" className={className} role="img" aria-label="Piano keys">
+    <svg viewBox="0 0 300 300" className={className} role="img" aria-label={t("art.piano")}>
       <Defs id="pi-g" />
       <rect x="14" y="60" width="272" height="30" rx="8" fill="url(#pi-g)" />
       {Array.from({ length: 7 }, (_, i) => <rect key={i} x={24 + i * 36} y="110" width="34" height="140" rx="5" fill="#f2f1f6" />)}
@@ -69,8 +77,9 @@ export function PianoArt({ className = "" }: P) {
   );
 }
 export function IdeaArt({ className = "" }: P) {
+  const { t } = useLanguage();
   return (
-    <svg viewBox="0 0 300 300" className={className} role="img" aria-label="Sparkles and music notes">
+    <svg viewBox="0 0 300 300" className={className} role="img" aria-label={t("art.idea")}>
       <Defs id="id-g" />
       <path d="M150 30L174 126 270 150 174 174 150 270 126 174 30 150 126 126Z" fill="url(#id-g)" />
       <path d="M232 36l7 21 21 7-21 7-7 21-7-21-21-7 21-7z" fill="#a78bfa" />

@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { PianoEngine, PianoPresetType } from "@/lib/daw/PianoEngine";
 import { SynthSettings } from "@/lib/AudioEngine";
+import { useLanguage } from "@/components/LanguageProvider";
 
 interface PianoStudioModalProps {
   isOpen: boolean;
@@ -43,6 +44,7 @@ export function PianoStudioModal({
   scale = "maj",
   onRecordMidiNote,
 }: PianoStudioModalProps) {
+  const { t } = useLanguage();
   const engine = useRef<PianoEngine>(PianoEngine.getInstance());
   const [selectedPreset, setSelectedPreset] = useState<PianoPresetType>("Concert Grand");
   const [currentOctave, setCurrentOctave] = useState<number>(3);
@@ -199,7 +201,7 @@ export function PianoStudioModal({
         <div className="flex h-11 items-center justify-between border-b border-zinc-800 bg-[#1c1e26] px-4">
           <div className="flex items-center gap-3">
             <span className="text-sm font-bold text-white flex items-center gap-1.5">
-              Piano Studio — <span className="text-[#d4af37]">{trackName}</span>
+              {t("pianoStudio.title")} <span className="text-[#d4af37]">{trackName}</span>
             </span>
 
             <select
@@ -224,7 +226,7 @@ export function PianoStudioModal({
         <div className="p-4 bg-[#0d0e12] border-b border-zinc-800/80 flex flex-col items-center">
           <div className="flex justify-between w-full max-w-2xl mb-2 text-xs">
             <div className="flex items-center gap-2">
-              <span className="text-zinc-400">Octave:</span>
+              <span className="text-zinc-400">{t("pianoStudio.octave")}</span>
               <button
                 onClick={() => setCurrentOctave((o) => Math.max(1, o - 1))}
                 className="px-2 py-0.5 rounded bg-zinc-800 font-bold hover:bg-zinc-700 text-white"
@@ -251,11 +253,11 @@ export function PianoStudioModal({
                   sustainOn ? "border-amber-400 bg-amber-400/20 text-amber-300 shadow-[0_0_8px_#f59e0b]" : "border-zinc-700 bg-zinc-800 text-zinc-400"
                 }`}
               >
-                Sustain Pedal (Tab): {sustainOn ? "ON" : "OFF"}
+                {t("pianoStudio.sustain")} {sustainOn ? t("track.on") : t("track.off")}
               </button>
 
               <div className="flex items-center gap-1.5 text-[11px]">
-                <span className="text-zinc-500">Velocity:</span>
+                <span className="text-zinc-500">{t("pianoStudio.velocity")}</span>
                 <input
                   type="range"
                   min={20}
@@ -273,26 +275,26 @@ export function PianoStudioModal({
               onClick={() => setScaleLock((enabled) => !enabled)}
               aria-pressed={scaleLock}
               className={`rounded px-2 py-1 text-[10px] font-semibold ${scaleLock ? "bg-emerald-700 text-white" : "bg-zinc-800 text-zinc-300"}`}
-              title={`Highlight ${projectKey} ${scale === "maj" ? "major" : "minor"} notes and constrain key presses`}
+              title={t("pianoStudio.scaleHelp", { key: projectKey, scale: t(scale === "maj" ? "music.major" : "music.minor") })}
             >
-              Scale lock {scaleLock ? "On" : "Off"}
+              {t("pianoStudio.scaleLock")} {scaleLock ? t("pianoRoll.on") : t("pianoRoll.off")}
             </button>
             <button
               onClick={() => setChordMode((enabled) => !enabled)}
               aria-pressed={chordMode}
               className={`rounded px-2 py-1 text-[10px] font-semibold ${chordMode ? "bg-violet-700 text-white" : "bg-zinc-800 text-zinc-300"}`}
             >
-              Chord mode {chordMode ? "On" : "Off"}
+              {t("pianoStudio.chordMode")} {chordMode ? t("pianoRoll.on") : t("pianoRoll.off")}
             </button>
             <label className="flex items-center gap-1 text-[10px] text-zinc-400">
-              Chord size
+              {t("pianoStudio.chordSize")}
               <select value={chordQuality} onChange={(event) => setChordQuality(event.target.value as typeof chordQuality)} className="rounded bg-zinc-900 px-1.5 py-1 text-zinc-200">
-                <option value="triad">Triad</option>
-                <option value="7th">7th</option>
-                <option value="9th">9th</option>
+                <option value="triad">{t("pianoStudio.triad")}</option>
+                <option value="7th">{t("pianoStudio.seventh")}</option>
+                <option value="9th">{t("pianoStudio.ninth")}</option>
               </select>
             </label>
-            <span className="text-[10px] text-emerald-300">{projectKey} {scale === "maj" ? "Major" : "Minor"}</span>
+            <span className="text-[10px] text-emerald-300 capitalize">{projectKey} {t(scale === "maj" ? "music.major" : "music.minor")}</span>
           </div>
 
           <div className="p-2.5 rounded-xl border border-zinc-800 bg-[#14151c] flex flex-col gap-1 shadow-inner">
@@ -335,8 +337,8 @@ export function PianoStudioModal({
         {/* Full-range keyboard with standard white/black key geometry */}
         <div className="bg-[#090a0d] px-4 py-3">
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-[10px] text-zinc-500">88-key piano · A0 to C8</p>
-            <p className="text-[10px] text-zinc-600">Click or hold a key to play</p>
+            <p className="text-[10px] text-zinc-500">{t("pianoStudio.pianoRange")}</p>
+            <p className="text-[10px] text-zinc-600">{t("pianoStudio.clickPlay")}</p>
           </div>
           <div className="overflow-x-auto rounded-b border border-zinc-700 bg-[#050505] p-1 shadow-2xl">
             <div className="relative flex h-40 w-max touch-none">
@@ -346,7 +348,7 @@ export function PianoStudioModal({
                   <button
                     key={key.pitch}
                     type="button"
-                    aria-label={`Play ${key.name}`}
+                    aria-label={t("pianoStudio.playKey", { note: key.name })}
                     onPointerDown={(event) => {
                       event.currentTarget.setPointerCapture(event.pointerId);
                       triggerNoteOn(key.pitch);
@@ -379,7 +381,7 @@ export function PianoStudioModal({
                   <button
                     key={key.pitch}
                     type="button"
-                    aria-label={`Play ${key.name}`}
+                    aria-label={t("pianoStudio.playKey", { note: key.name })}
                     onPointerDown={(event) => {
                       event.currentTarget.setPointerCapture(event.pointerId);
                       triggerNoteOn(key.pitch);
@@ -406,7 +408,7 @@ export function PianoStudioModal({
 
         {/* CHORD ASSIST */}
         <div className="p-3 border-t border-zinc-800 bg-[#161720] flex items-center justify-between text-xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">In-key chord pads</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">{t("pianoStudio.chordPads")}</span>
           <div className="flex gap-2 overflow-x-auto">
             {scaleIntervals.slice(0, 5).map((interval, degree) => (
               <button

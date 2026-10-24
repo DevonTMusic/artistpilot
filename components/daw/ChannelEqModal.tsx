@@ -2,6 +2,7 @@
 "use client";
 import React, { useEffect, useRef } from "react";
 import { ProcessingSettings } from "@/lib/daw/TrackProcessor";
+import { useLanguage } from "@/components/LanguageProvider";
 
 interface ChannelEqModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface ChannelEqModalProps {
 }
 
 export function ChannelEqModal({ isOpen, onClose, trackName, settings, onSettingsChange }: ChannelEqModalProps) {
+  const { t } = useLanguage();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Draw authentic GarageBand EQ frequency curve
@@ -106,7 +108,7 @@ export function ChannelEqModal({ isOpen, onClose, trackName, settings, onSetting
       {/* Title Bar */}
       <div className="flex h-10 items-center justify-between border-b border-zinc-800 bg-[#1a1c24] px-4">
         <span className="text-xs font-bold text-white flex items-center gap-1.5">
-          4-Band Visual Channel EQ <span className="text-sky-400 font-semibold">({trackName})</span>
+          {t("eq.title")} <span className="text-sky-400 font-semibold">({trackName})</span>
         </span>
         <label className="mr-auto ml-4 flex items-center gap-1.5 text-[10px] text-zinc-300">
           <input
@@ -115,7 +117,7 @@ export function ChannelEqModal({ isOpen, onClose, trackName, settings, onSetting
             onChange={(e) => onSettingsChange({ ...settings, eqEnabled: e.target.checked })}
             className="accent-sky-500"
           />
-          EQ enabled
+          {t("eq.enabled")}
         </label>
         <button onClick={onClose} className="text-xs text-zinc-400 hover:text-white font-bold">✕</button>
       </div>
@@ -132,7 +134,7 @@ export function ChannelEqModal({ isOpen, onClose, trackName, settings, onSetting
           
           {/* Low Cut / Bass */}
           <div className="flex flex-col items-center">
-            <span className="text-[9px] font-bold text-zinc-400 mb-1">LOW SHELF</span>
+            <span className="text-[9px] font-bold text-zinc-400 mb-1">{t("eq.lowShelf")}</span>
             <input
               type="range"
               min={-12}
@@ -152,7 +154,7 @@ export function ChannelEqModal({ isOpen, onClose, trackName, settings, onSetting
 
           {/* Mid Freq */}
           <div className="flex flex-col items-center">
-            <span className="text-[9px] font-bold text-zinc-400 mb-1">MID FREQ</span>
+            <span className="text-[9px] font-bold text-zinc-400 mb-1">{t("eq.midFreq")}</span>
             <input
               type="range"
               min={250}
@@ -167,7 +169,7 @@ export function ChannelEqModal({ isOpen, onClose, trackName, settings, onSetting
 
           {/* Mid Gain */}
           <div className="flex flex-col items-center">
-            <span className="text-[9px] font-bold text-zinc-400 mb-1">MID GAIN</span>
+            <span className="text-[9px] font-bold text-zinc-400 mb-1">{t("eq.midGain")}</span>
             <input
               type="range"
               min={-12}
@@ -181,7 +183,7 @@ export function ChannelEqModal({ isOpen, onClose, trackName, settings, onSetting
 
           {/* High Shelf */}
           <div className="flex flex-col items-center">
-            <span className="text-[9px] font-bold text-zinc-400 mb-1">HIGH SHELF</span>
+            <span className="text-[9px] font-bold text-zinc-400 mb-1">{t("eq.highShelf")}</span>
             <input
               type="range"
               min={-12}

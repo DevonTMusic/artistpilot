@@ -2,6 +2,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import { AudioRegion } from "@/lib/AudioEngine";
+import { useLanguage } from "@/components/LanguageProvider";
 
 interface ClipRegionProps {
   region: AudioRegion;
@@ -30,6 +31,7 @@ export function ClipRegion({
   onReverse,
   onCopy,
 }: ClipRegionProps) {
+  const { t } = useLanguage();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [dragMode, setDragMode] = useState<"move" | "left" | "right" | null>(null);
   const dragStartX = useRef(0);
@@ -143,7 +145,7 @@ export function ClipRegion({
                 e.stopPropagation();
                 onCopy(region);
               }}
-              title="Copy Clip (Cmd+C)"
+              title={t("clip.copy")}
               className="hover:text-amber-300 transition text-[10px]"
             >
               📋
@@ -155,7 +157,7 @@ export function ClipRegion({
                 e.stopPropagation();
                 onLoop();
               }}
-              title="Repeat this clip to the loop end"
+              title={t("clip.repeat")}
               className="hover:text-amber-300 transition text-[10px]"
             >
               ↻
@@ -167,7 +169,7 @@ export function ClipRegion({
                 e.stopPropagation();
                 onReverse();
               }}
-              title="Reverse this trimmed audio clip"
+              title={t("clip.reverse")}
               className="hover:text-amber-300 transition text-[10px]"
             >
               ⇄
@@ -178,7 +180,7 @@ export function ClipRegion({
               e.stopPropagation();
               onSplit(region.startTime + region.duration / 2);
             }}
-            title="Split Clip at Center"
+            title={t("clip.split")}
             className="hover:text-amber-300 transition text-[10px]"
           >
             ✂
@@ -188,7 +190,7 @@ export function ClipRegion({
               e.stopPropagation();
               onDelete();
             }}
-            title="Delete Clip"
+            title={t("clip.delete")}
             className="hover:text-red-300 transition text-[10px]"
           >
             ✕
