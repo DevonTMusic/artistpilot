@@ -7,7 +7,7 @@ interface DiscoverTrackModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectTrackType: (type: "vocal" | "guitar" | "bass" | "piano" | "drum") => void;
-  onOpenAiSongStarter?: () => void;
+  onOpenAiSongStarter?: (feature: "palette" | "songstarter") => void;
 }
 
 export function DiscoverTrackModal({
@@ -38,7 +38,7 @@ export function DiscoverTrackModal({
           <div className="grid grid-cols-2 gap-3.5">
             <button
               onClick={() => {
-                if (onOpenAiSongStarter) onOpenAiSongStarter();
+                if (onOpenAiSongStarter) onOpenAiSongStarter("palette");
                 onClose();
               }}
               className="flex items-center gap-3.5 p-3.5 rounded-xl border border-zinc-800 bg-[#18191f] hover:bg-[#1f2129] transition text-left"
@@ -57,7 +57,7 @@ export function DiscoverTrackModal({
 
             <button
               onClick={() => {
-                if (onOpenAiSongStarter) onOpenAiSongStarter();
+                if (onOpenAiSongStarter) onOpenAiSongStarter("songstarter");
                 onClose();
               }}
               className="flex items-center gap-3.5 p-3.5 rounded-xl border border-zinc-800 bg-[#18191f] hover:bg-[#1f2129] transition text-left"

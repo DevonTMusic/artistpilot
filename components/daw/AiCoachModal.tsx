@@ -1,12 +1,16 @@
 // components/daw/AiCoachModal.tsx
 "use client";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 interface AiCoachModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentKey: string;
   bpm: number;
+  instrument?: string;
+  scale?: "maj" | "min";
+  initialTab?: "coach" | "theory";
+  initialQuestion?: string;
 }
 
 const CHORD_LIBRARY: Record<string, { chords: string[]; formula: string; mood: string }> = {
@@ -27,8 +31,17 @@ const GUITAR_CHORDS = [
   { name: "F Major", notes: "F - A - C", frets: "1 - 3 - 3 - 2 - 1 - 1" },
 ];
 
-export function AiCoachModal({ isOpen, onClose, currentKey, bpm }: AiCoachModalProps) {
-  const [tab, setTab] = useState<"coach" | "theory" | "guitar">("coach");
+export function AiCoachModal({
+  isOpen,
+  onClose,
+  currentKey,
+  bpm,
+  instrument = "general",
+  scale = "maj",
+  initialTab = "coach",
+  initialQuestion,
+}: AiCoachModalProps) {
+  const [tab, setTab] = useState<"coach" | "theory" | "guitar">(initialTab);
   const [messages, setMessages] = useState<Array<{ role: "ai" | "user"; text: string }>>([
     {
       role: "ai",
@@ -37,32 +50,52 @@ export function AiCoachModal({ isOpen, onClose, currentKey, bpm }: AiCoachModalP
   ]);
   const [inputText, setInputText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const autoPrompt = useRef<string | null>(null);
 
   if (!isOpen) return null;
 
   const currentChords = CHORD_LIBRARY[currentKey] || CHORD_LIBRARY["C"];
 
-  const handleSendMessage = () => {
-    if (!inputText.trim()) return;
-    const userMsg = inputText.trim();
+  const handleSendMessage = useCallback(async (message = inputText) => {
+    if (!message.trim() || loading) return;
+    const userMsg = message.trim();
     setMessages((prev) => [...prev, { role: "user", text: userMsg }]);
     setInputText("");
     setLoading(true);
-
-    // Dynamic AI Music Theory Response
-    setTimeout(() => {
-      let aiReply = `Here is a custom progression for ${bpm} BPM in ${currentKey}: Try playing ${currentChords.chords.join(" → ")}. Start with a punchy kick and layer your lead instrument on the 3rd measure!`;
-
-      if (userMsg.toLowerCase().includes("melody") || userMsg.toLowerCase().includes("lead")) {
-        aiReply = `For a melody in ${currentKey}, focus on the pentatonic scale (${currentChords.chords[0]} and ${currentChords.chords[2]}). Try starting your phrase on beat 2 instead of beat 1 to give it swing!`;
-      } else if (userMsg.toLowerCase().includes("mix") || userMsg.toLowerCase().includes("guitar")) {
-        aiReply = `For guitars in this mix: use our Amp Designer with Mid at +2dB, Bass at 0dB, and kick in the 4x12 Cab Sim so it doesn't clash with your bassline.`;
-      }
-
-      setMessages((prev) => [...prev, { role: "ai", text: aiReply }]);
+    setError("");
+    try {
+      const response = await fetch("/api/coach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          instrument,
+          message: userMsg,
+          context: `Key ${currentKey} ${scale === "maj" ? "major" : "minor"}, ${bpm} BPM. Suggested chords: ${currentChords.chords.join(", ")}.`,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "The coach could not answer right now.");
+      if (typeof data.text !== "string" || !data.text.trim()) throw new Error("The coach returned an empty response.");
+      setMessages((prev) => [...prev, { role: "ai", text: data.text }]);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The coach could not answer right now.");
+    } finally {
       setLoading(false);
-    }, 600);
-  };
+    }
+  }, [bpm, currentChords.chords, currentKey, inputText, instrument, loading, scale]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      autoPrompt.current = null;
+      return;
+    }
+    setTab(initialTab);
+    if (initialQuestion && autoPrompt.current !== initialQuestion) {
+      autoPrompt.current = initialQuestion;
+      void handleSendMessage(initialQuestion);
+    }
+  }, [handleSendMessage, initialQuestion, initialTab, isOpen]);
 
   return (
     <div className="absolute top-20 right-12 z-50 w-[580px] h-[480px] rounded-2xl border-2 border-indigo-900/60 bg-[#17181f] shadow-[0_20px_60px_rgba(0,0,0,0.85)] flex flex-col font-sans select-none overflow-hidden">
@@ -122,21 +155,23 @@ export function AiCoachModal({ isOpen, onClose, currentKey, bpm }: AiCoachModalP
             {loading && (
               <div className="text-[11px] text-indigo-400 italic">AI Coach is analyzing your session...</div>
             )}
+            {error && <div role="alert" className="rounded-lg border border-red-900 bg-red-950/50 p-2 text-[11px] text-red-200">{error}</div>}
           </div>
 
           <div className="flex gap-2 pt-2 border-t border-zinc-800">
             <input
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && void handleSendMessage()}
               placeholder="Ask for chords, melody ideas, or mixing advice..."
+              maxLength={1000}
               className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
             <button
-              onClick={handleSendMessage}
+              onClick={() => void handleSendMessage()}
               className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-bold"
             >
-              Ask
+              {loading ? "Thinking…" : "Ask"}
             </button>
           </div>
         </div>

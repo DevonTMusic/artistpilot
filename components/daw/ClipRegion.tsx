@@ -8,9 +8,12 @@ interface ClipRegionProps {
   pixelsPerSecond: number;
   trackColor: string;
   trackId: number;
+  snapIntervalSec?: number;
   onUpdate: (updated: Partial<AudioRegion>) => void;
   onSplit: (splitTimeSec: number) => void;
   onDelete: () => void;
+  onLoop?: () => void;
+  onReverse?: () => void;
   onCopy?: (region: AudioRegion) => void;
 }
 
@@ -19,15 +22,20 @@ export function ClipRegion({
   pixelsPerSecond,
   trackColor,
   trackId,
+  snapIntervalSec,
   onUpdate,
   onSplit,
   onDelete,
+  onLoop,
+  onReverse,
   onCopy,
 }: ClipRegionProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const [dragMode, setDragMode] = useState<"move" | "left" | "right" | null>(null);
   const dragStartX = useRef(0);
   const originalStartTime = useRef(0);
+  const originalOffset = useRef(0);
+  const originalDuration = useRef(0);
 
   // Render Real Waveform
   useEffect(() => {
@@ -61,24 +69,50 @@ export function ClipRegion({
 
   // Horizontal position dragging
   const handlePointerDown = (e: React.PointerEvent) => {
-    if ((e.target as HTMLElement).dataset.handle || (e.target as HTMLElement).tagName === "BUTTON") return;
-    setIsDragging(true);
+    if ((e.target as HTMLElement).closest("button")) return;
+    const handle = (e.target as HTMLElement).closest<HTMLElement>("[data-handle]");
+    const mode = handle?.dataset.handle === "left" ? "left" : handle?.dataset.handle === "right" ? "right" : "move";
+    setDragMode(mode);
     dragStartX.current = e.clientX;
     originalStartTime.current = region.startTime;
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    originalOffset.current = region.offset;
+    originalDuration.current = region.duration;
+    e.currentTarget.setPointerCapture(e.pointerId);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDragging) return;
+    if (!dragMode) return;
     const deltaSec = (e.clientX - dragStartX.current) / pixelsPerSecond;
-    const newStart = Math.max(0, originalStartTime.current + deltaSec);
-    onUpdate({ startTime: newStart });
+    const snap = (value: number) => snapIntervalSec
+      ? Math.round(value / snapIntervalSec) * snapIntervalSec
+      : value;
+    if (dragMode === "move") {
+      onUpdate({ startTime: Math.max(0, snap(originalStartTime.current + deltaSec)) });
+    } else if (dragMode === "left") {
+      const delta = Math.max(
+        -Math.min(originalOffset.current, originalStartTime.current),
+        Math.min(originalDuration.current - 0.05, deltaSec)
+      );
+      const snappedStart = Math.max(0, snap(originalStartTime.current + delta));
+      const snappedDelta = Math.max(
+        -Math.min(originalOffset.current, originalStartTime.current),
+        Math.min(originalDuration.current - 0.05, snappedStart - originalStartTime.current)
+      );
+      onUpdate({
+        startTime: originalStartTime.current + snappedDelta,
+        offset: originalOffset.current + snappedDelta,
+        duration: originalDuration.current - snappedDelta,
+      });
+    } else {
+      const maxDuration = region.buffer.duration - originalOffset.current;
+      onUpdate({ duration: Math.max(0.05, Math.min(maxDuration, snap(originalDuration.current + deltaSec))) });
+    }
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
-    setIsDragging(false);
+    setDragMode(null);
     try {
-      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+      e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {}
   };
 
@@ -89,7 +123,7 @@ export function ClipRegion({
     <div
       draggable
       onDragStart={(e) => {
-        // Embed track data so it can move across tracks!
+        e.dataTransfer.effectAllowed = "move";
         e.dataTransfer.setData("sourceTrackId", String(trackId));
         e.dataTransfer.setData("regionId", region.id);
       }}
@@ -97,7 +131,7 @@ export function ClipRegion({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       style={{ left: `${left}px`, width: `${width}px` }}
-      className={`absolute top-1 bottom-1 select-none rounded border border-white/25 shadow-md flex flex-col overflow-hidden cursor-grab active:cursor-grabbing ${trackColor}`}
+      className={`absolute top-1 bottom-1 select-none rounded border border-white/25 shadow-md flex flex-col overflow-hidden ${dragMode ? "cursor-grabbing" : "cursor-grab"} ${trackColor}`}
     >
       {/* Clip Header Label with Copy, Split, and Delete Buttons */}
       <div className="flex h-4 items-center justify-between bg-black/40 px-1.5 text-[9px] font-semibold text-white/95">
@@ -113,6 +147,30 @@ export function ClipRegion({
               className="hover:text-amber-300 transition text-[10px]"
             >
               📋
+            </button>
+          )}
+          {onLoop && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onLoop();
+              }}
+              title="Repeat this clip to the loop end"
+              className="hover:text-amber-300 transition text-[10px]"
+            >
+              ↻
+            </button>
+          )}
+          {onReverse && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onReverse();
+              }}
+              title="Reverse this trimmed audio clip"
+              className="hover:text-amber-300 transition text-[10px]"
+            >
+              ⇄
             </button>
           )}
           <button

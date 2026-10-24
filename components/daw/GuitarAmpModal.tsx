@@ -7,20 +7,21 @@ interface GuitarAmpModalProps {
   isOpen: boolean;
   onClose: () => void;
   trackName: string;
+  settings: GuitarAmpSettings;
+  enabled: boolean;
+  onSettingsChange: (settings: GuitarAmpSettings) => void;
+  onToggleEnabled: () => void;
 }
 
-export function GuitarAmpModal({ isOpen, onClose, trackName }: GuitarAmpModalProps) {
-  const [settings, setSettings] = useState<GuitarAmpSettings>({
-    drive: 0.6,
-    bass: 2,
-    mid: 1.5,
-    treble: 3,
-    cabSim: true,
-    reverb: 0.3,
-    delay: 0.25,
-  });
-
-  const [activePedal, setActivePedal] = useState<"overdrive" | "delay" | "chorus">("overdrive");
+export function GuitarAmpModal({
+  isOpen,
+  onClose,
+  trackName,
+  settings,
+  enabled,
+  onSettingsChange,
+  onToggleEnabled,
+}: GuitarAmpModalProps) {
 
   if (!isOpen) return null;
 
@@ -50,7 +51,12 @@ export function GuitarAmpModal({ isOpen, onClose, trackName }: GuitarAmpModalPro
           </span>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold text-zinc-400 tracking-wider">POWER</span>
-            <div className="h-3.5 w-3.5 rounded-full bg-red-600 shadow-[0_0_10px_#ef4444] border border-red-400 animate-pulse" />
+            <button
+              onClick={onToggleEnabled}
+              aria-pressed={enabled}
+              className={`h-3.5 w-3.5 rounded-full border ${enabled ? "bg-emerald-500 shadow-[0_0_10px_#22c55e] border-emerald-300" : "bg-zinc-700 border-zinc-500"}`}
+              aria-label={enabled ? "Disable amp processing" : "Enable amp processing"}
+            />
           </div>
         </div>
 
@@ -75,7 +81,7 @@ export function GuitarAmpModal({ isOpen, onClose, trackName }: GuitarAmpModalPro
                 max={k.max}
                 step={k.step}
                 value={settings[k.prop as keyof GuitarAmpSettings] as number}
-                onChange={(e) => setSettings({ ...settings, [k.prop]: Number(e.target.value) })}
+                onChange={(e) => onSettingsChange({ ...settings, [k.prop]: Number(e.target.value) })}
                 className="w-16 accent-zinc-800 h-1 bg-zinc-400 rounded cursor-pointer mt-1"
               />
               <span className="text-[10px] font-mono font-bold">{k.val}</span>
@@ -102,10 +108,11 @@ export function GuitarAmpModal({ isOpen, onClose, trackName }: GuitarAmpModalPro
           </div>
           {/* Metal Stomp Switch */}
           <button
-            onClick={() => setActivePedal("overdrive")}
-            className="h-10 w-10 rounded-full border-2 border-zinc-400 bg-gradient-to-b from-zinc-300 to-zinc-500 shadow-lg active:scale-95 flex items-center justify-center text-xs text-black font-bold"
+            onClick={onToggleEnabled}
+            aria-pressed={enabled}
+            className={`h-10 w-10 rounded-full border-2 shadow-lg active:scale-95 flex items-center justify-center text-xs text-black font-bold ${enabled ? "border-emerald-200 bg-emerald-300" : "border-zinc-400 bg-gradient-to-b from-zinc-300 to-zinc-500"}`}
           >
-            🔘
+            {enabled ? "ON" : "OFF"}
           </button>
         </div>
 
@@ -123,10 +130,11 @@ export function GuitarAmpModal({ isOpen, onClose, trackName }: GuitarAmpModalPro
             </div>
           </div>
           <button
-            onClick={() => setActivePedal("delay")}
-            className="h-10 w-10 rounded-full border-2 border-zinc-400 bg-gradient-to-b from-zinc-300 to-zinc-500 shadow-lg active:scale-95 flex items-center justify-center text-xs text-black font-bold"
+            onClick={() => onSettingsChange({ ...settings, delay: settings.delay > 0 ? 0 : 0.25 })}
+            aria-pressed={settings.delay > 0}
+            className={`h-10 w-10 rounded-full border-2 shadow-lg active:scale-95 flex items-center justify-center text-xs text-black font-bold ${settings.delay > 0 ? "border-sky-200 bg-sky-300" : "border-zinc-400 bg-gradient-to-b from-zinc-300 to-zinc-500"}`}
           >
-            🔘
+            {settings.delay > 0 ? "ON" : "OFF"}
           </button>
         </div>
 
@@ -134,7 +142,7 @@ export function GuitarAmpModal({ isOpen, onClose, trackName }: GuitarAmpModalPro
         <div className="flex flex-col items-center gap-2 p-3 bg-zinc-900/60 rounded-xl border border-zinc-800">
           <span className="text-[10px] font-bold text-zinc-400">4x12 CAB SIM</span>
           <button
-            onClick={() => setSettings({ ...settings, cabSim: !settings.cabSim })}
+            onClick={() => onSettingsChange({ ...settings, cabSim: !settings.cabSim })}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shadow ${
               settings.cabSim ? "bg-amber-500 text-black shadow-amber-500/40" : "bg-zinc-800 text-zinc-500"
             }`}

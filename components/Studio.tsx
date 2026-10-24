@@ -2,19 +2,23 @@
 "use client";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { AudioEngine } from "@/lib/AudioEngine";
-import { TrackData, AudioRegion } from "@/lib/AudioEngine";
+import { TrackData, AudioRegion, DrumPatternData, GuitarAmpSettings } from "@/lib/AudioEngine";
 import { ClipRegion } from "@/components/daw/ClipRegion";
 import { PianoRoll, MidiNote } from "@/components/daw/PianoRoll";
 import { GuitarAmpModal } from "@/components/daw/GuitarAmpModal";
 import { AiCoachModal } from "@/components/daw/AiCoachModal";
 import { ChannelEqModal } from "@/components/daw/ChannelEqModal";
-import { AudioDeviceManager } from "@/lib/daw/AudioDeviceManager";
+import { AudioDeviceManager, DeviceInfo } from "@/lib/daw/AudioDeviceManager";
 import { AudioSettingsModal } from "@/components/daw/AudioSettingsModal";
 import { TrackControlsPanel } from "@/components/daw/TrackControlsPanel";
 import { ProcessingSettings, DEFAULT_TRACK_SETTINGS } from "@/lib/daw/TrackProcessor";
-import { saveSessionFile, openSessionFile, sourceBlobs } from "@/lib/daw/sessionFile";
+import { saveSessionFile, openSessionFile, parseProcessingSettings, sourceBlobs } from "@/lib/daw/sessionFile";
 import { PianoStudioModal } from "@/components/daw/PianoStudioModal";
+import { PianoEngine } from "@/lib/daw/PianoEngine";
 import { DiscoverTrackModal } from "@/components/daw/DiscoverTrackModal";
+import { DrumPatternEditor } from "@/components/daw/DrumPatternEditor";
+import { ChromaticTuner } from "@/components/daw/ChromaticTuner";
+import { parseMidiFile } from "@/lib/daw/midiFile";
 import { PlayIcon, PauseIcon, StopIcon, RewindIcon, LoopIcon } from "@/components/daw/StudioIcons";
 
 export type TrackCompatibilityType = "vocal" | "guitar-bass" | "midi" | "drum";
@@ -24,9 +28,25 @@ interface ExtendedTrackData extends TrackData {
   inputDevice?: string;
   monitoring?: boolean;
   settings: ProcessingSettings;
+  ampSettings: GuitarAmpSettings;
+  ampEnabled: boolean;
 }
 
 const KEYS = ["C", "D♭", "D", "E♭", "E", "F", "F#", "G", "A♭", "A", "B♭", "B"];
+const DEFAULT_DRUM_PATTERN: DrumPatternData = {
+  kick: Array.from({ length: 16 }, (_, index) => index % 4 === 0),
+  snare: Array.from({ length: 16 }, (_, index) => index === 4 || index === 12),
+  hat: Array.from({ length: 16 }, (_, index) => index % 2 === 0),
+};
+const DEFAULT_AMP_SETTINGS: GuitarAmpSettings = {
+  drive: 0.6,
+  bass: 2,
+  mid: 1.5,
+  treble: 3,
+  cabSim: true,
+  reverb: 0.3,
+  delay: 0.25,
+};
 
 export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const engine = useRef<AudioEngine>(AudioEngine.getInstance());
@@ -47,6 +67,8 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       armed: true,
       monitoring: false,
       settings: { ...DEFAULT_TRACK_SETTINGS },
+      ampSettings: { ...DEFAULT_AMP_SETTINGS },
+      ampEnabled: false,
       regions: [],
     },
     {
@@ -63,9 +85,18 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       armed: false,
       monitoring: false,
       settings: { ...DEFAULT_TRACK_SETTINGS },
+      ampSettings: { ...DEFAULT_AMP_SETTINGS },
+      ampEnabled: false,
       regions: [],
+      midiNotes: [],
     },
   ]);
+  const trackHistoryRef = useRef<{
+    undo: ExtendedTrackData[][];
+    redo: ExtendedTrackData[][];
+    last: ExtendedTrackData[];
+    applying: boolean;
+  }>({ undo: [], redo: [], last: tracks, applying: false });
 
   const [masterSettings, setMasterSettings] = useState<ProcessingSettings>({
     ...DEFAULT_TRACK_SETTINGS,
@@ -74,7 +105,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
 
   const [isMasterMode, setIsMasterMode] = useState(false);
   const [projectName, setProjectName] = useState("New Project");
-  const [bpm, setBpm] = useState(defaultBpm);
+  const [bpm, setBpm] = useState(Math.min(300, Math.max(30, defaultBpm)));
   const [projectKey, setProjectKey] = useState("D♭");
   const [projectScale, setProjectScale] = useState<"maj" | "min">("maj");
   const [isPlaying, setIsPlaying] = useState(false);
@@ -82,6 +113,15 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const [playheadSec, setPlayheadSec] = useState(0);
   const [selectedTrackId, setSelectedTrackId] = useState(1);
   const [pixelsPerSecond, setPixelsPerSecond] = useState(50);
+  const [isSnapEnabled, setIsSnapEnabled] = useState(true);
+  const [isAutomationMode, setIsAutomationMode] = useState(false);
+  const [automationParameter, setAutomationParameter] = useState<"volume" | "pan" | "reverbSend">("volume");
+  const [quantizeGridSteps, setQuantizeGridSteps] = useState(1);
+  const [timeSignature, setTimeSignature] = useState<"3/4" | "4/4" | "6/8">("4/4");
+  const [lyricsNotes, setLyricsNotes] = useState("");
+  const [activeUtility, setActiveUtility] = useState<"notes" | "shortcuts" | null>(null);
+  const [masterPreset, setMasterPreset] = useState<"custom" | "warm" | "clear" | "loud">("custom");
+  const [historyVersion, setHistoryVersion] = useState(0);
   const [masterVolume, setMasterVolume] = useState(0.85);
 
   // Loop & Scrubbing
@@ -95,17 +135,26 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const [metronomeActive, setMetronomeActive] = useState(false);
 
   // Hardware Interface
-  const [activeInputLabel, setActiveInputLabel] = useState<string>("Scarlett Solo USB");
+  const [activeInputLabel, setActiveInputLabel] = useState<string>("System Default Input");
   const [activeInputId, setActiveInputId] = useState<string>("default");
+  const [activeOutputId, setActiveOutputId] = useState<string>("default");
   const [monitoringEnabled, setMonitoringEnabled] = useState(false);
-  const [devices, setDevices] = useState<any[]>([]);
+  const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [copiedClip, setCopiedClip] = useState<AudioRegion | null>(null);
+  const [pianoRollOpen, setPianoRollOpen] = useState(false);
+  const [drumEditorOpen, setDrumEditorOpen] = useState(false);
+  const [tunerOpen, setTunerOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isExportingStems, setIsExportingStems] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const soundInputRef = useRef<HTMLInputElement>(null);
 
   // Modals & Panels
   const [smartControlsOpen, setSmartControlsOpen] = useState(true);
   const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
   const [discoverModalOpen, setDiscoverModalOpen] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
+  const [aiFeature, setAiFeature] = useState<"coach" | "palette" | "songstarter">("coach");
 
   const [windowState, setWindowState] = useState({
     piano: { open: false, x: 260, y: 120 },
@@ -122,12 +171,53 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const playStartTime = useRef(0);
   const playheadAnchor = useRef(0);
   const activeMediaRecorders = useRef<MediaRecorder[]>([]);
+  const nextTrackId = useRef(3);
   const recChunks = useRef<Record<number, Blob[]>>({});
   const recStartTime = useRef(0);
-  const liveCanvasRef = useRef<HTMLCanvasElement>(null);
+  const activeMidiInputNotes = useRef<Record<number, { id: string; startStep: number }>>({});
+  const liveCanvasRefs = useRef(new Map<number, HTMLCanvasElement>());
+  const liveAnalyserRef = useRef<AnalyserNode | null>(null);
+  const liveWaveformHistoryRef = useRef(new Map<number, number[]>());
   const liveAnimRef = useRef<number | null>(null);
   const timelineContainerRef = useRef<HTMLDivElement>(null);
   const lastMetronomeBeat = useRef<number>(-1);
+  const scrubPosition = useRef(0);
+  const countInCancelled = useRef(false);
+  useEffect(() => {
+    const history = trackHistoryRef.current;
+    if (history.last !== tracks) {
+      if (!history.applying) {
+        history.undo.push(history.last);
+        if (history.undo.length > 50) history.undo.shift();
+        history.redo = [];
+      }
+      history.last = tracks;
+      history.applying = false;
+      setHistoryVersion((version) => version + 1);
+    }
+  }, [tracks]);
+  const projectDuration = Math.max(
+    8,
+    ...tracks.flatMap((track) => [
+      ...track.regions.map((region) => region.startTime + region.duration),
+      ...(trackNotes[track.id] ?? track.midiNotes ?? []).map((note) => ((note.startStep + note.length) * 60) / bpm / 4),
+      track.category === "drum" ? ((track.drumPattern?.kick.length ?? 0) * 60) / bpm / 4 : 0,
+    ])
+  );
+  const playbackState = useRef({
+    tracks,
+    bpm,
+    timeSignature,
+    masterVolume,
+    isLooping,
+    loopStartSec,
+    loopEndSec,
+    metronomeActive,
+    isRecording,
+    isPlaying,
+    projectDuration,
+    masterSettings,
+  });
 
   const triggerMetronomeClick = useCallback((isDownbeat: boolean) => {
     try {
@@ -165,6 +255,24 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     });
   }, []);
 
+  useEffect(() => {
+    playbackState.current = {
+      tracks: tracks.map((track) => ({ ...track, midiNotes: trackNotes[track.id] ?? track.midiNotes ?? [] })),
+      bpm,
+      timeSignature,
+      masterVolume,
+      isLooping,
+      loopStartSec,
+      loopEndSec,
+      metronomeActive,
+      isRecording,
+      isPlaying,
+      projectDuration,
+      masterSettings,
+    };
+    engine.current.updateMix(playbackState.current.tracks, masterVolume, masterSettings);
+  }, [tracks, trackNotes, bpm, timeSignature, masterVolume, isLooping, loopStartSec, loopEndSec, metronomeActive, isRecording, isPlaying, projectDuration, masterSettings]);
+
   // Scrubbing & Loop Range Listeners
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
@@ -176,6 +284,8 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       if (isScrubbing) {
         setPlayheadSec(currentMouseSec);
         playheadAnchor.current = currentMouseSec;
+        playStartTime.current = performance.now();
+        scrubPosition.current = currentMouseSec;
       } else if (draggingLoopEdge === "start") {
         setLoopStartSec(Math.min(currentMouseSec, loopEndSec - 0.5));
       } else if (draggingLoopEdge === "end") {
@@ -184,6 +294,19 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     };
 
     const onMouseUp = () => {
+      if (isScrubbing && playbackState.current.isPlaying) {
+        const state = playbackState.current;
+        playheadAnchor.current = scrubPosition.current;
+        playStartTime.current = performance.now();
+        engine.current.schedulePlayback(
+          state.tracks,
+          scrubPosition.current,
+          state.bpm,
+          state.masterVolume,
+          state.masterSettings,
+          state.isLooping ? state.loopEndSec : state.projectDuration
+        );
+      }
       setIsScrubbing(false);
       setDraggingLoopEdge(null);
     };
@@ -203,19 +326,37 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     const elapsed = (performance.now() - playStartTime.current) / 1000;
     let currentSec = playheadAnchor.current + elapsed;
 
-    if (isLooping && currentSec >= loopEndSec) {
-      currentSec = loopStartSec;
+    const state = playbackState.current;
+    if (state.isLooping && currentSec >= state.loopEndSec) {
+      currentSec = state.loopStartSec;
       playStartTime.current = performance.now();
-      playheadAnchor.current = loopStartSec;
-      engine.current.schedulePlayback(tracks, loopStartSec);
+      playheadAnchor.current = state.loopStartSec;
+      engine.current.schedulePlayback(
+        state.tracks,
+        state.loopStartSec,
+        state.bpm,
+        state.masterVolume,
+        state.masterSettings,
+        state.loopEndSec
+      );
     }
 
-    if (metronomeActive) {
-      const beatIdx = Math.floor((currentSec * bpm) / 60);
+    if (state.metronomeActive) {
+      const denominator = Number(state.timeSignature.split("/")[1]);
+      const beatSeconds = 60 / state.bpm * (4 / denominator);
+      const beatIdx = Math.floor(currentSec / beatSeconds);
       if (beatIdx !== lastMetronomeBeat.current) {
         lastMetronomeBeat.current = beatIdx;
-        triggerMetronomeClick(beatIdx % 4 === 0);
+        triggerMetronomeClick(beatIdx % Number(state.timeSignature.split("/")[0]) === 0);
       }
+    }
+
+    if (!state.isLooping && !state.isRecording && currentSec >= state.projectDuration) {
+      setPlayheadSec(state.projectDuration);
+      setIsPlaying(false);
+      engine.current.stopPlayback();
+      animFrame.current = null;
+      return;
     }
 
     setPlayheadSec(currentSec);
@@ -227,27 +368,44 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     if (isPlaying) {
       engine.current.stopPlayback();
       if (animFrame.current) cancelAnimationFrame(animFrame.current);
+      animFrame.current = null;
       setIsPlaying(false);
     } else {
       const pos = startAt !== undefined ? startAt : (isLooping && playheadSec >= loopEndSec ? loopStartSec : playheadSec);
       playStartTime.current = performance.now();
       playheadAnchor.current = pos;
       lastMetronomeBeat.current = -1;
-      engine.current.schedulePlayback(tracks, pos);
+      engine.current.schedulePlayback(
+        tracks.map((track) => ({ ...track, midiNotes: trackNotes[track.id] ?? track.midiNotes ?? [] })),
+        pos,
+        bpm,
+        masterVolume,
+        masterSettings,
+        isLooping ? loopEndSec : projectDuration
+      );
       animFrame.current = requestAnimationFrame(updatePlaybackPosition);
       setIsPlaying(true);
     }
   };
 
   const handleStop = () => {
+    countInCancelled.current = true;
     engine.current.stopPlayback();
     if (animFrame.current) cancelAnimationFrame(animFrame.current);
+    animFrame.current = null;
     if (isRecording) {
-      activeMediaRecorders.current.forEach((mr) => mr.stop());
+      activeMediaRecorders.current.forEach((mr) => {
+        if (mr.state === "inactive") return;
+        try { mr.stop(); } catch (error) { console.error("Could not stop audio recorder:", error); }
+      });
       activeMediaRecorders.current = [];
+      liveAnalyserRef.current = null;
       setIsRecording(false);
       if (liveAnimRef.current) cancelAnimationFrame(liveAnimRef.current);
+      liveAnimRef.current = null;
     }
+    liveAnalyserRef.current = null;
+    deviceManager.current.cleanupStream();
     setIsPlaying(false);
   };
 
@@ -256,6 +414,14 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeEl = document.activeElement;
       if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "SELECT")) return;
+      if (windowState.piano.open || pianoRollOpen || drumEditorOpen) return;
+
+      if ((e.metaKey || e.ctrlKey) && (e.key === "z" || e.key === "Z")) {
+        e.preventDefault();
+        if (e.shiftKey) redoTrackChanges();
+        else undoTrackChanges();
+        return;
+      }
 
       if (e.code === "Space") {
         e.preventDefault();
@@ -361,45 +527,61 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaying, windowState.piano.open, selectedTrackId, playheadSec, copiedClip, tracks]);
+  }, [isPlaying, windowState.piano.open, pianoRollOpen, drumEditorOpen, selectedTrackId, playheadSec, copiedClip, tracks]);
 
   // Live Oscilloscope Waveform while Recording
   const startLiveWaveform = (analyser: AnalyserNode) => {
-    const cv = liveCanvasRef.current;
-    if (!cv) return;
-    const ctx = cv.getContext("2d");
-    if (!ctx) return;
-
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
     const draw = () => {
       liveAnimRef.current = requestAnimationFrame(draw);
       analyser.getByteTimeDomainData(dataArray);
-
-      ctx.clearRect(0, 0, cv.width, cv.height);
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "#38bdf8";
-      ctx.beginPath();
-
-      const sliceWidth = (cv.width * 1.0) / dataArray.length;
-      let x = 0;
-
-      for (let i = 0; i < dataArray.length; i++) {
-        const v = dataArray[i] / 128.0;
-        const y = (v * cv.height) / 2;
-
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-
-        x += sliceWidth;
-      }
-
-      ctx.lineTo(cv.width, cv.height / 2);
-      ctx.stroke();
+      let peak = 0;
+      dataArray.forEach((sample) => {
+        peak = Math.max(peak, Math.abs(sample - 128) / 128);
+      });
+      liveCanvasRefs.current.forEach((canvas) => {
+        const canvasContext = canvas.getContext("2d");
+        if (!canvasContext) return;
+        const history = liveWaveformHistoryRef.current.get(Number(canvas.dataset.trackId)) ?? [];
+        history.push(peak);
+        if (history.length > 20000) history.shift();
+        liveWaveformHistoryRef.current.set(Number(canvas.dataset.trackId), history);
+        const targetWidth = Math.min(16384, Math.max(1, Math.floor(canvas.clientWidth)));
+        if (canvas.width !== targetWidth) canvas.width = targetWidth;
+        canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+        canvasContext.lineWidth = 2;
+        canvasContext.strokeStyle = "#fb7185";
+        canvasContext.beginPath();
+        const center = canvas.height / 2;
+        for (let x = 0; x < canvas.width; x++) {
+          const from = Math.floor((x / canvas.width) * history.length);
+          const to = Math.max(from + 1, Math.floor(((x + 1) / canvas.width) * history.length));
+          let columnPeak = 0;
+          for (let index = from; index < Math.min(to, history.length); index++) {
+            columnPeak = Math.max(columnPeak, history[index]);
+          }
+          const amplitude = Math.max(1, columnPeak * center * 0.9);
+          canvasContext.moveTo(x, center - amplitude);
+          canvasContext.lineTo(x, center + amplitude);
+        }
+        canvasContext.stroke();
+      });
     };
 
     draw();
   };
+
+  useEffect(() => {
+    if (isRecording && liveAnalyserRef.current) {
+      if (liveAnimRef.current) cancelAnimationFrame(liveAnimRef.current);
+      startLiveWaveform(liveAnalyserRef.current);
+    }
+    return () => {
+      if (liveAnimRef.current) cancelAnimationFrame(liveAnimRef.current);
+      liveAnimRef.current = null;
+    };
+  }, [isRecording]);
 
   const handleRecord = async () => {
     if (isRecording) {
@@ -417,29 +599,52 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       const ctx = engine.current.init();
       if (ctx.state === "suspended") await ctx.resume();
 
-      const currentTrack = tracks.find((t) => t.id === selectedTrackId);
+        const currentTrack = armedAudioTracks.find((track) => track.id === selectedTrackId) ?? armedAudioTracks[0];
       const { stream, analyser } = await deviceManager.current.setupInputStream(
         ctx,
-        currentTrack?.inputDevice || activeInputId,
-        currentTrack?.monitoring ?? monitoringEnabled
+          currentTrack.inputDevice || activeInputId,
+          currentTrack.monitoring ?? monitoringEnabled,
+          currentTrack.settings,
+          currentTrack.ampSettings,
+          currentTrack.ampEnabled
       );
+      liveAnalyserRef.current = analyser;
 
-      if (countInActive) {
-        handleStop();
-        const beatMs = (60 / bpm) * 1000;
-        for (let i = 0; i < 4; i++) {
-          setStatusMsg(`Count-In: ${i + 1} ...`);
-          triggerMetronomeClick(i === 0);
-          await new Promise((res) => setTimeout(res, beatMs));
+        if (isPlaying) {
+          engine.current.stopPlayback();
+          if (animFrame.current) cancelAnimationFrame(animFrame.current);
+          animFrame.current = null;
+          setIsPlaying(false);
         }
-      }
+        countInCancelled.current = false;
+        if (countInActive) {
+          const [countInBeats, countInDenominator] = timeSignature.split("/").map(Number);
+          const beatMs = (60 / Math.max(1, bpm)) * (4 / countInDenominator) * 1000;
+          for (let i = 0; i < countInBeats; i++) {
+            if (countInCancelled.current) {
+              liveAnalyserRef.current = null;
+              deviceManager.current.cleanupStream();
+              return;
+            }
+            setStatusMsg(`Count-in: ${i + 1} of ${countInBeats}`);
+            triggerMetronomeClick(i === 0);
+            await new Promise((res) => setTimeout(res, beatMs));
+          }
+          if (countInCancelled.current) {
+            liveAnalyserRef.current = null;
+            deviceManager.current.cleanupStream();
+            return;
+          }
+        }
 
       recChunks.current = {};
       recStartTime.current = playheadSec;
+      liveWaveformHistoryRef.current.clear();
       activeMediaRecorders.current = [];
 
       armedAudioTracks.forEach((track) => {
         recChunks.current[track.id] = [];
+        if (typeof MediaRecorder === "undefined") throw new Error("Audio recording is not supported by this browser.");
         const mr = new MediaRecorder(stream);
 
         mr.ondataavailable = (e) => {
@@ -449,6 +654,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         mr.onstop = async () => {
           const blob = new Blob(recChunks.current[track.id], { type: mr.mimeType || "audio/webm" });
           try {
+            if (blob.size === 0) throw new Error("The recording was empty.");
             const buffer = await ctx.decodeAudioData(await blob.arrayBuffer());
             sourceBlobs.set(buffer, blob);
             const newRegion: AudioRegion = {
@@ -463,7 +669,11 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             setTracks((prev) =>
               prev.map((t) => (t.id === track.id ? { ...t, regions: [...t.regions, newRegion] } : t))
             );
-          } catch {}
+            setStatusMsg(`Recording added to ${track.name}.`);
+          } catch (error) {
+            console.error("Could not decode recorded audio:", error);
+            setStatusMsg(`Could not decode the recording for ${track.name}. Try a different browser or input.`);
+          }
         };
 
         activeMediaRecorders.current.push(mr);
@@ -472,21 +682,366 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
 
       setIsRecording(true);
       if (!isPlaying) handlePlay();
-      startLiveWaveform(analyser);
       setStatusMsg("Recording live audio...");
-    } catch {
-      setStatusMsg("Microphone / Audio interface access denied.");
+    } catch (error) {
+      activeMediaRecorders.current.forEach((recorder) => {
+        if (recorder.state !== "inactive") {
+          try { recorder.stop(); } catch (stopError) { console.error("Could not stop partial recorder:", stopError); }
+        }
+      });
+      activeMediaRecorders.current = [];
+      liveAnalyserRef.current = null;
+      deviceManager.current.cleanupStream();
+      setStatusMsg(error instanceof Error ? error.message : "Microphone or audio interface access failed.");
+    }
+  };
+
+  const updateClip = (trackId: number, regionId: string, updated: Partial<AudioRegion>) => {
+    setTracks((prev) =>
+      prev.map((track) => track.id === trackId
+        ? { ...track, regions: track.regions.map((region) => region.id === regionId ? { ...region, ...updated } : region) }
+        : track)
+    );
+  };
+
+  const splitClip = (trackId: number, regionId: string, splitTime: number) => {
+    setTracks((prev) => prev.map((track) => {
+      if (track.id !== trackId) return track;
+      const region = track.regions.find((item) => item.id === regionId);
+      if (!region) return track;
+      const split = Math.max(region.startTime + 0.05, Math.min(region.startTime + region.duration - 0.05, splitTime));
+      const firstDuration = split - region.startTime;
+      const second: AudioRegion = {
+        ...region,
+        id: `clip-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        name: `${region.name} (Part 2)`,
+        startTime: split,
+        offset: region.offset + firstDuration,
+        duration: region.duration - firstDuration,
+      };
+      setStatusMsg(`Split "${region.name}" at ${split.toFixed(2)}s.`);
+      return {
+        ...track,
+        regions: track.regions.flatMap((item) => item.id === regionId
+          ? [{ ...item, duration: firstDuration }, second]
+          : [item]),
+      };
+    }));
+  };
+
+  const repeatClipToLoopEnd = (trackId: number, regionId: string) => {
+    const track = tracks.find((item) => item.id === trackId);
+    const region = track?.regions.find((item) => item.id === regionId);
+    if (!region) return;
+    if (loopEndSec <= region.startTime + region.duration) {
+      setStatusMsg("Set the loop end after this clip to repeat it into the loop range.");
+      return;
+    }
+    const repeated: AudioRegion[] = [];
+    let startTime = region.startTime + region.duration;
+    while (startTime < loopEndSec) {
+      const duration = Math.min(region.duration, loopEndSec - startTime);
+      repeated.push({
+        ...region,
+        id: `repeat-${region.id}-${Math.round(startTime * 1000)}`,
+        name: `${region.name} (Loop)`,
+        startTime,
+        duration,
+      });
+      startTime += region.duration;
+    }
+    setTracks((current) => current.map((item) => item.id === trackId
+      ? { ...item, regions: [...item.regions, ...repeated] }
+      : item));
+    setStatusMsg(`Repeated "${region.name}" ${repeated.length} time${repeated.length === 1 ? "" : "s"}.`);
+  };
+
+  const reverseClip = (trackId: number, regionId: string) => {
+    const track = tracks.find((item) => item.id === trackId);
+    const region = track?.regions.find((item) => item.id === regionId);
+    if (!region) return;
+    try {
+      const context = engine.current.init();
+      const sampleRate = region.buffer.sampleRate;
+      const sourceStart = Math.max(0, Math.floor(region.offset * sampleRate));
+      const frameCount = Math.min(
+        Math.floor(region.duration * sampleRate),
+        region.buffer.length - sourceStart
+      );
+      if (frameCount <= 0) throw new Error("This clip has no audio to reverse.");
+      const reversed = context.createBuffer(region.buffer.numberOfChannels, frameCount, sampleRate);
+      for (let channel = 0; channel < region.buffer.numberOfChannels; channel++) {
+        const input = region.buffer.getChannelData(channel);
+        const output = reversed.getChannelData(channel);
+        for (let frame = 0; frame < frameCount; frame++) {
+          output[frame] = input[sourceStart + frameCount - frame - 1];
+        }
+      }
+      sourceBlobs.delete(reversed);
+      setTracks((current) => current.map((item) => item.id === trackId
+        ? {
+          ...item,
+          regions: item.regions.map((clip) => clip.id === regionId
+            ? { ...clip, buffer: reversed, offset: 0, duration: reversed.duration, name: `${clip.name.replace(/ \(Reversed\)$/, "")} (Reversed)` }
+            : clip),
+        }
+        : item));
+      setStatusMsg(`Reversed "${region.name}" without changing the source audio.`);
+    } catch (error) {
+      console.error("Could not reverse audio clip:", error);
+      setStatusMsg(error instanceof Error ? error.message : "Could not reverse this clip.");
+    }
+  };
+
+  const joinAdjacentRegions = (trackId: number) => {
+    const track = tracks.find((item) => item.id === trackId);
+    if (!track) return;
+    const ordered = [...track.regions].sort((a, b) => a.startTime - b.startTime);
+    const first = ordered.find((region, index) =>
+      index < ordered.length - 1 && Math.abs(region.startTime + region.duration - ordered[index + 1].startTime) < 0.03
+    );
+    const second = first ? ordered[ordered.indexOf(first) + 1] : undefined;
+    if (!first || !second) {
+      setStatusMsg("Join needs two adjacent audio clips on the selected track.");
+      return;
+    }
+    try {
+      const ctx = engine.current.init();
+      const channels = Math.max(first.buffer.numberOfChannels, second.buffer.numberOfChannels);
+      const sampleRate = first.buffer.sampleRate;
+      const firstFrames = Math.round(first.duration * sampleRate);
+      const secondFrames = Math.round(second.duration * sampleRate);
+      const buffer = ctx.createBuffer(channels, firstFrames + secondFrames, sampleRate);
+      for (let channel = 0; channel < channels; channel++) {
+        const output = buffer.getChannelData(channel);
+        const firstChannel = first.buffer.getChannelData(Math.min(channel, first.buffer.numberOfChannels - 1));
+        const secondChannel = second.buffer.getChannelData(Math.min(channel, second.buffer.numberOfChannels - 1));
+        for (let frame = 0; frame < firstFrames; frame++) {
+          output[frame] = (firstChannel[Math.floor(first.offset * sampleRate) + frame] ?? 0) * (first.gain ?? 1);
+        }
+        for (let frame = 0; frame < secondFrames; frame++) {
+          output[firstFrames + frame] =
+            (secondChannel[Math.floor(second.offset * sampleRate) + frame] ?? 0) * (second.gain ?? 1);
+        }
+      }
+      sourceBlobs.delete(buffer);
+      const joined: AudioRegion = {
+        id: `join-${first.id}-${second.id}`,
+        name: `${first.name} + ${second.name}`,
+        buffer,
+        startTime: first.startTime,
+        duration: buffer.duration,
+        offset: 0,
+        gain: 1,
+      };
+      setTracks((current) => current.map((item) => item.id === trackId
+        ? { ...item, regions: [...item.regions.filter((region) => region.id !== first.id && region.id !== second.id), joined] }
+        : item));
+      setStatusMsg(`Joined "${first.name}" and "${second.name}".`);
+    } catch (error) {
+      console.error("Could not join adjacent clips:", error);
+      setStatusMsg("Could not join those clips.");
+    }
+  };
+
+  const handleImportFile = async (file: File, trackId: number, startTime = playheadSec) => {
+    const track = tracks.find((item) => item.id === trackId);
+    if (!track) return;
+    if (file.name.toLowerCase().endsWith(".mid") || file.name.toLowerCase().endsWith(".midi")) {
+      try {
+        const { notes, bpm: fileBpm } = parseMidiFile(await file.arrayBuffer());
+        const stepOffset = Math.round(startTime / (60 / Math.max(1, bpm) / 4));
+        const importedNotes = notes.map((note) => ({
+          ...note,
+          id: `${note.id}-${Date.now()}`,
+          startStep: note.startStep + stepOffset,
+        }));
+        const combinedNotes = [...(trackNotes[trackId] ?? track.midiNotes ?? []), ...importedNotes];
+        setTrackNotes((prev) => ({ ...prev, [trackId]: combinedNotes }));
+        setTracks((prev) => prev.map((item) => item.id === trackId
+          ? { ...item, category: "midi", trackType: "midi", midiNotes: combinedNotes }
+          : item));
+        if (fileBpm && fileBpm >= 30 && fileBpm <= 300) setBpm(Math.round(fileBpm));
+        setSelectedTrackId(trackId);
+        setStatusMsg(`Imported ${notes.length} MIDI notes from "${file.name}".`);
+      } catch (error) {
+        setStatusMsg(error instanceof Error ? `Could not import MIDI: ${error.message}` : "Could not import this MIDI file.");
+      }
+      return;
+    }
+    try {
+      const ctx = engine.current.init();
+      const buffer = await ctx.decodeAudioData(await file.arrayBuffer());
+      sourceBlobs.set(buffer, file);
+      const region: AudioRegion = {
+        id: `import-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        name: file.name.replace(/\.[^.]+$/, "") || "Imported Audio",
+        buffer,
+        startTime: Math.max(0, startTime),
+        duration: buffer.duration,
+        offset: 0,
+        gain: 1,
+      };
+      setTracks((prev) => prev.map((item) =>
+        item.id === trackId ? { ...item, regions: [...item.regions, region] } : item
+      ));
+      setStatusMsg(`Imported "${file.name}" to ${track.name}.`);
+    } catch (error) {
+      console.error("Could not import audio file:", error);
+      setStatusMsg(`Could not import "${file.name}". Use a browser-supported audio format.`);
     }
   };
 
   const deleteTrack = (id: number) => {
-    if (tracks.length <= 1) return;
+    if (isRecording) {
+      setStatusMsg("Stop recording before removing a track.");
+      return;
+    }
+    if (tracks.length <= 1) {
+      setStatusMsg("A Studio project must keep at least one track.");
+      return;
+    }
     setTracks((prev) => prev.filter((t) => t.id !== id));
+    setTrackNotes((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    if (selectedTrackId === id) {
+      const replacement = tracks.find((track) => track.id !== id);
+      if (replacement) setSelectedTrackId(replacement.id);
+    }
+  };
+
+  const undoTrackChanges = () => {
+    const history = trackHistoryRef.current;
+    const previous = history.undo.pop();
+    if (!previous) return;
+    history.redo.push(tracks);
+    history.applying = true;
+    setTracks(previous);
+  };
+
+  const redoTrackChanges = () => {
+    const history = trackHistoryRef.current;
+    const next = history.redo.pop();
+    if (!next) return;
+    history.undo.push(tracks);
+    history.applying = true;
+    setTracks(next);
+  };
+
+  const applyAutoMix = () => {
+    if (tracks.length === 0) {
+      setStatusMsg("Add tracks before applying Auto Mix.");
+      return;
+    }
+    const levelByCategory = { audio: 0.72, midi: 0.62, drum: 0.68 };
+    setTracks((current) => current.map((track) => ({
+      ...track,
+      volume: levelByCategory[track.category ?? "audio"],
+      pan: track.category === "midi" ? 0 : track.pan,
+    })));
+    setStatusMsg("Auto Mix applied balanced starting levels. Adjust the faders to taste.");
+  };
+
+  const quantizeTrackRegions = (trackId: number) => {
+    const intervalSec = (60 / bpm / 4) * quantizeGridSteps;
+    setTracks((current) => current.map((track) => track.id === trackId
+      ? {
+        ...track,
+        regions: track.regions.map((region) => {
+          const startTime = Math.max(0, Math.round(region.startTime / intervalSec) * intervalSec);
+          const endTime = Math.max(startTime + intervalSec, Math.round((region.startTime + region.duration) / intervalSec) * intervalSec);
+          return { ...region, startTime, duration: Math.min(region.buffer.duration - region.offset, endTime - startTime) };
+        }),
+      }
+      : track));
+    setStatusMsg(`Aligned ${tracks.find((track) => track.id === trackId)?.name ?? "track"} regions to the ${quantizeGridSteps === 1 ? "1/16" : "1/8"} grid.`);
+  };
+
+  const addAutomationPoint = (
+    trackId: number,
+    time: number,
+    normalizedValue: number
+  ) => {
+    const value = automationParameter === "pan" ? normalizedValue * 2 - 1 : normalizedValue;
+    setTracks((current) => current.map((track) => {
+      if (track.id !== trackId) return track;
+      const existing = track.automation?.[automationParameter] ?? [];
+      const points = [
+        ...existing.filter((point) => Math.abs(point.time - time) > 0.015),
+        { id: `automation-${trackId}-${Date.now()}`, time, value },
+      ].sort((a, b) => a.time - b.time);
+      return { ...track, automation: { ...track.automation, [automationParameter]: points } };
+    }));
+  };
+
+  const removeNearestAutomationPoint = (trackId: number, time: number) => {
+    setTracks((current) => current.map((track) => {
+      if (track.id !== trackId) return track;
+      const points = track.automation?.[automationParameter] ?? [];
+      if (points.length === 0) return track;
+      const nearest = points.reduce((best, point) =>
+        Math.abs(point.time - time) < Math.abs(best.time - time) ? point : best
+      );
+      if (Math.abs(nearest.time - time) > 0.35) return track;
+      return {
+        ...track,
+        automation: {
+          ...track.automation,
+          [automationParameter]: points.filter((point) => point.id !== nearest.id),
+        },
+      };
+    }));
+  };
+
+  const applyMasterPreset = (preset: "warm" | "clear" | "loud") => {
+    const presets = {
+      warm: { eqEnabled: true, lowGain: 1.5, midGain: -0.5, highGain: -1, compEnabled: true, compAmount: 0.35 },
+      clear: { eqEnabled: true, lowGain: -0.5, midGain: 0.8, highGain: 1.2, compEnabled: false, compAmount: 0.25 },
+      loud: { eqEnabled: true, lowGain: 0.5, midGain: 0, highGain: 0.5, compEnabled: true, compAmount: 0.75 },
+    };
+    setMasterSettings((settings) => ({ ...settings, ...presets[preset] }));
+    setMasterPreset(preset);
+    setIsMasterMode(true);
+    setSmartControlsOpen(true);
+  };
+
+  const openBeats = () => {
+    const drumTrack = selectedTrack?.category === "drum"
+      ? selectedTrack
+      : tracks.find((track) => track.category === "drum");
+    if (!drumTrack) {
+      handleAddTrackType("drum");
+      setDrumEditorOpen(true);
+      setStatusMsg("Added a drum track. Edit its kick, snare, and hat pattern.");
+      return;
+    }
+    setSelectedTrackId(drumTrack.id);
+    setDrumEditorOpen(true);
+  };
+
+  const importSoundFile = (file?: File) => {
+    if (!file) return;
+    const target = selectedTrack?.category === "audio"
+      ? selectedTrack
+      : tracks.find((track) => track.category === "audio");
+    if (!target) {
+      setStatusMsg("Add an audio track before importing a sound.");
+      setDiscoverModalOpen(true);
+      return;
+    }
+    void handleImportFile(file, target.id);
   };
 
   // Add Track from Discover Modal (Screenshot 2 functionality)
   const handleAddTrackType = (type: "vocal" | "guitar" | "bass" | "piano" | "drum") => {
-    const id = Date.now();
+    if (tracks.length >= 12) {
+      setStatusMsg("Studio supports up to 12 tracks.");
+      return;
+    }
+    const id = nextTrackId.current++;
     let name = "Audio Track";
     let category: "audio" | "midi" | "drum" = "audio";
     let trackType: TrackCompatibilityType = "vocal";
@@ -532,16 +1087,243 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         armed: false,
         monitoring: false,
         settings: { ...DEFAULT_TRACK_SETTINGS },
+        ampSettings: { ...DEFAULT_AMP_SETTINGS },
+        ampEnabled: false,
         regions: [],
+        midiNotes: [],
+        ...(type === "drum" ? { drumPattern: { ...DEFAULT_DRUM_PATTERN } } : {}),
       },
     ]);
+    if (category === "midi") setTrackNotes((prev) => ({ ...prev, [id]: [] }));
     setSelectedTrackId(id);
   };
 
+  const getProjectTracks = (): ExtendedTrackData[] =>
+    tracks.map((track) => ({ ...track, midiNotes: trackNotes[track.id] ?? track.midiNotes ?? [] }));
+
+  const saveProject = async () => {
+    if (isRecording) {
+      setStatusMsg("Stop recording before saving so the current take is included.");
+      return;
+    }
+    try {
+      await saveSessionFile({
+        projectName,
+        bpm,
+        key: projectKey,
+        scale: projectScale,
+        masterVolume,
+        masterSettings,
+        isLooping,
+        loopStartSec,
+        loopEndSec,
+        timeSignature,
+        lyricsNotes,
+      }, getProjectTracks(), projectName);
+      setStatusMsg(`Saved "${projectName || "ArtistPilot Project"}" to a local session file.`);
+    } catch (error) {
+      console.error("Could not save studio session:", error);
+      setStatusMsg(error instanceof Error ? `Could not save session: ${error.message}` : "Could not save the session file.");
+    }
+  };
+
+  const loadProject = async (file?: File) => {
+    if (!file) return;
+    if (isRecording) {
+      setStatusMsg("Stop recording before opening another session.");
+      return;
+    }
+    try {
+      handleStop();
+      const { meta, tracks: loadedTracks } = await openSessionFile(file, engine.current.init());
+      const nextTracks = loadedTracks.map((track) => ({
+        ...track,
+        trackType: track.category === "midi" ? "midi" as const
+          : track.category === "drum" ? "drum" as const
+          : track.name.toLowerCase().includes("guitar") || track.name.toLowerCase().includes("bass") ? "guitar-bass" as const
+          : "vocal" as const,
+        inputDevice: typeof track.inputDevice === "string" ? track.inputDevice : undefined,
+        monitoring: typeof track.monitoring === "boolean" ? track.monitoring : false,
+        settings: track.settings ?? { ...DEFAULT_TRACK_SETTINGS },
+        ampSettings: track.ampSettings ?? { ...DEFAULT_AMP_SETTINGS },
+        ampEnabled: track.ampEnabled ?? false,
+      }));
+      setTracks(nextTracks);
+      nextTrackId.current = Math.max(3, ...nextTracks.map((track) => track.id + 1));
+      setTrackNotes(Object.fromEntries(nextTracks.map((track) => [track.id, track.midiNotes ?? []])));
+      if (nextTracks[0]) setSelectedTrackId(nextTracks[0].id);
+      setIsMasterMode(false);
+      setCopiedClip(null);
+      setProjectName(typeof meta.projectName === "string" ? meta.projectName : file.name.replace(/\.artistpilot$/i, ""));
+      setBpm(typeof meta.bpm === "number" ? Math.min(300, Math.max(30, meta.bpm)) : defaultBpm);
+      setProjectKey(typeof meta.key === "string" && KEYS.includes(meta.key) ? meta.key : "C");
+      setProjectScale(meta.scale === "min" ? "min" : "maj");
+      setTimeSignature(meta.timeSignature === "3/4" || meta.timeSignature === "6/8" ? meta.timeSignature : "4/4");
+      setLyricsNotes(typeof meta.lyricsNotes === "string" ? meta.lyricsNotes : "");
+      setMasterVolume(typeof meta.masterVolume === "number" ? Math.min(1, Math.max(0, meta.masterVolume)) : 0.85);
+      setMasterSettings(parseProcessingSettings(meta.masterSettings) ?? { ...DEFAULT_TRACK_SETTINGS, compAmount: 0.3 });
+      setIsLooping(meta.isLooping === true);
+      const loadedLoopStart = typeof meta.loopStartSec === "number" && Number.isFinite(meta.loopStartSec)
+        ? Math.max(0, meta.loopStartSec)
+        : 0;
+      const loadedLoopEnd = typeof meta.loopEndSec === "number" && Number.isFinite(meta.loopEndSec)
+        ? Math.max(0, meta.loopEndSec)
+        : 8;
+      setLoopStartSec(loadedLoopStart);
+      setLoopEndSec(Math.max(loadedLoopStart + 0.5, loadedLoopEnd));
+      setPlayheadSec(0);
+      setStatusMsg(`Opened "${file.name}".`);
+    } catch (error) {
+      console.error("Could not open studio session:", error);
+      setStatusMsg(error instanceof Error ? `Could not open session: ${error.message}` : "Could not open this session file.");
+    }
+  };
+
+  const exportProject = async () => {
+    if (isExporting) return;
+    if (isRecording) {
+      setStatusMsg("Stop recording before exporting the mix.");
+      return;
+    }
+    setIsExporting(true);
+    setStatusMsg("Rendering WAV mixdown…");
+    try {
+      const blob = await engine.current.exportMasterWav(getProjectTracks(), projectDuration + 1, bpm, masterVolume, masterSettings);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `${projectName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "artistpilot-project"}.wav`;
+      anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+      setStatusMsg("WAV mixdown exported.");
+    } catch (error) {
+      console.error("Could not export studio mixdown:", error);
+      setStatusMsg(error instanceof Error ? `Could not export WAV: ${error.message}` : "Could not export the WAV mixdown.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const exportStems = async () => {
+    if (isExportingStems || isExporting) return;
+    if (isRecording) {
+      setStatusMsg("Stop recording before exporting stems.");
+      return;
+    }
+    const exportableTracks = getProjectTracks().filter((track) =>
+      track.regions.length > 0 || (track.midiNotes?.length ?? 0) > 0 || track.category === "drum"
+    );
+    if (exportableTracks.length === 0) {
+      setStatusMsg("Add audio or instrument content before exporting stems.");
+      return;
+    }
+    setIsExportingStems(true);
+    setStatusMsg(`Rendering ${exportableTracks.length} WAV stems…`);
+    try {
+      const duration = projectDuration + 1;
+      for (const [index, track] of exportableTracks.entries()) {
+        const stemTrack = { ...track, mute: false, solo: false };
+        const blob = await engine.current.exportMasterWav([stemTrack], duration, bpm, 1);
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = `${projectName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "artistpilot-project"}-${track.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || `track-${index + 1}`}.wav`;
+        anchor.click();
+        window.setTimeout(() => URL.revokeObjectURL(url), 10000);
+        await new Promise((resolve) => window.setTimeout(resolve, 150));
+      }
+      setStatusMsg(`Exported ${exportableTracks.length} unmastered WAV stems.`);
+    } catch (error) {
+      console.error("Could not export studio stems:", error);
+      setStatusMsg(error instanceof Error ? `Could not export stems: ${error.message}` : "Could not export stems.");
+    } finally {
+      setIsExportingStems(false);
+    }
+  };
+
+  const addMidiNote = (note: MidiNote) => {
+    const next = [...(trackNotes[selectedTrackId] ?? []), note];
+    setTrackNotes((prev) => ({ ...prev, [selectedTrackId]: next }));
+    setTracks((prev) => prev.map((track) => track.id === selectedTrackId ? { ...track, midiNotes: next } : track));
+  };
+
+  const deleteMidiNote = (noteId: string) => {
+    const next = (trackNotes[selectedTrackId] ?? []).filter((note) => note.id !== noteId);
+    setTrackNotes((prev) => ({ ...prev, [selectedTrackId]: next }));
+    setTracks((prev) => prev.map((track) => track.id === selectedTrackId ? { ...track, midiNotes: next } : track));
+  };
+
+  const updateMidiNotes = (next: MidiNote[]) => {
+    setTrackNotes((prev) => ({ ...prev, [selectedTrackId]: next }));
+    setTracks((prev) => prev.map((track) => track.id === selectedTrackId ? { ...track, midiNotes: next } : track));
+  };
+
+  const previewMidiNote = (pitch: number) => {
+    const ctx = engine.current.init();
+    const piano = PianoEngine.getInstance();
+    piano.noteOn(ctx, pitch, 100, undefined, engine.current.masterGain ?? undefined);
+    window.setTimeout(() => piano.noteOff(ctx, pitch), 250);
+  };
+
+  const handlePianoMidiNote = (pitch: number, velocity: number, isNoteOn: boolean) => {
+    if (selectedTrack?.category !== "midi") return;
+    const step = Math.max(0, Math.round(playheadSec / (60 / Math.max(1, bpm) / 4)));
+    if (isNoteOn) {
+      const id = `keyboard-${Date.now()}-${pitch}-${Math.random().toString(36).slice(2, 7)}`;
+      activeMidiInputNotes.current[pitch] = { id, startStep: step };
+      const note: MidiNote = { id, pitch, startStep: step, length: 1, velocity };
+      const next = [...(trackNotes[selectedTrack.id] ?? []), note];
+      setTrackNotes((prev) => ({ ...prev, [selectedTrack.id]: next }));
+      setTracks((prev) => prev.map((track) => track.id === selectedTrack.id ? { ...track, midiNotes: next } : track));
+    } else {
+      const active = activeMidiInputNotes.current[pitch];
+      if (!active) return;
+      delete activeMidiInputNotes.current[pitch];
+      const duration = Math.max(1, step - active.startStep);
+      const next = (trackNotes[selectedTrack.id] ?? []).map((note) =>
+        note.id === active.id ? { ...note, length: duration } : note
+      );
+      setTrackNotes((prev) => ({ ...prev, [selectedTrack.id]: next }));
+      setTracks((prev) => prev.map((track) => track.id === selectedTrack.id ? { ...track, midiNotes: next } : track));
+    }
+  };
+
+  const handleLaneDrop = (event: React.DragEvent<HTMLDivElement>, trackId: number) => {
+    event.preventDefault();
+    const droppedFile = event.dataTransfer.files[0];
+    if (droppedFile) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const at = Math.max(0, (event.clientX - rect.left + (timelineContainerRef.current?.scrollLeft ?? 0)) / pixelsPerSecond);
+      void handleImportFile(droppedFile, trackId, at);
+      return;
+    }
+    const sourceTrackId = Number(event.dataTransfer.getData("sourceTrackId"));
+    const regionId = event.dataTransfer.getData("regionId");
+    if (!Number.isFinite(sourceTrackId) || !regionId) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const at = Math.max(0, (event.clientX - rect.left + (timelineContainerRef.current?.scrollLeft ?? 0)) / pixelsPerSecond);
+    setTracks((prev) => {
+      const region = prev.find((track) => track.id === sourceTrackId)?.regions.find((item) => item.id === regionId);
+      if (!region) return prev;
+      return prev.map((track) => {
+        if (track.id === sourceTrackId && sourceTrackId !== trackId) {
+          return { ...track, regions: track.regions.filter((item) => item.id !== regionId) };
+        }
+        if (track.id === trackId) {
+          const existing = track.regions.filter((item) => item.id !== regionId);
+          return { ...track, regions: [...existing, { ...region, startTime: at }] };
+        }
+        return track;
+      });
+    });
+  };
+
   const selectedTrack = tracks.find((t) => t.id === selectedTrackId);
-  const totalBeats = (playheadSec * bpm) / 60;
-  const currentBar = Math.floor(totalBeats / 4) + 1;
-  const currentBeat = (Math.floor(totalBeats) % 4) + 1;
+  const [meterNumerator, meterDenominator] = timeSignature.split("/").map(Number);
+  const beatSeconds = (60 / bpm) * (4 / meterDenominator);
+  const totalBeats = playheadSec / beatSeconds;
+  const currentBar = Math.floor(totalBeats / meterNumerator) + 1;
+  const currentBeat = (Math.floor(totalBeats) % meterNumerator) + 1;
 
   // Format time as BandLab mm:ss.ms (e.g. 00:00.0)
   const formatTimecode = (sec: number) => {
@@ -550,15 +1332,56 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     const ms = Math.floor((sec % 1) * 10);
     return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}.${ms}`;
   };
+  const activeSettings = isMasterMode ? masterSettings : selectedTrack?.settings ?? DEFAULT_TRACK_SETTINGS;
+  const masterDb = masterVolume <= 0 ? "-∞" : (20 * Math.log10(masterVolume)).toFixed(1);
+  const barWidth = (meterNumerator * beatSeconds * pixelsPerSecond);
+  const timelineWidth = Math.max(3200, projectDuration * pixelsPerSecond + 200, barWidth * 64);
+  const barCount = Math.ceil(timelineWidth / barWidth);
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-[#0c0d0f] text-[#c5c7d0] font-sans select-none">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".artistpilot"
+        className="hidden"
+        onChange={(event) => {
+          void loadProject(event.target.files?.[0]);
+          event.currentTarget.value = "";
+        }}
+      />
+      <input
+        ref={soundInputRef}
+        type="file"
+        accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm"
+        className="hidden"
+        onChange={(event) => {
+          importSoundFile(event.target.files?.[0]);
+          event.currentTarget.value = "";
+        }}
+      />
       
       {/* 1. BANDLAB-STYLE MODERN TOP TRANSPORT BAR (Screenshot 1) */}
       <header className="flex h-13 flex-none items-center justify-between border-b border-[#1c1d22] bg-[#121316] px-4 shadow-md z-30">
         
         {/* Left: Brand / Project Name & Metronome */}
         <div className="flex items-center gap-3">
+          <div className="flex gap-1" data-history-version={historyVersion}>
+            <button
+              onClick={undoTrackChanges}
+              disabled={trackHistoryRef.current.undo.length === 0}
+              aria-label="Undo track change"
+              title={`Undo track change (${trackHistoryRef.current.undo.length} available)`}
+              className="h-7 w-7 rounded bg-[#20222a] text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-30"
+            >↶</button>
+            <button
+              onClick={redoTrackChanges}
+              disabled={trackHistoryRef.current.redo.length === 0}
+              aria-label="Redo track change"
+              title="Redo track change"
+              className="h-7 w-7 rounded bg-[#20222a] text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-30"
+            >↷</button>
+          </div>
           <button
             onClick={() => setDiscoverModalOpen(true)}
             className="flex h-8 items-center gap-1.5 rounded-lg bg-[#24262e] border border-zinc-700/80 px-3 text-xs font-bold text-white hover:border-red-500 hover:text-white transition shadow-sm"
@@ -573,6 +1396,8 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           />
 
           <div className="h-4 w-[1px] bg-zinc-800" />
+          <button onClick={() => void saveProject()} className="rounded bg-[#20222a] px-2 py-1 text-[10px] font-semibold text-zinc-200 hover:bg-zinc-700">Save</button>
+          <button onClick={() => fileInputRef.current?.click()} className="rounded bg-[#20222a] px-2 py-1 text-[10px] font-semibold text-zinc-200 hover:bg-zinc-700">Open</button>
 
           {/* Metronome & Count-In Pill */}
           <div className="flex items-center gap-1">
@@ -590,9 +1415,9 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               className={`h-7 px-2.5 rounded-lg text-[11px] font-bold transition ${
                 countInActive ? "bg-purple-600 text-white shadow" : "bg-[#1c1d24] text-zinc-500"
               }`}
-              title="4-Beat Count-In"
+              title={`${meterNumerator}-Beat Count-In`}
             >
-              1234
+              {Array.from({ length: meterNumerator }, (_, index) => index + 1).join("")}
             </button>
           </div>
         </div>
@@ -604,16 +1429,25 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             <input
               type="number"
               value={bpm}
-              onChange={(e) => setBpm(Number(e.target.value) || 120)}
+              min={30}
+              max={300}
+              onChange={(e) => setBpm(Math.min(300, Math.max(30, Number(e.target.value) || 120)))}
               className="w-8 bg-transparent text-xs font-bold text-white focus:outline-none"
             />
             <span className="text-[10px] text-zinc-500">bpm</span>
           </div>
 
           {/* 4 / 4 Time Signature */}
-          <div className="bg-[#1a1b22] px-2 py-1 rounded-lg border border-zinc-800 text-xs font-bold text-zinc-300">
-            4 / 4
-          </div>
+          <select
+            aria-label="Time signature"
+            value={timeSignature}
+            onChange={(event) => setTimeSignature(event.target.value as typeof timeSignature)}
+            className="bg-[#1a1b22] px-2 py-1 rounded-lg border border-zinc-800 text-xs font-bold text-zinc-300"
+          >
+            <option value="3/4">3 / 4</option>
+            <option value="4/4">4 / 4</option>
+            <option value="6/8">6 / 8</option>
+          </select>
 
           {/* Key Pill (e.g. D♭ maj) */}
           <div className="flex items-center gap-1 bg-[#1a1b22] px-2.5 py-1 rounded-lg border border-zinc-800 text-xs">
@@ -676,8 +1510,9 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           </div>
 
           {/* Timecode Clock (e.g. 00:00.0) */}
-          <div className="bg-[#1a1b22] px-3 py-1 rounded-lg border border-zinc-800 text-xs font-mono font-bold text-zinc-200">
-            {formatTimecode(playheadSec)}
+          <div className="flex items-center gap-2 bg-[#1a1b22] px-3 py-1 rounded-lg border border-zinc-800 text-xs font-mono font-bold text-zinc-200">
+            <span>{formatTimecode(playheadSec)}</span>
+            <span className="text-[9px] text-zinc-500">BAR {currentBar} · BEAT {currentBeat}</span>
           </div>
         </div>
 
@@ -694,15 +1529,45 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               onChange={(e) => setMasterVolume(Number(e.target.value))}
               className="w-20 accent-sky-400 h-1 bg-zinc-800 rounded cursor-pointer"
             />
-            <span className="text-[10px] font-mono text-zinc-400">+0.0 dB</span>
+            <span className="w-10 text-[10px] font-mono text-zinc-400">{masterDb} dB</span>
           </div>
 
-          <button
-            onClick={() => setStatusMsg("Exporting master WAV mixdown...")}
-            className="h-8 rounded-lg bg-gradient-to-r from-red-500 to-rose-600 px-3.5 text-xs font-bold text-white shadow hover:brightness-110 active:scale-95 transition"
+          <select
+            aria-label="Mastering preset"
+            value={masterPreset}
+            onChange={(event) => {
+              const preset = event.target.value as typeof masterPreset;
+              if (preset === "custom") {
+                setMasterSettings({ ...DEFAULT_TRACK_SETTINGS, compAmount: 0.3 });
+                setMasterPreset("custom");
+              } else {
+                applyMasterPreset(preset);
+              }
+            }}
+            className="h-8 rounded-lg border border-zinc-700 bg-[#20222a] px-2 text-[10px] font-semibold text-zinc-200"
           >
-            Publish / Export
-          </button>
+            <option value="custom">Mastering</option>
+            <option value="warm">Warm</option>
+            <option value="clear">Clear</option>
+            <option value="loud">Loud</option>
+          </select>
+
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => void exportProject()}
+              disabled={isExporting || isExportingStems}
+              className="h-8 rounded-lg bg-gradient-to-r from-red-500 to-rose-600 px-3.5 text-xs font-bold text-white shadow hover:brightness-110 active:scale-95 transition disabled:cursor-wait disabled:opacity-60"
+            >
+              {isExporting ? "Rendering…" : "Export Mix"}
+            </button>
+            <button
+              onClick={() => void exportStems()}
+              disabled={isExporting || isExportingStems}
+              className="h-8 rounded-lg border border-zinc-700 bg-[#20222a] px-2.5 text-[10px] font-semibold text-zinc-200 hover:bg-zinc-700 disabled:cursor-wait disabled:opacity-60"
+            >
+              {isExportingStems ? "Stems…" : "Stems"}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -719,6 +1584,70 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         <div className="w-64 flex-none border-r border-[#1a1b20] bg-[#121316] flex flex-col z-10 shadow-lg">
           <div className="h-7 border-b border-[#1a1b20] px-3 flex items-center justify-between font-bold text-zinc-400 text-[10px]">
             <span>TRACKS ({tracks.length})</span>
+            <div className="flex items-center gap-1 font-normal">
+              <button
+                onClick={applyAutoMix}
+                className="rounded bg-sky-900/40 px-1.5 py-0.5 text-[9px] text-sky-300 hover:bg-sky-800/60"
+                title="Apply a balanced local starting mix"
+              >
+                Auto Mix
+              </button>
+              <button
+                onClick={() => setIsSnapEnabled((enabled) => !enabled)}
+                aria-pressed={isSnapEnabled}
+                title="Snap clips to the beat grid"
+                className={`rounded px-1.5 py-0.5 text-[9px] ${isSnapEnabled ? "bg-amber-500/20 text-amber-300" : "text-zinc-500 hover:text-white"}`}
+              >
+                Snap {isSnapEnabled ? "On" : "Off"}
+              </button>
+              <select
+                aria-label="Quantize grid"
+                value={quantizeGridSteps}
+                onChange={(event) => setQuantizeGridSteps(Number(event.target.value))}
+                className="rounded border border-zinc-700 bg-[#17181f] px-1 py-0.5 text-[9px] text-zinc-300"
+              >
+                <option value={1}>1/16</option>
+                <option value={2}>1/8</option>
+              </select>
+              <button
+                onClick={() => quantizeTrackRegions(selectedTrackId)}
+                disabled={!selectedTrack?.regions.length}
+                className="rounded bg-violet-900/40 px-1.5 py-0.5 text-[9px] text-violet-300 hover:bg-violet-800/60 disabled:opacity-30"
+                title="Align selected track audio regions to the quantize grid"
+              >
+                Align
+              </button>
+              <button
+                onClick={() => joinAdjacentRegions(selectedTrackId)}
+                disabled={!selectedTrack?.regions || selectedTrack.regions.length < 2}
+                className="rounded bg-emerald-900/40 px-1.5 py-0.5 text-[9px] text-emerald-300 hover:bg-emerald-800/60 disabled:opacity-30"
+                title="Join the first adjacent audio clips on the selected track"
+              >
+                Join
+              </button>
+              <button
+                onClick={() => setIsAutomationMode((active) => !active)}
+                aria-pressed={isAutomationMode}
+                className={`rounded px-1.5 py-0.5 text-[9px] ${isAutomationMode ? "bg-fuchsia-500/20 text-fuchsia-300" : "text-zinc-500 hover:text-white"}`}
+              >
+                Automation
+              </button>
+              {isAutomationMode && (
+                <select
+                  aria-label="Automation parameter"
+                  value={automationParameter}
+                  onChange={(event) => setAutomationParameter(event.target.value as typeof automationParameter)}
+                  className="rounded border border-zinc-700 bg-[#17181f] px-1 py-0.5 text-[9px] text-zinc-300"
+                >
+                  <option value="volume">Volume</option>
+                  <option value="pan">Pan</option>
+                  <option value="reverbSend">Reverb</option>
+                </select>
+              )}
+              <button onClick={() => setPixelsPerSecond((value) => Math.max(25, value - 5))} aria-label="Zoom out" className="rounded px-1 text-sm hover:bg-zinc-800">−</button>
+              <span>{pixelsPerSecond}px/s</span>
+              <button onClick={() => setPixelsPerSecond((value) => Math.min(100, value + 5))} aria-label="Zoom in" className="rounded px-1 text-sm hover:bg-zinc-800">+</button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto divide-y divide-[#171820]">
@@ -779,6 +1708,16 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                     >
                       M
                     </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, solo: !t.solo } : t));
+                      }}
+                      className={`px-1.5 py-0.5 rounded ${track.solo ? "bg-amber-500 text-black" : "bg-[#1c1e26] text-zinc-400"}`}
+                      title="Solo track"
+                    >
+                      S
+                    </button>
                   </div>
                   <input
                     type="range"
@@ -790,6 +1729,16 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                     className="w-20 accent-sky-400 h-1 bg-zinc-800 rounded"
                   />
                 </div>
+                <input
+                  type="range"
+                  min={-1}
+                  max={1}
+                  step={0.05}
+                  value={track.pan}
+                  aria-label={`${track.name} pan`}
+                  onChange={(e) => setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, pan: Number(e.target.value) } : t))}
+                  className="h-1 w-full accent-violet-400"
+                />
               </div>
             ))}
           </div>
@@ -811,8 +1760,9 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               const newSec = Math.max(0, (e.clientX - rect.left + scrollLeft) / pixelsPerSecond);
               setPlayheadSec(newSec);
               playheadAnchor.current = newSec;
+              scrubPosition.current = newSec;
             }}
-            style={{ width: "3200px" }}
+            style={{ width: `${timelineWidth}px` }}
             className="h-7 border-b border-[#1b1c22] bg-[#121316] relative cursor-ew-resize flex-none"
           >
             {/* Draggable Loop Range with Drag Brackets */}
@@ -846,8 +1796,8 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               </div>
             )}
 
-            {Array.from({ length: 64 }, (_, i) => (
-              <div key={i} style={{ left: `${(i * 4 * 60 * pixelsPerSecond) / bpm}px` }} className="absolute flex items-center gap-2 text-zinc-500 top-1 text-[9px] font-mono pointer-events-none">
+            {Array.from({ length: barCount }, (_, i) => (
+              <div key={i} style={{ left: `${i * barWidth}px` }} className="absolute flex items-center gap-2 text-zinc-500 top-1 text-[9px] font-mono pointer-events-none">
                 <span>{i + 1}</span>
                 <div className="h-3 w-[1px] bg-zinc-800" />
               </div>
@@ -855,13 +1805,20 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           </div>
 
           {/* Arranger Track Lanes */}
-          <div style={{ width: "3200px" }} className="flex-1 relative divide-y divide-[#171820]">
+          <div style={{ width: `${timelineWidth}px` }} className="flex-1 relative divide-y divide-[#171820]">
             
             {/* Gold Playhead Line */}
             <div
               onMouseDown={(e) => {
                 e.stopPropagation();
                 setIsScrubbing(true);
+                const rect = timelineContainerRef.current?.getBoundingClientRect();
+                if (rect) {
+                  const newSec = Math.max(0, (e.clientX - rect.left + timelineContainerRef.current!.scrollLeft) / pixelsPerSecond);
+                  setPlayheadSec(newSec);
+                  playheadAnchor.current = newSec;
+                  scrubPosition.current = newSec;
+                }
               }}
               style={{ left: `${playheadSec * pixelsPerSecond}px` }}
               className="absolute top-0 bottom-0 w-[2px] bg-[#d4af37] z-40 cursor-ew-resize shadow-[0_0_8px_#d4af37]"
@@ -873,10 +1830,51 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               <div
                 key={track.id}
                 onClick={() => setSelectedTrackId(track.id)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => handleLaneDrop(event, track.id)}
                 className={`h-20 relative flex items-center transition ${
                   selectedTrackId === track.id ? "bg-[#14151c]" : "bg-[#0c0d0f]"
                 }`}
               >
+                {isAutomationMode && (
+                  <svg
+                    viewBox={`0 0 ${timelineWidth} 80`}
+                    preserveAspectRatio="none"
+                    className="absolute inset-0 z-30 h-full w-full cursor-crosshair"
+                    onClick={(event) => {
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      const time = Math.max(0, (event.clientX - rect.left) / pixelsPerSecond);
+                      const normalizedValue = 1 - (event.clientY - rect.top) / rect.height;
+                      addAutomationPoint(track.id, time, Math.max(0, Math.min(1, normalizedValue)));
+                    }}
+                    onDoubleClick={(event) => {
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      removeNearestAutomationPoint(track.id, (event.clientX - rect.left) / pixelsPerSecond);
+                    }}
+                    aria-label={`${automationParameter} automation for ${track.name}. Click to add a point, double-click near a point to remove it.`}
+                  >
+                    <polyline
+                      points={(track.automation?.[automationParameter] ?? [])
+                        .map((point) => `${point.time * pixelsPerSecond},${(automationParameter === "pan" ? (1 - (point.value + 1) / 2) : 1 - point.value) * 80}`)
+                        .join(" ")}
+                      fill="none"
+                      stroke="#e879f9"
+                      strokeWidth="2"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    {(track.automation?.[automationParameter] ?? []).map((point) => (
+                      <circle
+                        key={point.id}
+                        cx={point.time * pixelsPerSecond}
+                        cy={(automationParameter === "pan" ? (1 - (point.value + 1) / 2) : 1 - point.value) * 80}
+                        r="4"
+                        fill="#f0abfc"
+                        stroke="#701a75"
+                        strokeWidth="1"
+                      />
+                    ))}
+                  </svg>
+                )}
                 {/* Live Recording Oscilloscope Waveform */}
                 {isRecording && track.armed && track.category === "audio" && (
                   <div
@@ -886,7 +1884,17 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                     }}
                     className="absolute top-1 bottom-1 bg-red-950/80 border border-red-500 rounded z-30 overflow-hidden flex items-center"
                   >
-                    <canvas ref={liveCanvasRef} width={400} height={70} className="h-full w-full" />
+                    <canvas
+                      ref={(canvas) => {
+                        if (canvas) liveCanvasRefs.current.set(track.id, canvas);
+                        else liveCanvasRefs.current.delete(track.id);
+                      }}
+                      width={400}
+                      height={70}
+                      data-track-id={track.id}
+                      aria-label={`Live recording waveform for ${track.name}`}
+                      className="h-full w-full"
+                    />
                   </div>
                 )}
 
@@ -904,10 +1912,15 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                     pixelsPerSecond={pixelsPerSecond}
                     trackColor={track.color}
                     trackId={track.id}
+                    snapIntervalSec={isSnapEnabled ? (60 / bpm / 4) * quantizeGridSteps : undefined}
                     onCopy={(reg) => setCopiedClip(reg)}
-                    onUpdate={() => {}}
-                    onSplit={() => {}}
-                    onDelete={() => {}}
+                    onLoop={() => repeatClipToLoopEnd(track.id, region.id)}
+                    onReverse={() => reverseClip(track.id, region.id)}
+                    onUpdate={(updated) => updateClip(track.id, region.id, updated)}
+                    onSplit={(at) => splitClip(track.id, region.id, at)}
+                    onDelete={() => setTracks((prev) => prev.map((item) => item.id === track.id
+                      ? { ...item, regions: item.regions.filter((regionToDelete) => regionToDelete.id !== region.id) }
+                      : item))}
                   />
                 ))}
               </div>
@@ -919,7 +1932,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
 
       {/* 3. DOCKABLE BOTTOM BAR (BandLab Style Pill Dock) */}
       <footer className="h-10 flex-none border-t border-[#1c1d22] bg-[#121316] px-4 flex items-center justify-between z-20">
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
           <button
             onClick={() => setSmartControlsOpen(!smartControlsOpen)}
             className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
@@ -937,6 +1950,32 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           </button>
 
           <button
+            onClick={() => {
+              if (selectedTrack?.category !== "midi") {
+                setStatusMsg("Select an Instruments track to edit MIDI notes.");
+                return;
+              }
+              setPianoRollOpen(true);
+            }}
+            className="px-3 py-1 rounded-full text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
+          >
+            Piano Roll
+          </button>
+
+          <button
+            onClick={() => {
+              if (selectedTrack?.category !== "drum") {
+                setStatusMsg("Select a Drum Machine track to edit its pattern.");
+                return;
+              }
+              setDrumEditorOpen(true);
+            }}
+            className="px-3 py-1 rounded-full text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
+          >
+            Drum Pattern
+          </button>
+
+          <button
             onClick={() => toggleModal("amp")}
             className="px-3 py-1 rounded-full text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
           >
@@ -944,7 +1983,10 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           </button>
 
           <button
-            onClick={() => toggleModal("ai")}
+            onClick={() => {
+              setAiFeature("coach");
+              toggleModal("ai");
+            }}
             className="px-3 py-1 rounded-full text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
           >
             ✨ AI Assistant
@@ -956,12 +1998,83 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           >
             🎙️ Audio Inputs ({activeInputLabel})
           </button>
+          <button
+            onClick={() => setActiveUtility("notes")}
+            className="whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
+          >
+            Lyrics / Notes
+          </button>
+          <button
+            onClick={() => soundInputRef.current?.click()}
+            className="whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
+          >
+            Sound Browser
+          </button>
+          <button
+            onClick={openBeats}
+            className="whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
+          >
+            Beats
+          </button>
+          <button
+            onClick={() => setTunerOpen(true)}
+            className="whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
+          >
+            Tuner
+          </button>
+          <button
+            onClick={() => setActiveUtility("shortcuts")}
+            className="whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
+          >
+            Shortcuts
+          </button>
         </div>
 
         <div className="text-[11px] font-mono text-zinc-500">
           ArtistPilot Pro Studio v2.0
         </div>
       </footer>
+
+      {activeUtility && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label={activeUtility === "notes" ? "Lyrics and notes" : "Keyboard shortcuts"}
+            className="w-full max-w-xl rounded-xl border border-zinc-700 bg-[#17191f] p-5 shadow-2xl"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-bold text-white">
+                {activeUtility === "notes" ? "Lyrics / Notes" : "Studio Shortcuts"}
+              </h2>
+              <button onClick={() => setActiveUtility(null)} aria-label="Close" className="px-2 text-zinc-400 hover:text-white">✕</button>
+            </div>
+            {activeUtility === "notes" ? (
+              <textarea
+                value={lyricsNotes}
+                onChange={(event) => setLyricsNotes(event.target.value)}
+                placeholder="Write lyrics, song ideas, or session notes..."
+                className="h-64 w-full resize-y rounded-lg border border-zinc-700 bg-[#0c0d0f] p-3 text-sm text-zinc-200 outline-none focus:border-sky-500"
+              />
+            ) : (
+              <dl className="grid grid-cols-[1fr_auto] gap-x-8 gap-y-2 text-sm">
+                <dt>Play / pause</dt><dd className="font-mono text-sky-300">Space</dd>
+                <dt>Record</dt><dd className="font-mono text-sky-300">R</dd>
+                <dt>Toggle loop</dt><dd className="font-mono text-sky-300">C</dd>
+                <dt>Return to start</dt><dd className="font-mono text-sky-300">Enter</dd>
+                <dt>Copy / paste clip</dt><dd className="font-mono text-sky-300">⌘/Ctrl+C, ⌘/Ctrl+V</dd>
+                <dt>Split clip at playhead</dt><dd className="font-mono text-sky-300">⌘/Ctrl+T</dd>
+                <dt>Delete clip under playhead</dt><dd className="font-mono text-sky-300">Delete</dd>
+              </dl>
+            )}
+            <div className="mt-4 flex justify-end">
+              <button onClick={() => setActiveUtility(null)} className="rounded-lg bg-sky-700 px-4 py-2 text-xs font-bold text-white hover:bg-sky-600">
+                Done
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {/* 4. BOTTOM SMART DYNAMICS & EQ CONSOLE (When Controls is open) */}
       {smartControlsOpen && (
@@ -971,12 +2084,28 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           onToggleMasterMode={(isMaster) => setIsMasterMode(isMaster)}
           devices={devices}
           activeDeviceId={selectedTrack?.inputDevice || activeInputId}
-          onSelectDevice={(devId) => setActiveInputId(devId)}
+          onSelectDevice={(devId) => {
+            setActiveInputId(devId);
+            const input = devices.find((device) => device.deviceId === devId);
+            setActiveInputLabel(input?.label ?? "System Default Input");
+            if (selectedTrack) {
+              setTracks((prev) => prev.map((track) => track.id === selectedTrack.id ? { ...track, inputDevice: devId } : track));
+            }
+          }}
           isMonitoring={monitoringEnabled}
-          onToggleMonitoring={() => setMonitoringEnabled(!monitoringEnabled)}
-          currentSettings={selectedTrack?.settings ?? DEFAULT_TRACK_SETTINGS}
+          onToggleMonitoring={() => {
+            const enabled = !monitoringEnabled;
+            setMonitoringEnabled(enabled);
+            const ctx = engine.current.ctx;
+            if (ctx) deviceManager.current.setMonitoring(ctx, enabled);
+          }}
+          currentSettings={activeSettings}
           onUpdateSettings={(updated) => {
-            setTracks((ts) => ts.map((t) => t.id === selectedTrackId ? { ...t, settings: updated } : t));
+            if (isMasterMode) {
+              setMasterSettings(updated);
+              setMasterPreset("custom");
+            }
+            else setTracks((ts) => ts.map((t) => t.id === selectedTrackId ? { ...t, settings: updated } : t));
           }}
           onOpenAdvancedEq={() => toggleModal("eq")}
           onClosePanel={() => setSmartControlsOpen(false)}
@@ -988,26 +2117,77 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         isOpen={discoverModalOpen}
         onClose={() => setDiscoverModalOpen(false)}
         onSelectTrackType={handleAddTrackType}
-        onOpenAiSongStarter={() => toggleModal("ai")}
+        onOpenAiSongStarter={(feature) => {
+          setAiFeature(feature);
+          setWindowState((prev) => ({ ...prev, ai: { ...prev.ai, open: true } }));
+        }}
       />
 
       <PianoStudioModal
         isOpen={windowState.piano.open}
         onClose={() => toggleModal("piano")}
         ctx={engine.current.init()}
+        outputNode={engine.current.masterGain ?? undefined}
         trackName={selectedTrack?.name ?? "Grand Piano"}
+        onRecordMidiNote={handlePianoMidiNote}
       />
+
+      {pianoRollOpen && selectedTrack && (
+        <div className="fixed inset-8 z-50 overflow-hidden rounded-xl border border-zinc-700 bg-[#14151a] shadow-2xl">
+          <PianoRoll
+            notes={trackNotes[selectedTrack.id] ?? selectedTrack.midiNotes ?? []}
+            instrumentName={selectedTrack.name}
+            projectKey={projectKey}
+            scale={projectScale}
+            onAddNote={addMidiNote}
+            onDeleteNote={deleteMidiNote}
+            onPreviewNote={previewMidiNote}
+            onUpdateNotes={updateMidiNotes}
+          />
+          <button
+            onClick={() => setPianoRollOpen(false)}
+            className="absolute right-3 top-1 z-10 rounded px-2 py-1 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-white"
+            aria-label="Close piano roll"
+          >
+            Close ✕
+          </button>
+        </div>
+      )}
+
+      <DrumPatternEditor
+        isOpen={drumEditorOpen}
+        pattern={selectedTrack?.drumPattern ?? DEFAULT_DRUM_PATTERN}
+        onChange={(pattern) => setTracks((prev) => prev.map((track) => track.id === selectedTrackId ? { ...track, drumPattern: pattern } : track))}
+        onClose={() => setDrumEditorOpen(false)}
+      />
+
+      <ChromaticTuner isOpen={tunerOpen} onClose={() => setTunerOpen(false)} />
 
       <AudioSettingsModal
         isOpen={audioSettingsOpen}
         onClose={() => setAudioSettingsOpen(false)}
         ctx={engine.current.ctx}
         activeInputDeviceName={activeInputLabel}
+        activeInputDeviceId={selectedTrack?.inputDevice || activeInputId}
+        activeOutputDeviceId={activeOutputId}
         onSelectInputDevice={(devId, label) => {
           setActiveInputId(devId);
           setActiveInputLabel(label);
+          if (selectedTrack) {
+            setTracks((prev) => prev.map((track) => track.id === selectedTrack.id ? { ...track, inputDevice: devId } : track));
+          }
         }}
-        onSelectOutputDevice={() => {}}
+        onSelectOutputDevice={async (devId) => {
+          const ctx = engine.current.init();
+          const routed = await deviceManager.current.setOutputDevice(ctx, devId);
+          if (routed) {
+            setActiveOutputId(devId);
+            setStatusMsg("Audio output changed.");
+          } else {
+            setStatusMsg("This browser does not support selecting an audio output device.");
+          }
+          return routed;
+        }}
         isMonitoring={monitoringEnabled}
         onToggleMonitoring={(en) => setMonitoringEnabled(en)}
       />
@@ -1016,12 +2196,21 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         isOpen={windowState.eq.open}
         onClose={() => toggleModal("eq")}
         trackName={selectedTrack?.name ?? "Track"}
+        settings={activeSettings}
+        onSettingsChange={(updated) => {
+          if (isMasterMode) setMasterSettings(updated);
+          else setTracks((prev) => prev.map((track) => track.id === selectedTrackId ? { ...track, settings: updated } : track));
+        }}
       />
 
       <GuitarAmpModal
         isOpen={windowState.amp.open}
         onClose={() => toggleModal("amp")}
         trackName={selectedTrack?.name ?? "Guitar Track"}
+        settings={selectedTrack?.ampSettings ?? DEFAULT_AMP_SETTINGS}
+        enabled={selectedTrack?.ampEnabled ?? false}
+        onSettingsChange={(settings) => setTracks((prev) => prev.map((track) => track.id === selectedTrackId ? { ...track, ampSettings: settings } : track))}
+        onToggleEnabled={() => setTracks((prev) => prev.map((track) => track.id === selectedTrackId ? { ...track, ampEnabled: !track.ampEnabled } : track))}
       />
 
       <AiCoachModal
@@ -1029,6 +2218,12 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         onClose={() => toggleModal("ai")}
         currentKey={projectKey}
         bpm={bpm}
+        instrument={selectedTrack?.instrument ?? "general"}
+        scale={projectScale}
+        initialTab={aiFeature === "palette" ? "theory" : "coach"}
+        initialQuestion={aiFeature === "songstarter"
+          ? "Suggest a few original chord progression options for this project and explain one small way I can develop each."
+          : undefined}
       />
 
     </div>

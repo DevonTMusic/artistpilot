@@ -1,20 +1,17 @@
 // components/daw/ChannelEqModal.tsx
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
+import { ProcessingSettings } from "@/lib/daw/TrackProcessor";
 
 interface ChannelEqModalProps {
   isOpen: boolean;
   onClose: () => void;
   trackName: string;
+  settings: ProcessingSettings;
+  onSettingsChange: (settings: ProcessingSettings) => void;
 }
 
-export function ChannelEqModal({ isOpen, onClose, trackName }: ChannelEqModalProps) {
-  const [lowGain, setLowGain] = useState(0);    // -12 to +12 dB (Bass)
-  const [midFreq, setMidFreq] = useState(1000);  // 200Hz to 5000Hz
-  const [midGain, setMidGain] = useState(2);    // -12 to +12 dB
-  const [highGain, setHighGain] = useState(1.5); // -12 to +12 dB (Treble)
-  const [lowCut, setLowCut] = useState(true);   // 80Hz High-pass filter
-
+export function ChannelEqModal({ isOpen, onClose, trackName, settings, onSettingsChange }: ChannelEqModalProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Draw authentic GarageBand EQ frequency curve
@@ -57,18 +54,18 @@ export function ChannelEqModal({ isOpen, onClose, trackName }: ChannelEqModalPro
     ctx.strokeStyle = "#38bdf8"; // Cyan EQ Curve
     ctx.beginPath();
 
-    const midX = (Math.log10(midFreq / 100) / Math.log10(100)) * cv.width;
+    const midX = (Math.log10(settings.midFreq / 100) / Math.log10(100)) * cv.width;
 
     for (let x = 0; x < cv.width; x++) {
       let y = cv.height / 2;
 
       // Low Shelf influence
       if (x < 120) {
-        y -= (lowGain * 2) * (1 - x / 120);
+        y -= (settings.lowGain * 2) * (1 - x / 120);
       }
 
       // High-Pass Filter roll off
-      if (lowCut && x < 60) {
+      if (settings.lowCut && x < 60) {
         y += Math.pow((60 - x) / 60, 2) * 50;
       }
 
@@ -76,13 +73,13 @@ export function ChannelEqModal({ isOpen, onClose, trackName }: ChannelEqModalPro
       const dist = Math.abs(x - midX);
       if (dist < 80) {
         const bell = Math.cos((dist / 80) * (Math.PI / 2));
-        y -= (midGain * 2.5) * bell;
+        y -= (settings.midGain * 2.5) * bell;
       }
 
       // High Shelf influence
       if (x > cv.width - 140) {
         const factor = (x - (cv.width - 140)) / 140;
-        y -= (highGain * 2) * factor;
+        y -= (settings.highGain * 2) * factor;
       }
 
       if (x === 0) ctx.moveTo(x, y);
@@ -99,7 +96,7 @@ export function ChannelEqModal({ isOpen, onClose, trackName }: ChannelEqModalPro
     grad.addColorStop(1, "rgba(56, 189, 248, 0.0)");
     ctx.fillStyle = grad;
     ctx.fill();
-  }, [isOpen, lowGain, midFreq, midGain, highGain, lowCut]);
+  }, [isOpen, settings]);
 
   if (!isOpen) return null;
 
@@ -111,6 +108,15 @@ export function ChannelEqModal({ isOpen, onClose, trackName }: ChannelEqModalPro
         <span className="text-xs font-bold text-white flex items-center gap-1.5">
           🎛️ 4-Band Visual Channel EQ <span className="text-sky-400 font-semibold">({trackName})</span>
         </span>
+        <label className="mr-auto ml-4 flex items-center gap-1.5 text-[10px] text-zinc-300">
+          <input
+            type="checkbox"
+            checked={settings.eqEnabled}
+            onChange={(e) => onSettingsChange({ ...settings, eqEnabled: e.target.checked })}
+            className="accent-sky-500"
+          />
+          EQ enabled
+        </label>
         <button onClick={onClose} className="text-xs text-zinc-400 hover:text-white font-bold">✕</button>
       </div>
 
@@ -131,14 +137,14 @@ export function ChannelEqModal({ isOpen, onClose, trackName }: ChannelEqModalPro
               type="range"
               min={-12}
               max={12}
-              value={lowGain}
-              onChange={(e) => setLowGain(Number(e.target.value))}
+              value={settings.lowGain}
+              onChange={(e) => onSettingsChange({ ...settings, lowGain: Number(e.target.value) })}
               className="w-20 accent-sky-400 h-1 bg-zinc-800 rounded cursor-pointer"
             />
-            <span className="text-[10px] font-mono text-white mt-1">{lowGain > 0 ? `+${lowGain}` : lowGain} dB</span>
+            <span className="text-[10px] font-mono text-white mt-1">{settings.lowGain > 0 ? `+${settings.lowGain}` : settings.lowGain} dB</span>
             <button
-              onClick={() => setLowCut(!lowCut)}
-              className={`mt-1.5 px-2 py-0.5 rounded text-[8px] font-bold ${lowCut ? "bg-sky-500 text-black" : "bg-zinc-800 text-zinc-500"}`}
+              onClick={() => onSettingsChange({ ...settings, lowCut: !settings.lowCut })}
+              className={`mt-1.5 px-2 py-0.5 rounded text-[8px] font-bold ${settings.lowCut ? "bg-sky-500 text-black" : "bg-zinc-800 text-zinc-500"}`}
             >
               80Hz HPF
             </button>
@@ -152,11 +158,11 @@ export function ChannelEqModal({ isOpen, onClose, trackName }: ChannelEqModalPro
               min={250}
               max={4000}
               step={50}
-              value={midFreq}
-              onChange={(e) => setMidFreq(Number(e.target.value))}
+              value={settings.midFreq}
+              onChange={(e) => onSettingsChange({ ...settings, midFreq: Number(e.target.value) })}
               className="w-20 accent-sky-400 h-1 bg-zinc-800 rounded cursor-pointer"
             />
-            <span className="text-[10px] font-mono text-white mt-1">{midFreq} Hz</span>
+            <span className="text-[10px] font-mono text-white mt-1">{settings.midFreq} Hz</span>
           </div>
 
           {/* Mid Gain */}
@@ -166,11 +172,11 @@ export function ChannelEqModal({ isOpen, onClose, trackName }: ChannelEqModalPro
               type="range"
               min={-12}
               max={12}
-              value={midGain}
-              onChange={(e) => setMidGain(Number(e.target.value))}
+              value={settings.midGain}
+              onChange={(e) => onSettingsChange({ ...settings, midGain: Number(e.target.value) })}
               className="w-20 accent-sky-400 h-1 bg-zinc-800 rounded cursor-pointer"
             />
-            <span className="text-[10px] font-mono text-white mt-1">{midGain > 0 ? `+${midGain}` : midGain} dB</span>
+            <span className="text-[10px] font-mono text-white mt-1">{settings.midGain > 0 ? `+${settings.midGain}` : settings.midGain} dB</span>
           </div>
 
           {/* High Shelf */}
@@ -180,11 +186,11 @@ export function ChannelEqModal({ isOpen, onClose, trackName }: ChannelEqModalPro
               type="range"
               min={-12}
               max={12}
-              value={highGain}
-              onChange={(e) => setHighGain(Number(e.target.value))}
+              value={settings.highGain}
+              onChange={(e) => onSettingsChange({ ...settings, highGain: Number(e.target.value) })}
               className="w-20 accent-sky-400 h-1 bg-zinc-800 rounded cursor-pointer"
             />
-            <span className="text-[10px] font-mono text-white mt-1">{highGain > 0 ? `+${highGain}` : highGain} dB</span>
+            <span className="text-[10px] font-mono text-white mt-1">{settings.highGain > 0 ? `+${settings.highGain}` : settings.highGain} dB</span>
           </div>
 
         </div>

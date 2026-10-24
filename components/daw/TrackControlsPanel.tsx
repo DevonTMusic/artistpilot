@@ -1,13 +1,14 @@
 // components/daw/TrackControlsPanel.tsx
 "use client";
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { ProcessingSettings } from "@/lib/daw/TrackProcessor";
+import { DeviceInfo } from "@/lib/daw/AudioDeviceManager";
 
 interface TrackControlsPanelProps {
   trackName: string;
   isMasterMode: boolean;
   onToggleMasterMode: (isMaster: boolean) => void;
-  devices: any[];
+  devices: DeviceInfo[];
   activeDeviceId: string;
   onSelectDevice: (deviceId: string) => void;
   isMonitoring: boolean;
@@ -107,6 +108,12 @@ export function TrackControlsPanel({
   const [snapshotA, setSnapshotA] = useState<ProcessingSettings>(currentSettings);
   const [snapshotB, setSnapshotB] = useState<ProcessingSettings>(currentSettings);
   const [activeTab, setActiveTab] = useState<"controls" | "eq">("controls");
+
+  useEffect(() => {
+    setSnapshotA(currentSettings);
+    setSnapshotB(currentSettings);
+    setActiveSnapshot("A");
+  }, [trackName, isMasterMode]);
 
   const updateProp = <K extends keyof ProcessingSettings>(key: K, val: ProcessingSettings[K]) => {
     const updated = { ...currentSettings, [key]: val };
@@ -229,7 +236,7 @@ export function TrackControlsPanel({
                 onChange={(e) => onSelectDevice(e.target.value)}
                 className="w-full bg-[#18191f] border border-zinc-700 text-[11px] text-white rounded p-1 focus:outline-none"
               >
-                <option value="default">1 (Scarlett Solo USB)</option>
+                <option value="default">System Default Input</option>
                 {devices.map((d) => (
                   <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
                 ))}
@@ -251,6 +258,15 @@ export function TrackControlsPanel({
 
             {/* Noise Gate section */}
             <div className="pt-2 border-t border-zinc-800">
+              <label className="mb-2 flex items-center gap-1.5 text-[10px] text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={currentSettings.compEnabled}
+                  onChange={(e) => updateProp("compEnabled", e.target.checked)}
+                  className="accent-sky-500"
+                />
+                Compressor enabled
+              </label>
               <div className="flex justify-between items-center text-[10px] mb-1">
                 <label className="flex items-center gap-1.5 text-zinc-300 cursor-pointer">
                   <input

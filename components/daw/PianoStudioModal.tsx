@@ -8,7 +8,8 @@ interface PianoStudioModalProps {
   onClose: () => void;
   ctx: AudioContext;
   trackName: string;
-  onRecordMidiNote?: (pitch: number, velocity: number) => void;
+  outputNode?: AudioNode;
+  onRecordMidiNote?: (pitch: number, velocity: number, isNoteOn: boolean) => void;
 }
 
 const PIANO_PRESETS: { name: PianoPresetType; desc: string; icon: string }[] = [
@@ -32,6 +33,7 @@ export function PianoStudioModal({
   onClose,
   ctx,
   trackName,
+  outputNode,
   onRecordMidiNote,
 }: PianoStudioModalProps) {
   const engine = useRef<PianoEngine>(PianoEngine.getInstance());
@@ -55,19 +57,20 @@ export function PianoStudioModal({
   });
 
   const triggerNoteOn = useCallback((pitch: number) => {
-    engine.current.noteOn(ctx, pitch, velocity, selectedPreset);
+    engine.current.noteOn(ctx, pitch, velocity, selectedPreset, outputNode);
     setActivePitches((prev) => new Set(prev).add(pitch));
-    if (onRecordMidiNote) onRecordMidiNote(pitch, velocity);
-  }, [ctx, velocity, selectedPreset, onRecordMidiNote]);
+    if (onRecordMidiNote) onRecordMidiNote(pitch, velocity, true);
+  }, [ctx, velocity, selectedPreset, outputNode, onRecordMidiNote]);
 
   const triggerNoteOff = useCallback((pitch: number) => {
     engine.current.noteOff(ctx, pitch);
+    if (onRecordMidiNote) onRecordMidiNote(pitch, velocity, false);
     setActivePitches((prev) => {
       const next = new Set(prev);
       next.delete(pitch);
       return next;
     });
-  }, [ctx]);
+  }, [ctx, velocity, onRecordMidiNote]);
 
   useEffect(() => {
     if (!isOpen) return;
