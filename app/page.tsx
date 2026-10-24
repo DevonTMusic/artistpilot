@@ -8,7 +8,7 @@ const cta = "inline-flex items-center justify-center rounded-xl bg-gradient-to-r
 
 const benefits = [
   ["Learn seven instruments", "Guided lessons for guitar, piano, bass, drums, ukulele, violin, and vocals."],
-  ["Develop your ideas", "An AI music coach offers prompts and guidance while you stay in charge of the music."],
+  ["Develop your ideas", "Get 50 AI coach requests each month; optional prepaid credit packs are available for extra requests."],
   ["Record and produce", "Build songs in a multitrack studio with audio and MIDI, editing tools, instruments, effects, and mixing controls."],
   ["Keep and share your work", "Save project files locally, export WAV mixes and stems, or invite collaborators to work one at a time."],
 ];
@@ -38,7 +38,7 @@ export default async function Home() {
               <Link href="/signup" className={cta}>Get ArtistPilot Pro · $15/month</Link>
               <Link href="/login" className="inline-flex items-center justify-center rounded-xl border border-zinc-700 bg-zinc-900/70 px-5 py-3 text-sm font-bold text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-800">Log in</Link>
             </div>
-            <p className="mt-3 text-xs text-zinc-500">One monthly plan · Cancel anytime in Settings</p>
+            <p className="mt-3 text-xs text-zinc-500">One monthly plan · 50 AI coach requests included · Cancel anytime in Settings</p>
           </div>
           <div className="relative rounded-2xl border border-white/10 bg-gradient-to-br from-violet-500/10 via-zinc-900/80 to-blue-500/10 p-3 shadow-2xl shadow-violet-950/30">
             <StudioArt className="w-full" />
@@ -105,7 +105,7 @@ export default async function Home() {
               ))}
             </ul>
             <Link href="/signup" className={cta + " mt-7 w-full"}>Get Started · $15/month</Link>
-            <p className="mt-3 text-center text-[11px] text-zinc-500">Billed monthly. Cancel anytime from Settings.</p>
+            <p className="mt-3 text-center text-[11px] text-zinc-500">Billed monthly. Includes 50 AI coach requests; optional prepaid packs unlock extra requests. Cancel anytime from Settings.</p>
           </div>
         </section>
 

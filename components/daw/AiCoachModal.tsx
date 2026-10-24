@@ -1,6 +1,7 @@
 // components/daw/AiCoachModal.tsx
 "use client";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { AICreditPacks, type CoachUsage } from "@/components/AICreditPacks";
 
 interface AiCoachModalProps {
   isOpen: boolean;
@@ -51,6 +52,7 @@ export function AiCoachModal({
   const [inputText, setInputText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [usage, setUsage] = useState<CoachUsage | null>(null);
   const autoPrompt = useRef<string | null>(null);
 
   if (!isOpen) return null;
@@ -75,6 +77,19 @@ export function AiCoachModal({
         }),
       });
       const data = await response.json();
+      if (
+        data.usage &&
+        typeof data.usage.freeUsed === "number" &&
+        typeof data.usage.freeLimit === "number" &&
+        typeof data.usage.creditsRemaining === "number"
+      ) {
+        setUsage({
+          freeUsed: data.usage.freeUsed,
+          freeLimit: data.usage.freeLimit,
+          creditsRemaining: data.usage.creditsRemaining,
+          globalLimitReached: data.usage.globalLimitReached === true,
+        });
+      }
       if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "The coach could not answer right now.");
       if (typeof data.text !== "string" || !data.text.trim()) throw new Error("The coach returned an empty response.");
       setMessages((prev) => [...prev, { role: "ai", text: data.text }]);
@@ -155,6 +170,7 @@ export function AiCoachModal({
             {loading && (
               <div className="text-[11px] text-indigo-400 italic">AI Coach is analyzing your session...</div>
             )}
+            <AICreditPacks usage={usage} />
             {error && <div role="alert" className="rounded-lg border border-red-900 bg-red-950/50 p-2 text-[11px] text-red-200">{error}</div>}
           </div>
 

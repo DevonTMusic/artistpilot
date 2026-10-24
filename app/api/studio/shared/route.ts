@@ -5,7 +5,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-const MAX_PROJECT_BYTES = 100 * 1024 * 1024;
+const MAX_PROJECT_BYTES = 25 * 1024 * 1024;
 const PROJECT_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function validProjectId(value: FormDataEntryValue | string | null): value is string {
@@ -49,7 +49,7 @@ async function readUploadedFile(form: FormData): Promise<File | null> {
   const entry = form.get("file");
   if (typeof File === "undefined" || !(entry instanceof File)) return null;
   if (entry.size < 1 || entry.size > MAX_PROJECT_BYTES) {
-    throw new Error("Shared project files must be between 1 byte and 100 MB.");
+    throw new Error("Shared project files must be between 1 byte and 25 MB.");
   }
   return entry;
 }
@@ -330,6 +330,8 @@ export async function POST(request: Request) {
       await admin.storage.from("studio-shared").remove([filePath]);
       return NextResponse.json({ error: "The edit lock or project revision changed. Reload before saving." }, { status: 409 });
     }
+    const { error: cleanupError } = await admin.storage.from("studio-shared").remove([project.file_path]);
+    if (cleanupError) console.error("Could not remove the previous shared Studio revision:", cleanupError);
     return NextResponse.json({ revision });
   }
 
