@@ -10,6 +10,7 @@ interface InputDevice {
 interface ChromaticTunerProps {
   isOpen: boolean;
   onClose: () => void;
+  instrumentName?: string;
 }
 
 const NOTE_NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
@@ -24,7 +25,7 @@ export function detectPitch(samples: Float32Array, sampleRate: number): number |
   let bestCorrelation = 0;
   let previousCorrelation = 1;
   const minOffset = Math.max(2, Math.floor(sampleRate / 1200));
-  const maxOffset = Math.min(Math.floor(sampleRate / 55), Math.floor(size / 2));
+  const maxOffset = Math.min(Math.floor(sampleRate / 35), Math.floor(size / 2));
   for (let offset = minOffset; offset <= maxOffset; offset++) {
     let difference = 0;
     for (let i = 0; i < size - offset; i++) difference += Math.abs(samples[i] - samples[i + offset]);
@@ -60,7 +61,7 @@ export function detectPitch(samples: Float32Array, sampleRate: number): number |
   return sampleRate / refinedOffset;
 }
 
-export function ChromaticTuner({ isOpen, onClose }: ChromaticTunerProps) {
+export function ChromaticTuner({ isOpen, onClose, instrumentName }: ChromaticTunerProps) {
   const [devices, setDevices] = useState<InputDevice[]>([]);
   const [deviceId, setDeviceId] = useState("default");
   const [isListening, setIsListening] = useState(false);
@@ -166,7 +167,9 @@ export function ChromaticTuner({ isOpen, onClose }: ChromaticTunerProps) {
         <header className="mb-5 flex items-center justify-between">
           <div>
             <h2 className="text-base font-bold text-white">Chromatic Tuner</h2>
-            <p className="mt-1 text-xs text-zinc-400">Live pitch detection stays in your browser.</p>
+            <p className="mt-1 text-xs text-zinc-400">
+              {instrumentName ? `${instrumentName} · ` : ""}Live pitch detection stays in your browser.
+            </p>
           </div>
           <button onClick={onClose} aria-label="Close tuner" className="rounded px-2 py-1 text-zinc-400 hover:bg-zinc-800 hover:text-white">✕</button>
         </header>

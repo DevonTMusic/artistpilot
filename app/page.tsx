@@ -1,66 +1,125 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import Nav from "@/components/Nav";
-import { GuitarArt, IdeaArt, MicArt, StudioArt } from "@/components/Art";
+import { GuitarArt, IdeaArt, MicArt, PianoArt, StudioArt } from "@/components/Art";
 import { supabaseServer } from "@/lib/supabase/server";
-const cta = "inline-block rounded-xl bg-gradient-to-r from-violet-500 to-blue-500 px-6 py-3 font-bold";
+
+const cta = "inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-violet-500 to-blue-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-violet-950/30 transition hover:brightness-110";
+
+const benefits = [
+  ["Learn seven instruments", "Guided lessons for guitar, piano, bass, drums, ukulele, violin, and vocals."],
+  ["Develop your ideas", "An AI music coach offers prompts and guidance while you stay in charge of the music."],
+  ["Record and produce", "Build songs in a multitrack studio with audio and MIDI, editing tools, instruments, effects, and mixing controls."],
+  ["Keep and share your work", "Save project files locally, export WAV mixes and stems, or invite collaborators to work one at a time."],
+];
+
 export default async function Home() {
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (user) redirect("/home");
-  const ways = [
-    ["Learn an instrument", "Guitar, piano, bass, drums, ukulele, violin and vocals, one small lesson at a time.", <GuitarArt key="g" className="mx-auto h-44 w-auto" />],
-    ["Make your own music", "An AI coach gives you hints and ideas. You write the song.", <IdeaArt key="i" className="mx-auto h-44 w-auto" />],
-    ["Record your song", "Layer tracks, add a beat, mix it and export it.", <MicArt key="m" className="mx-auto h-44 w-auto" />],
-  ];
-  return (<>
-    <Nav />
-    <main>
-      <section className="mx-auto grid max-w-5xl items-center gap-10 px-5 py-16 md:grid-cols-2">
-        <div>
-          <h1 className="text-4xl font-extrabold leading-tight md:text-6xl">Learn Music. Create Your Sound. Grow Your Career.</h1>
-          <p className="mt-5 text-lg text-zinc-400">Whether you are picking up your first chord or ready to record your first song, ArtistPilot is a friendly place to learn, create and grow. The AI coaches you. The music stays yours.</p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/signup" className={cta}>Get Started — $15/month</Link>
-            <Link href="/login" className="inline-block rounded-xl border border-zinc-700 px-6 py-3 font-bold">Log in</Link>
-          </div>
-        </div>
-        <StudioArt className="w-full drop-shadow-[0_20px_60px_rgba(139,92,246,0.35)]" />
-      </section>
-      <section className="mx-auto max-w-5xl px-5 py-12">
-        <h2 className="text-3xl font-extrabold">Three ways to begin</h2>
-        <div className="mt-8 grid gap-5 md:grid-cols-3">
-          {ways.map(([t, d, art]) => (
-            <Link key={String(t)} href="/signup" className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 transition hover:-translate-y-1 hover:border-violet-500">
-              <div className="bg-gradient-to-br from-violet-900/30 to-blue-900/20 p-4">{art}</div>
-              <div className="p-5"><h3 className="text-xl font-bold">{t}</h3><p className="mt-1 text-zinc-400">{d}</p></div>
-            </Link>
-          ))}
-        </div>
-      </section>
-      <section id="how" className="mx-auto max-w-5xl px-5 py-16">
-        <h2 className="text-3xl font-extrabold">How it works</h2>
-        <div className="mt-8 grid gap-5 md:grid-cols-3">
-          {[["Learn", "Improve your skills with guided lessons and practical exercises."], ["Create and record", "Develop original ideas with your AI coach and bring them to life in the studio."], ["Promote and grow", "Marketing tools for bios, captions and release planning are coming soon."]].map(([t, d], i) => (
-            <div key={t} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-              <div className="mb-3 grid h-9 w-9 place-items-center rounded-full bg-gradient-to-r from-violet-500 to-blue-500 font-bold">{i + 1}</div>
-              <h3 className="text-xl font-bold">{t}</h3><p className="mt-1 text-zinc-400">{d}</p>
+
+  return (
+    <>
+      <Nav />
+      <main className="overflow-hidden">
+        <section className="relative mx-auto grid max-w-6xl items-center gap-8 px-5 pb-16 pt-14 md:grid-cols-[1.05fr_.95fr] md:gap-12 md:pb-24 md:pt-20">
+          <div className="pointer-events-none absolute -left-40 -top-32 h-96 w-96 rounded-full bg-violet-600/15 blur-3xl" />
+          <div className="relative">
+            <span className="inline-flex items-center gap-2 rounded-full border border-violet-400/20 bg-violet-400/10 px-3 py-1.5 text-xs font-semibold text-violet-200">
+              Learn it. Make it. Make it yours.
+            </span>
+            <h1 className="mt-5 max-w-2xl text-4xl font-extrabold leading-[1.08] tracking-tight text-white sm:text-5xl md:text-6xl">
+              Your music journey, all in one place.
+            </h1>
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-zinc-300 md:text-lg">
+              ArtistPilot brings music lessons, creative guidance, and a hands-on recording studio together in one welcoming workspace. Learn at your pace, turn a spark into a song, and keep the creative decisions yours.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link href="/signup" className={cta}>Get ArtistPilot Pro · $15/month</Link>
+              <Link href="/login" className="inline-flex items-center justify-center rounded-xl border border-zinc-700 bg-zinc-900/70 px-5 py-3 text-sm font-bold text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-800">Log in</Link>
             </div>
-          ))}
-        </div>
-        <p className="mt-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-5 text-lg">ArtistPilot helps you build your own skills and creative independence.</p>
-      </section>
-      <section id="pricing" className="mx-auto max-w-5xl px-5 pb-24 pt-8">
-        <h2 className="text-3xl font-extrabold">One simple plan</h2>
-        <div className="mt-8 max-w-md rounded-2xl border border-violet-500 bg-zinc-900 p-8">
-          <h3 className="text-2xl font-bold">ArtistPilot Pro</h3>
-          <p className="mt-2 text-5xl font-extrabold">$15<span className="text-lg font-medium text-zinc-400">/month</span></p>
-          <p className="mt-1 text-zinc-400">Billed monthly. Cancel anytime from Settings.</p>
-          <ul className="mt-5 space-y-2 text-zinc-300"><li>Instrument Academy with seven instruments</li><li>AI Idea Lab</li><li>Recording studio with up to 12 tracks, session files you keep on your own device, and WAV export</li><li>Lesson progress saved to your account</li></ul>
-          <Link href="/signup" className={cta + " mt-6 w-full text-center"}>Get Started — $15/month</Link>
-        </div>
-      </section>
-    </main>
-    <footer className="border-t border-zinc-800 py-8 text-center text-sm text-zinc-500">© {new Date().getFullYear()} ArtistPilot. All rights reserved.</footer>
-  </>);
+            <p className="mt-3 text-xs text-zinc-500">One monthly plan · Cancel anytime in Settings</p>
+          </div>
+          <div className="relative rounded-2xl border border-white/10 bg-gradient-to-br from-violet-500/10 via-zinc-900/80 to-blue-500/10 p-3 shadow-2xl shadow-violet-950/30">
+            <StudioArt className="w-full" />
+            <div className="absolute -bottom-4 left-5 rounded-xl border border-zinc-700 bg-[#15161c]/95 px-4 py-2.5 shadow-xl backdrop-blur">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Your next idea</p>
+              <p className="mt-0.5 text-sm font-bold text-white">Starts right here.</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-y border-white/5 bg-zinc-950/50">
+          <div className="mx-auto max-w-6xl px-5 py-14 md:py-16">
+            <div className="max-w-2xl">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-300">Make progress your way</p>
+              <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-white md:text-4xl">From first lesson to finished track</h2>
+              <p className="mt-3 text-sm leading-relaxed text-zinc-400 md:text-base">Pick up a new skill, get unstuck on an idea, or start producing. Use the tools that fit where you are today.</p>
+            </div>
+            <div className="mt-8 grid gap-4 md:grid-cols-3">
+              {[
+                { title: "Learn an instrument", text: "Build fundamentals with short, practical lessons across seven instruments.", art: <GuitarArt className="mx-auto h-40 w-auto" /> },
+                { title: "Find your next idea", text: "Explore chords, riffs, and musical directions with supportive AI coaching.", art: <IdeaArt className="mx-auto h-40 w-auto" /> },
+                { title: "Record your sound", text: "Layer performances, shape tracks, arrange sections, and export your work.", art: <MicArt className="mx-auto h-40 w-auto" /> },
+              ].map((item) => (
+                <article key={item.title} className="overflow-hidden rounded-2xl border border-zinc-800 bg-[#14151a] transition hover:-translate-y-1 hover:border-violet-500/60">
+                  <div className="bg-gradient-to-br from-violet-900/20 to-blue-900/10 px-4 pt-3">{item.art}</div>
+                  <div className="p-5">
+                    <h3 className="text-lg font-bold text-white">{item.title}</h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-zinc-400">{item.text}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="pricing" className="mx-auto grid max-w-6xl gap-10 px-5 py-16 md:grid-cols-[.8fr_1.2fr] md:items-center md:py-20">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-300">Everything in one plan</p>
+            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-white md:text-4xl">A creative toolkit that grows with you.</h2>
+            <p className="mt-4 max-w-lg text-sm leading-relaxed text-zinc-400 md:text-base">ArtistPilot Pro brings learning, idea development, and music production into one subscription—without taking ownership of your music.</p>
+            <div className="mt-5 flex items-center gap-3">
+              <PianoArt className="h-16 w-16 shrink-0" />
+              <p className="text-xs leading-relaxed text-zinc-500">Learn with guided lessons, create in the browser-based Studio, and keep local project files on your own device.</p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-violet-400/40 bg-gradient-to-br from-violet-950/30 to-zinc-900 p-6 shadow-xl shadow-violet-950/20 sm:p-8">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h3 className="text-xl font-bold text-white">ArtistPilot Pro</h3>
+                <p className="mt-1 text-xs text-zinc-400">One plan. All current creative tools.</p>
+              </div>
+              <p className="text-4xl font-extrabold text-white">$15<span className="text-sm font-medium text-zinc-400"> / month</span></p>
+            </div>
+            <ul className="mt-6 grid gap-x-6 gap-y-3 sm:grid-cols-2">
+              {benefits.map(([title, description]) => (
+                <li key={title} className="flex gap-2.5">
+                  <span aria-hidden="true" className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-emerald-400/15 text-[10px] font-bold text-emerald-300">✓</span>
+                  <span>
+                    <strong className="block text-xs font-semibold text-zinc-100">{title}</strong>
+                    <span className="mt-0.5 block text-[11px] leading-relaxed text-zinc-400">{description}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <Link href="/signup" className={cta + " mt-7 w-full"}>Get Started · $15/month</Link>
+            <p className="mt-3 text-center text-[11px] text-zinc-500">Billed monthly. Cancel anytime from Settings.</p>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-6xl px-5 pb-16">
+          <div className="flex flex-col items-start justify-between gap-5 rounded-2xl border border-zinc-800 bg-zinc-900/70 p-6 sm:flex-row sm:items-center sm:p-8">
+            <div>
+              <h2 className="text-xl font-bold text-white">Your next song can start today.</h2>
+              <p className="mt-1 text-sm text-zinc-400">Learn something new, explore an idea, or record your first track.</p>
+            </div>
+            <Link href="/signup" className={cta}>Explore ArtistPilot</Link>
+          </div>
+        </section>
+      </main>
+      <footer className="border-t border-zinc-800 py-7 text-center text-xs text-zinc-500">© {new Date().getFullYear()} ArtistPilot. All rights reserved.</footer>
+    </>
+  );
 }
