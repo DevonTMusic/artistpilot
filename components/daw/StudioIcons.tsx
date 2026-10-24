@@ -77,3 +77,12 @@ export function DrumIcon({ className = "w-5 h-5 stroke-current fill-none" }: { c
     </svg>
   );
 }
+
+export function BellIcon({ className = "w-4 h-4 stroke-current fill-none" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+      <path d="M10 21h4" />
+    </svg>
+  );
+}

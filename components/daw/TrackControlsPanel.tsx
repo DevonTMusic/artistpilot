@@ -289,6 +289,31 @@ export function TrackControlsPanel({
                 className="w-full accent-[#3572b0] h-1 bg-zinc-800 rounded cursor-pointer disabled:opacity-40"
               />
             </div>
+            <div className="border-t border-zinc-800 pt-2">
+              <label className="mb-2 flex items-center gap-1.5 text-[10px] text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={currentSettings.deEsserEnabled ?? false}
+                  onChange={(event) => updateProp("deEsserEnabled", event.target.checked)}
+                  className="accent-sky-500"
+                />
+                De-esser enabled
+              </label>
+              <div className="mb-1 flex items-center justify-between text-[10px] text-zinc-400">
+                <span>Sibilance reduction</span>
+                <span className="font-mono">{Math.round((currentSettings.deEsserAmount ?? 0) * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={currentSettings.deEsserAmount ?? 0}
+                onChange={(event) => updateProp("deEsserAmount", Number(event.target.value))}
+                disabled={!currentSettings.deEsserEnabled}
+                className="w-full accent-sky-500 disabled:opacity-40"
+              />
+            </div>
           </div>
         </div>
 

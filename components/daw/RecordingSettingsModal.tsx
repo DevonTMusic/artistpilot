@@ -91,7 +91,7 @@ export function RecordingSettingsModal({
       {/* Header */}
       <div className="flex h-10 items-center justify-between border-b border-zinc-800 bg-[#1e2028] px-4 cursor-move">
         <span className="text-xs font-bold text-white flex items-center gap-1.5">
-          🎙️ Audio Interface & Recording Input
+          Audio Interface & Recording Input
         </span>
         <button onClick={onClose} className="text-xs text-zinc-400 hover:text-white font-bold">✕</button>
       </div>

@@ -106,7 +106,7 @@ export function ChannelEqModal({ isOpen, onClose, trackName, settings, onSetting
       {/* Title Bar */}
       <div className="flex h-10 items-center justify-between border-b border-zinc-800 bg-[#1a1c24] px-4">
         <span className="text-xs font-bold text-white flex items-center gap-1.5">
-          🎛️ 4-Band Visual Channel EQ <span className="text-sky-400 font-semibold">({trackName})</span>
+          4-Band Visual Channel EQ <span className="text-sky-400 font-semibold">({trackName})</span>
         </span>
         <label className="mr-auto ml-4 flex items-center gap-1.5 text-[10px] text-zinc-300">
           <input

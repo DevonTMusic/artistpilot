@@ -17,9 +17,22 @@ import { PianoStudioModal } from "@/components/daw/PianoStudioModal";
 import { PianoEngine } from "@/lib/daw/PianoEngine";
 import { DiscoverTrackModal } from "@/components/daw/DiscoverTrackModal";
 import { DrumPatternEditor } from "@/components/daw/DrumPatternEditor";
+import { SoundLibraryModal } from "@/components/daw/SoundLibraryModal";
 import { ChromaticTuner } from "@/components/daw/ChromaticTuner";
+import { SoundPreset } from "@/lib/daw/soundLibrary";
 import { parseMidiFile } from "@/lib/daw/midiFile";
-import { PlayIcon, PauseIcon, StopIcon, RewindIcon, LoopIcon } from "@/components/daw/StudioIcons";
+import {
+  PlayIcon,
+  PauseIcon,
+  StopIcon,
+  RewindIcon,
+  LoopIcon,
+  MicIcon,
+  PianoIcon,
+  GuitarIcon,
+  DrumIcon,
+  BellIcon,
+} from "@/components/daw/StudioIcons";
 
 export type TrackCompatibilityType = "vocal" | "guitar-bass" | "midi" | "drum";
 
@@ -52,64 +65,25 @@ const DEFAULT_SYNTH_SETTINGS: SynthSettings = {
   resonance: 0.7,
 };
 const DEFAULT_AMP_SETTINGS: GuitarAmpSettings = {
-  drive: 0.6,
-  bass: 2,
-  mid: 1.5,
-  treble: 3,
-  master: 0.85,
-  cabSim: true,
-  reverb: 0.3,
-  delay: 0.25,
-  driveEnabled: true,
-  delayEnabled: true,
+  drive: 0,
+  bass: 0,
+  mid: 0,
+  treble: 0,
+  master: 1,
+  cabSim: false,
+  reverb: 0,
+  delay: 0,
+  driveEnabled: false,
+  delayEnabled: false,
   chorusEnabled: false,
-  reverbEnabled: true,
+  reverbEnabled: false,
 };
 
 export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const engine = useRef<AudioEngine>(AudioEngine.getInstance());
   const deviceManager = useRef<AudioDeviceManager>(AudioDeviceManager.getInstance());
 
-  const [tracks, setTracks] = useState<ExtendedTrackData[]>([
-    {
-      id: 1,
-      name: "Audio 1",
-      category: "audio",
-      trackType: "vocal",
-      instrument: "Voice / Audio",
-      color: "bg-[#e53e3e]",
-      volume: 0.85,
-      pan: 0,
-      mute: false,
-      solo: false,
-      armed: true,
-      monitoring: false,
-      settings: { ...DEFAULT_TRACK_SETTINGS },
-      ampSettings: { ...DEFAULT_AMP_SETTINGS },
-      ampEnabled: false,
-      regions: [],
-    },
-    {
-      id: 2,
-      name: "Grand Piano",
-      category: "midi",
-      trackType: "midi",
-      instrument: "Grand Piano",
-      color: "bg-[#38a169]",
-      volume: 0.8,
-      pan: 0,
-      mute: false,
-      solo: false,
-      armed: false,
-      monitoring: false,
-      settings: { ...DEFAULT_TRACK_SETTINGS },
-      ampSettings: { ...DEFAULT_AMP_SETTINGS },
-      ampEnabled: false,
-      regions: [],
-      midiNotes: [],
-      synthSettings: { ...DEFAULT_SYNTH_SETTINGS },
-    },
-  ]);
+  const [tracks, setTracks] = useState<ExtendedTrackData[]>([]);
   const trackHistoryRef = useRef<{
     undo: ExtendedTrackData[][];
     redo: ExtendedTrackData[][];
@@ -119,7 +93,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
 
   const [masterSettings, setMasterSettings] = useState<ProcessingSettings>({
     ...DEFAULT_TRACK_SETTINGS,
-    compAmount: 0.3,
+    compAmount: 0,
   });
 
   const [isMasterMode, setIsMasterMode] = useState(false);
@@ -130,7 +104,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [playheadSec, setPlayheadSec] = useState(0);
-  const [selectedTrackId, setSelectedTrackId] = useState(1);
+  const [selectedTrackId, setSelectedTrackId] = useState(0);
   const [pixelsPerSecond, setPixelsPerSecond] = useState(50);
   const [isSnapEnabled, setIsSnapEnabled] = useState(true);
   const [isAutomationMode, setIsAutomationMode] = useState(false);
@@ -163,6 +137,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const [pianoRollOpen, setPianoRollOpen] = useState(false);
   const [drumEditorOpen, setDrumEditorOpen] = useState(false);
   const [tunerOpen, setTunerOpen] = useState(false);
+  const [soundLibraryOpen, setSoundLibraryOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingStems, setIsExportingStems] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -182,15 +157,13 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     ai: { open: false, x: 380, y: 120 },
   });
 
-  const [trackNotes, setTrackNotes] = useState<Record<number, MidiNote[]>>({
-    2: [],
-  });
+  const [trackNotes, setTrackNotes] = useState<Record<number, MidiNote[]>>({});
 
   const animFrame = useRef<number | null>(null);
   const playStartTime = useRef(0);
   const playheadAnchor = useRef(0);
   const activeMediaRecorders = useRef<MediaRecorder[]>([]);
-  const nextTrackId = useRef(3);
+  const nextTrackId = useRef(1);
   const recChunks = useRef<Record<number, Blob[]>>({});
   const recStartTime = useRef(0);
   const activeMidiInputNotes = useRef<Record<number, { id: string; startStep: number }>>({});
@@ -202,6 +175,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const lastMetronomeBeat = useRef<number>(-1);
   const scrubPosition = useRef(0);
   const countInCancelled = useRef(false);
+  const tapTimes = useRef<number[]>([]);
   useEffect(() => {
     const history = trackHistoryRef.current;
     if (history.last !== tracks) {
@@ -1041,6 +1015,19 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
     setDrumEditorOpen(true);
   };
 
+  const tapTempo = () => {
+    const now = performance.now();
+    const previous = tapTimes.current.at(-1);
+    if (previous !== undefined && now - previous > 2000) tapTimes.current = [];
+    tapTimes.current.push(now);
+    tapTimes.current = tapTimes.current.slice(-5);
+    if (tapTimes.current.length >= 2) {
+      const intervals = tapTimes.current.slice(1).map((time, index) => time - tapTimes.current[index]);
+      const average = intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length;
+      if (average > 0) setBpm(Math.min(300, Math.max(30, Math.round(60000 / average))));
+    }
+  };
+
   const importSoundFile = (file?: File) => {
     if (!file) return;
     const target = selectedTrack?.category === "audio"
@@ -1055,7 +1042,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   };
 
   // Add Track from Discover Modal (Screenshot 2 functionality)
-  const handleAddTrackType = (type: "vocal" | "guitar" | "bass" | "piano" | "drum") => {
+  const handleAddTrackType = (type: "vocal" | "guitar" | "bass" | "piano" | "drum", preset?: SoundPreset) => {
     if (tracks.length >= 12) {
       setStatusMsg("Studio supports up to 12 tracks.");
       return;
@@ -1097,7 +1084,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         name,
         category,
         trackType,
-        instrument: name,
+        instrument: preset?.name ?? name,
         color,
         volume: 0.8,
         pan: 0,
@@ -1105,13 +1092,13 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         solo: false,
         armed: false,
         monitoring: false,
-        settings: { ...DEFAULT_TRACK_SETTINGS },
-        ampSettings: { ...DEFAULT_AMP_SETTINGS },
-        ampEnabled: false,
+        settings: { ...DEFAULT_TRACK_SETTINGS, ...preset?.processing },
+        ampSettings: { ...DEFAULT_AMP_SETTINGS, ...preset?.amp },
+        ampEnabled: Boolean(preset?.amp),
         regions: [],
         midiNotes: [],
-        ...(type === "drum" ? { drumPattern: { ...DEFAULT_DRUM_PATTERN } } : {}),
-        ...(type === "piano" ? { synthSettings: { ...DEFAULT_SYNTH_SETTINGS } } : {}),
+        ...(type === "drum" ? { drumPattern: { ...DEFAULT_DRUM_PATTERN, ...preset?.drums } } : {}),
+        ...(type === "piano" ? { synthSettings: { ...DEFAULT_SYNTH_SETTINGS, ...preset?.synth } } : {}),
       },
     ]);
     if (category === "midi") setTrackNotes((prev) => ({ ...prev, [id]: [] }));
@@ -1170,7 +1157,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         ampEnabled: track.ampEnabled ?? false,
       }));
       setTracks(nextTracks);
-      nextTrackId.current = Math.max(3, ...nextTracks.map((track) => track.id + 1));
+      nextTrackId.current = Math.max(1, ...nextTracks.map((track) => track.id + 1));
       setTrackNotes(Object.fromEntries(nextTracks.map((track) => [track.id, track.midiNotes ?? []])));
       if (nextTracks[0]) setSelectedTrackId(nextTracks[0].id);
       setIsMasterMode(false);
@@ -1182,7 +1169,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
       setTimeSignature(meta.timeSignature === "3/4" || meta.timeSignature === "6/8" ? meta.timeSignature : "4/4");
       setLyricsNotes(typeof meta.lyricsNotes === "string" ? meta.lyricsNotes : "");
       setMasterVolume(typeof meta.masterVolume === "number" ? Math.min(1, Math.max(0, meta.masterVolume)) : 0.85);
-      setMasterSettings(parseProcessingSettings(meta.masterSettings) ?? { ...DEFAULT_TRACK_SETTINGS, compAmount: 0.3 });
+      setMasterSettings(parseProcessingSettings(meta.masterSettings) ?? { ...DEFAULT_TRACK_SETTINGS });
       setIsLooping(meta.isLooping === true);
       const loadedLoopStart = typeof meta.loopStartSec === "number" && Number.isFinite(meta.loopStartSec)
         ? Math.max(0, meta.loopStartSec)
@@ -1340,6 +1327,40 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   };
 
   const selectedTrack = tracks.find((t) => t.id === selectedTrackId);
+  const applySoundPreset = (preset: SoundPreset) => {
+    const matchesPresetTrack = (track: ExtendedTrackData | undefined) => {
+      if (!track) return false;
+      if (preset.category === "vocals") return track.trackType === "vocal";
+      if (preset.category === "guitar") return track.trackType === "guitar-bass" && track.name.toLowerCase().includes("guitar");
+      if (preset.category === "bass") return track.trackType === "guitar-bass" && track.name.toLowerCase().includes("bass");
+      if (preset.category === "keys") return track.category === "midi";
+      return track.category === "drum";
+    };
+    const target = matchesPresetTrack(selectedTrack)
+      ? selectedTrack
+      : tracks.find(matchesPresetTrack);
+    if (!target) {
+      const trackType = preset.category === "vocals" ? "vocal"
+        : preset.category === "guitar" ? "guitar"
+        : preset.category === "bass" ? "bass"
+        : preset.category === "keys" ? "piano"
+        : "drum";
+      handleAddTrackType(trackType, preset);
+      setStatusMsg(`Added a ${preset.category} track with the "${preset.name}" sound preset.`);
+      return;
+    }
+    setSelectedTrackId(target.id);
+    setIsMasterMode(false);
+    setTracks((current) => current.map((track) => track.id !== target.id ? track : ({
+      ...track,
+      instrument: preset.name,
+      settings: { ...track.settings, ...preset.processing },
+      ...(preset.amp ? { ampSettings: { ...track.ampSettings, ...preset.amp }, ampEnabled: true } : {}),
+      ...(preset.synth ? { synthSettings: { ...DEFAULT_SYNTH_SETTINGS, ...track.synthSettings, ...preset.synth } } : {}),
+      ...(preset.drums ? { drumPattern: { ...DEFAULT_DRUM_PATTERN, ...track.drumPattern, ...preset.drums } } : {}),
+    })));
+    setStatusMsg(`Applied "${preset.name}" to ${target.name}. Press Play to audition it.`);
+  };
   const [meterNumerator, meterDenominator] = timeSignature.split("/").map(Number);
   const beatSeconds = (60 / bpm) * (4 / meterDenominator);
   const totalBeats = playheadSec / beatSeconds;
@@ -1391,17 +1412,17 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             <button
               onClick={undoTrackChanges}
               disabled={trackHistoryRef.current.undo.length === 0}
-              aria-label="Undo track change"
+              aria-label="Undo"
               title={`Undo track change (${trackHistoryRef.current.undo.length} available)`}
-              className="h-7 w-7 rounded bg-[#20222a] text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-30"
-            >↶</button>
+              className="flex h-7 items-center gap-1 rounded bg-[#20222a] px-2 text-[10px] text-zinc-200 hover:bg-zinc-700 disabled:opacity-30"
+            ><span aria-hidden="true">↶</span> Undo</button>
             <button
               onClick={redoTrackChanges}
               disabled={trackHistoryRef.current.redo.length === 0}
-              aria-label="Redo track change"
+              aria-label="Redo"
               title="Redo track change"
-              className="h-7 w-7 rounded bg-[#20222a] text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-30"
-            >↷</button>
+              className="flex h-7 items-center gap-1 rounded bg-[#20222a] px-2 text-[10px] text-zinc-200 hover:bg-zinc-700 disabled:opacity-30"
+            ><span aria-hidden="true">↷</span> Redo</button>
           </div>
           <button
             onClick={() => setDiscoverModalOpen(true)}
@@ -1411,6 +1432,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           </button>
 
           <input
+            aria-label="Project name"
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
             className="w-36 bg-transparent text-xs font-bold text-white focus:outline-none rounded px-1.5 py-0.5 truncate"
@@ -1429,7 +1451,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               }`}
               title="Metronome Click"
             >
-              <span>🔔</span>
+              <BellIcon className="h-4 w-4" />
             </button>
             <button
               onClick={() => setCountInActive(!countInActive)}
@@ -1449,6 +1471,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           <div className="flex items-center gap-1 bg-[#1a1b22] px-2.5 py-1 rounded-lg border border-zinc-800 text-xs">
             <input
               type="number"
+              aria-label="Tempo in beats per minute"
               value={bpm}
               min={30}
               max={300}
@@ -1457,6 +1480,13 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             />
             <span className="text-[10px] text-zinc-500">bpm</span>
           </div>
+          <button
+            onClick={tapTempo}
+            className="rounded-lg border border-zinc-800 bg-[#1a1b22] px-2 py-1 text-[10px] font-bold text-zinc-300 hover:bg-zinc-700 hover:text-white"
+            title="Tap four or more times to set tempo"
+          >
+            Tap
+          </button>
 
           {/* 4 / 4 Time Signature */}
           <select
@@ -1559,7 +1589,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             onChange={(event) => {
               const preset = event.target.value as typeof masterPreset;
               if (preset === "custom") {
-                setMasterSettings({ ...DEFAULT_TRACK_SETTINGS, compAmount: 0.3 });
+                setMasterSettings({ ...DEFAULT_TRACK_SETTINGS });
                 setMasterPreset("custom");
               } else {
                 applyMasterPreset(preset);
@@ -1672,6 +1702,18 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           </div>
 
           <div className="flex-1 overflow-y-auto divide-y divide-[#171820]">
+            {tracks.length === 0 && (
+              <div className="flex min-h-48 flex-col items-center justify-center gap-3 px-6 text-center">
+                <p className="text-sm font-semibold text-zinc-300">Your session is ready for its first track.</p>
+                <p className="max-w-sm text-xs text-zinc-500">Add audio, an instrument, guitar, bass, or drums to start building your arrangement.</p>
+                <button
+                  onClick={() => setDiscoverModalOpen(true)}
+                  className="rounded-lg bg-sky-600 px-4 py-2 text-xs font-bold text-white hover:bg-sky-500"
+                >
+                  Add your first track
+                </button>
+              </div>
+            )}
             {tracks.map((track) => (
               <div
                 key={track.id}
@@ -1689,7 +1731,10 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className={`h-6 w-6 rounded-lg ${track.color} flex items-center justify-center text-xs text-white shadow`}>
-                      {track.category === "midi" ? "🎹" : "🎙️"}
+                      {track.trackType === "midi" ? <PianoIcon className="h-4 w-4 fill-white" />
+                        : track.trackType === "drum" ? <DrumIcon className="h-4 w-4 stroke-white" />
+                        : track.trackType === "guitar-bass" ? <GuitarIcon className="h-4 w-4 fill-white" />
+                        : <MicIcon className="h-4 w-4 fill-white" />}
                     </div>
                     <input
                       value={track.name}
@@ -1963,14 +2008,14 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
               smartControlsOpen ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-white"
             }`}
           >
-            🎛️ Controls
+            Controls
           </button>
 
           <button
             onClick={() => toggleModal("piano")}
             className="px-3 py-1 rounded-full text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
           >
-            🎹 88-Key Piano
+            <PianoIcon className="h-4 w-4" /> 88-Key Piano
           </button>
 
           <button
@@ -2010,7 +2055,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             disabled={selectedTrack?.trackType !== "guitar-bass"}
             className="px-3 py-1 rounded-full text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition disabled:cursor-not-allowed disabled:opacity-40"
           >
-            🎸 Guitar Rig
+            <GuitarIcon className="h-4 w-4" /> Guitar Rig
           </button>
 
           <button
@@ -2020,14 +2065,14 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             }}
             className="px-3 py-1 rounded-full text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
           >
-            ✨ AI Assistant
+            AI Assistant
           </button>
 
           <button
             onClick={() => setAudioSettingsOpen(true)}
             className="px-3 py-1 rounded-full text-xs font-semibold text-sky-400 hover:bg-zinc-800/80 transition"
           >
-            🎙️ Audio Inputs ({activeInputLabel})
+            <MicIcon className="h-4 w-4" /> Audio Inputs ({activeInputLabel})
           </button>
           <button
             onClick={() => setActiveUtility("notes")}
@@ -2036,10 +2081,16 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
             Lyrics / Notes
           </button>
           <button
-            onClick={() => soundInputRef.current?.click()}
+            onClick={() => setSoundLibraryOpen(true)}
             className="whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
           >
             Sound Browser
+          </button>
+          <button
+            onClick={() => soundInputRef.current?.click()}
+            className="whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
+          >
+            Import Audio
           </button>
           <button
             onClick={openBeats}
@@ -2152,6 +2203,12 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           setAiFeature(feature);
           setWindowState((prev) => ({ ...prev, ai: { ...prev.ai, open: true } }));
         }}
+      />
+
+      <SoundLibraryModal
+        isOpen={soundLibraryOpen}
+        onClose={() => setSoundLibraryOpen(false)}
+        onApply={applySoundPreset}
       />
 
       <PianoStudioModal

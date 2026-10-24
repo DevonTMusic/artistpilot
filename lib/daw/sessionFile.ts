@@ -138,8 +138,12 @@ export function parseProcessingSettings(value: unknown): TrackProcessingSettings
     "lowGain", "midGain", "midFreq", "highGain", "ambienceSend", "reverbSend",
   ] as const;
   const booleanKeys = ["gateEnabled", "compEnabled", "eqEnabled", "lowCut"] as const;
+  const optionalBooleanKeys = ["deEsserEnabled"] as const;
+  const optionalNumberKeys = ["deEsserAmount"] as const;
   if (numberKeys.some((key) => typeof value[key] !== "number" || !Number.isFinite(value[key])) ||
-    booleanKeys.some((key) => typeof value[key] !== "boolean")) {
+    booleanKeys.some((key) => typeof value[key] !== "boolean") ||
+    optionalBooleanKeys.some((key) => value[key] !== undefined && typeof value[key] !== "boolean") ||
+    optionalNumberKeys.some((key) => value[key] !== undefined && (typeof value[key] !== "number" || !Number.isFinite(value[key]) || value[key] < 0 || value[key] > 1))) {
     throw new Error("Track processing settings are incomplete or invalid.");
   }
   const ranges: Partial<Record<(typeof numberKeys)[number], [number, number]>> = {
@@ -175,6 +179,8 @@ export function parseProcessingSettings(value: unknown): TrackProcessingSettings
     lowCut: value.lowCut as boolean,
     ambienceSend: value.ambienceSend as number,
     reverbSend: value.reverbSend as number,
+    deEsserEnabled: typeof value.deEsserEnabled === "boolean" ? value.deEsserEnabled : false,
+    deEsserAmount: typeof value.deEsserAmount === "number" ? value.deEsserAmount : 0,
   };
 }
 
