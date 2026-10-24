@@ -43,6 +43,7 @@ import { SoundLibraryModal } from "@/components/daw/SoundLibraryModal";
 import { SamplerPadModal } from "@/components/daw/SamplerPadModal";
 import { SceneLauncherModal } from "@/components/daw/SceneLauncherModal";
 import { CollaborationPanel } from "@/components/daw/CollaborationPanel";
+import { StudioWelcomeModal } from "@/components/daw/StudioWelcomeModal";
 import { ChromaticTuner } from "@/components/daw/ChromaticTuner";
 import { SoundPreset } from "@/lib/daw/soundLibrary";
 import { parseMidiFile } from "@/lib/daw/midiFile";
@@ -55,6 +56,7 @@ import {
   MicIcon,
   PianoIcon,
   GuitarIcon,
+  BassIcon,
   DrumIcon,
   BellIcon,
 } from "@/components/daw/StudioIcons";
@@ -188,8 +190,30 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const [smartControlsOpen, setSmartControlsOpen] = useState(true);
   const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
   const [discoverModalOpen, setDiscoverModalOpen] = useState(false);
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
   const [aiFeature, setAiFeature] = useState<"coach" | "palette" | "songstarter">("coach");
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has("invite")) return;
+    try {
+      if (window.localStorage.getItem("artistpilot-studio-guide-seen") !== "true") {
+        setWelcomeOpen(true);
+      }
+    } catch (error) {
+      console.warn("Could not read Studio guide preference:", error);
+      setWelcomeOpen(true);
+    }
+  }, []);
+
+  const closeWelcome = () => {
+    setWelcomeOpen(false);
+    try {
+      window.localStorage.setItem("artistpilot-studio-guide-seen", "true");
+    } catch (error) {
+      console.warn("Could not save Studio guide preference:", error);
+    }
+  };
 
   const [windowState, setWindowState] = useState({
     piano: { open: false, x: 260, y: 120 },
@@ -1845,6 +1869,13 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           >
             <span>+</span> Add Track
           </button>
+          <button
+            onClick={() => setWelcomeOpen(true)}
+            className="h-7 rounded bg-[#20222a] px-2 text-[10px] font-semibold text-zinc-300 hover:bg-zinc-700 hover:text-white"
+            title="Open the Studio guide"
+          >
+            Studio Guide
+          </button>
 
           <input
             aria-label="Project name"
@@ -2173,7 +2204,9 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
                     <div className={`h-6 w-6 rounded-lg ${track.color} flex items-center justify-center text-xs text-white shadow`}>
                       {track.trackType === "midi" ? <PianoIcon className="h-4 w-4 fill-white" />
                         : track.trackType === "drum" ? <DrumIcon className="h-4 w-4 stroke-white" />
-                        : track.trackType === "guitar-bass" ? <GuitarIcon className="h-4 w-4 fill-white" />
+                        : track.trackType === "guitar-bass" ? (track.name.toLowerCase().includes("bass")
+                          ? <BassIcon className="h-4 w-4 fill-white" />
+                          : <GuitarIcon className="h-4 w-4 fill-white" />)
                         : <MicIcon className="h-4 w-4 fill-white" />}
                     </div>
                     <input
@@ -2985,6 +3018,8 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           ? "Suggest a few original chord progression options for this project and explain one small way I can develop each."
           : undefined}
       />
+
+      <StudioWelcomeModal isOpen={welcomeOpen} onClose={closeWelcome} />
 
     </div>
   );
