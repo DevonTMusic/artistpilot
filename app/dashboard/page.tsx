@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import Nav from "@/components/Nav";
 import IdeaLab from "@/components/IdeaLab";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getCurrentSession } from "@/lib/auth/session";
+import { query } from "@/lib/db";
 import { getLocale, translate } from "@/lib/i18n/server";
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ paid?: string; credits?: string }> }) {
-  const sb = await supabaseServer();
-  const { data: { user } } = await sb.auth.getUser();
+  const { user } = (await getCurrentSession()) ?? {};
   if (!user) redirect("/login");
-  const { data: p } = await sb.from("profiles").select("is_paid").eq("id", user.id).single();
+  const { rows: [p] } = await query<{ is_paid: boolean }>("select is_paid from profiles where id = $1", [user.id]);
   const sp = await searchParams;
   const locale = await getLocale();
   const t = (key: string) => translate(locale, key);

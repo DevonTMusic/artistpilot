@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { authClient } from "@/lib/auth/client";
 import { MicArt } from "@/components/Art";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -14,17 +14,21 @@ export default function AuthForm({ mode }: { mode: "in" | "up" }) {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setMsg("");
-    const sb = supabaseBrowser();
-    if (mode === "up") {
-      const { data, error } = await sb.auth.signUp({ email, password });
-      if (error) setMsg(error.message);
-      else if (data.session) { router.push("/home"); router.refresh(); }
-      else setMsg(t("auth.confirmEmail"));
-    } else {
-      const { error } = await sb.auth.signInWithPassword({ email, password });
-      if (error) setMsg(error.message); else { router.push("/home"); router.refresh(); }
+    try {
+      const result = mode === "up"
+        ? await authClient.signUp.email({
+          email,
+          password,
+          name: email.split("@")[0] || "Artist",
+        })
+        : await authClient.signIn.email({ email, password });
+      if (result.error) setMsg(result.error.message || "Authentication failed. Please try again.");
+      else { router.push("/home"); router.refresh(); }
+    } catch {
+      setMsg("Could not connect to ArtistPilot. Check your connection and try again.");
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   }
   const input = "mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-3 font-normal";
   return (

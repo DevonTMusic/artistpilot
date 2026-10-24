@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
-import { supabaseAdmin } from "@/lib/supabase/admin";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getCurrentSession } from "@/lib/auth/session";
+import { query } from "@/lib/db";
 
 const GEMINI_MODEL = "gemini-2.5-flash-lite";
 const USER_MONTHLY_REQUEST_LIMIT = 50;
@@ -10,10 +10,9 @@ const GLOBAL_MONTHLY_REQUEST_LIMIT = 500;
 const SYSTEM = `You are ArtistPilot's music coach. Help the musician develop THEIR OWN idea.
 Never write a finished song, full lyrics, or a complete arrangement. Instead: ask 1-2 clarifying questions, explain relevant theory in plain language, offer 2-3 concrete options to try (chord substitutions, rhythm ideas, bassline approaches, groove variations), and give one small exercise. Keep answers under 250 words.`;
 export async function POST(req: Request) {
-  const sb = await supabaseServer();
-  const { data: { user } } = await sb.auth.getUser();
+  const { user } = (await getCurrentSession()) ?? {};
   if (!user) return NextResponse.json({ error: "Please log in." }, { status: 401 });
-  const { data: p } = await sb.from("profiles").select("is_paid").eq("id", user.id).single();
+  const { rows: [p] } = await query<{ is_paid: boolean }>("select is_paid from profiles where id = $1", [user.id]);
   if (!p?.is_paid) return NextResponse.json({ error: "ArtistPilot Pro is required." }, { status: 402 });
   let body: unknown;
   try {
@@ -27,8 +26,8 @@ export async function POST(req: Request) {
   if (context !== undefined && (typeof context !== "string" || context.length > 300)) {
     return NextResponse.json({ error: "Studio context is invalid." }, { status: 400 });
   }
-  if (!process.env.GEMINI_API_KEY || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.error("AI coach is missing GEMINI_API_KEY or SUPABASE_SERVICE_ROLE_KEY.");
+  if (!process.env.GEMINI_API_KEY || !process.env.DATABASE_URL) {
+    console.error("AI coach is missing GEMINI_API_KEY or DATABASE_URL.");
     return NextResponse.json({ error: "The AI coach is temporarily unavailable. Please try again later." }, { status: 503 });
   }
   const requestId = randomUUID();
@@ -40,16 +39,19 @@ export async function POST(req: Request) {
     charged_credit: boolean;
     reservation_id: string | null;
   } | null = null;
-  let quotaError: { message: string } | null = null;
   try {
-    const result = await supabaseAdmin().rpc("reserve_gemini_coach_request", {
-      p_user_id: user.id,
-      p_user_limit: USER_MONTHLY_REQUEST_LIMIT,
-      p_global_limit: GLOBAL_MONTHLY_REQUEST_LIMIT,
-      p_request_id: requestId,
-    }).single();
-    quotaError = result.error;
-    const reserved = result.data;
+    const result = await query<{
+      allowed: boolean;
+      user_used: number;
+      global_used: number;
+      credits_remaining: number;
+      charged_credit: boolean;
+      reservation_id: string | null;
+    }>(
+      "select * from reserve_gemini_coach_request($1, $2, $3, $4)",
+      [user.id, USER_MONTHLY_REQUEST_LIMIT, GLOBAL_MONTHLY_REQUEST_LIMIT, requestId],
+    );
+    const reserved = result.rows[0];
     if (reserved && typeof reserved === "object") {
       const value = reserved as Record<string, unknown>;
       if (
@@ -74,10 +76,6 @@ export async function POST(req: Request) {
     console.error("Could not reserve Gemini coach usage:", error);
     return NextResponse.json({ error: "The AI coach is temporarily unavailable. Please try again later." }, { status: 503 });
   }
-  if (quotaError) {
-    console.error("Could not reserve Gemini coach usage:", quotaError?.message);
-    return NextResponse.json({ error: "The AI coach is temporarily unavailable. Please try again later." }, { status: 503 });
-  }
   if (!quota) {
     console.error("Gemini usage reservation returned an invalid result.");
     return NextResponse.json({ error: "The AI coach is temporarily unavailable. Please try again later." }, { status: 503 });
@@ -100,7 +98,6 @@ export async function POST(req: Request) {
     console.error("Gemini usage reservation did not include a reservation ID.");
     return NextResponse.json({ error: "The AI coach is temporarily unavailable. Please try again later." }, { status: 503 });
   }
-  const admin = supabaseAdmin();
   try {
     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
       method: "POST",
@@ -119,8 +116,7 @@ export async function POST(req: Request) {
     const text = (j.candidates?.[0]?.content?.parts ?? []).map((x: { text?: string }) => x.text ?? "").join("");
     if (!text) throw new Error("empty");
     try {
-      const { error: completionError } = await admin.rpc("complete_gemini_coach_request", { p_request_id: quota.reservation_id });
-      if (completionError) console.error("Could not complete Gemini usage reservation:", completionError);
+      await query("select complete_gemini_coach_request($1)", [quota.reservation_id]);
     } catch (completionError) {
       console.error("Could not complete Gemini usage reservation:", completionError);
     }
@@ -136,8 +132,7 @@ export async function POST(req: Request) {
     });
   } catch (e) {
     try {
-      const { error: refundError } = await admin.rpc("refund_gemini_coach_request", { p_request_id: quota.reservation_id });
-      if (refundError) console.error("Could not refund failed Gemini usage reservation:", refundError);
+      await query("select refund_gemini_coach_request($1)", [quota.reservation_id]);
     } catch (refundError) {
       console.error("Could not refund failed Gemini usage reservation:", refundError);
     }

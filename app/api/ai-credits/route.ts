@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getCurrentSession } from "@/lib/auth/session";
+import { query } from "@/lib/db";
 import { getStripe } from "@/lib/stripe";
-import { supabaseAdmin } from "@/lib/supabase/admin";
 
 const FREE_MONTHLY_REQUESTS = 50;
 const GLOBAL_MONTHLY_REQUESTS = 500;
@@ -11,41 +11,35 @@ const CREDIT_PACKS = {
 } as const;
 
 export async function GET() {
-  const supabase = await supabaseServer();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { user } = (await getCurrentSession()) ?? {};
   if (!user) return NextResponse.json({ error: "Please log in." }, { status: 401 });
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("is_paid")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (profileError) return NextResponse.json({ error: "Could not verify your subscription." }, { status: 500 });
+  let profile: { is_paid: boolean } | undefined;
+  try {
+    ({ rows: [profile] } = await query<{ is_paid: boolean }>("select is_paid from profiles where id = $1", [user.id]));
+  } catch (error) {
+    console.error("Could not verify AI credits subscription:", error);
+    return NextResponse.json({ error: "Could not verify your subscription." }, { status: 500 });
+  }
   if (!profile?.is_paid) return NextResponse.json({ error: "An active ArtistPilot Pro subscription is required." }, { status: 403 });
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.error("AI credit balance is missing SUPABASE_SERVICE_ROLE_KEY.");
+  if (!process.env.DATABASE_URL) {
+    console.error("AI credit balance is missing DATABASE_URL.");
     return NextResponse.json({ error: "AI credit balance is temporarily unavailable." }, { status: 503 });
   }
 
   const now = new Date();
   const monthStart = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;
   try {
-    const admin = supabaseAdmin();
     const [usage, credits, global] = await Promise.all([
-      admin.from("gemini_coach_usage").select("free_request_count").eq("user_id", user.id).eq("month_start", monthStart).maybeSingle(),
-      admin.from("gemini_coach_credits").select("balance").eq("user_id", user.id).maybeSingle(),
-      admin.from("gemini_coach_global_usage").select("request_count").eq("month_start", monthStart).maybeSingle(),
+      query<{ free_request_count: number }>("select free_request_count from gemini_coach_usage where user_id = $1 and month_start = $2", [user.id, monthStart]),
+      query<{ balance: number }>("select balance from gemini_coach_credits where user_id = $1", [user.id]),
+      query<{ request_count: number }>("select request_count from gemini_coach_global_usage where month_start = $1", [monthStart]),
     ]);
-    const error = usage.error ?? credits.error ?? global.error;
-    if (error) {
-      console.error("Could not read AI credit balance:", error);
-      return NextResponse.json({ error: "AI credit balance is temporarily unavailable." }, { status: 503 });
-    }
     return NextResponse.json({
       usage: {
-        freeUsed: usage.data?.free_request_count ?? 0,
+        freeUsed: usage.rows[0]?.free_request_count ?? 0,
         freeLimit: FREE_MONTHLY_REQUESTS,
-        creditsRemaining: credits.data?.balance ?? 0,
-        globalLimitReached: (global.data?.request_count ?? 0) >= GLOBAL_MONTHLY_REQUESTS,
+        creditsRemaining: credits.rows[0]?.balance ?? 0,
+        globalLimitReached: (global.rows[0]?.request_count ?? 0) >= GLOBAL_MONTHLY_REQUESTS,
       },
     });
   } catch (error) {
@@ -55,17 +49,16 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const supabase = await supabaseServer();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { user } = (await getCurrentSession()) ?? {};
   if (!user) return NextResponse.json({ error: "Please log in to buy AI credits." }, { status: 401 });
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("is_paid, stripe_customer_id")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (profileError) {
-    console.error("Could not verify AI credit purchase eligibility:", profileError);
+  let profile: { is_paid: boolean; stripe_customer_id: string | null } | undefined;
+  try {
+    ({ rows: [profile] } = await query<{ is_paid: boolean; stripe_customer_id: string | null }>(
+      "select is_paid, stripe_customer_id from profiles where id = $1", [user.id],
+    ));
+  } catch (error) {
+    console.error("Could not verify AI credit purchase eligibility:", error);
     return NextResponse.json({ error: "Could not verify your subscription." }, { status: 500 });
   }
   if (!profile?.is_paid) return NextResponse.json({ error: "An active ArtistPilot Pro subscription is required." }, { status: 403 });
@@ -90,17 +83,10 @@ export async function POST(request: Request) {
   try {
     const now = new Date();
     const monthStart = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;
-    const admin = supabaseAdmin();
-    const [creditState, globalState] = await Promise.all([
-      admin.from("gemini_coach_credits").select("balance").eq("user_id", user.id).maybeSingle(),
-      admin.from("gemini_coach_global_usage").select("request_count").eq("month_start", monthStart).maybeSingle(),
-    ]);
-    const quotaError = creditState.error ?? globalState.error;
-    if (quotaError) {
-      console.error("Could not verify AI credit purchase setup:", quotaError);
-      return NextResponse.json({ error: "AI credit purchases are temporarily unavailable." }, { status: 503 });
-    }
-    if ((globalState.data?.request_count ?? 0) >= GLOBAL_MONTHLY_REQUESTS) {
+    const globalState = await query<{ request_count: number }>(
+      "select request_count from gemini_coach_global_usage where month_start = $1", [monthStart],
+    );
+    if ((globalState.rows[0]?.request_count ?? 0) >= GLOBAL_MONTHLY_REQUESTS) {
       return NextResponse.json({ error: "The shared monthly AI safety limit has been reached. Credit purchases are paused until next month." }, { status: 429 });
     }
     const stripe = getStripe();

@@ -1,6 +1,6 @@
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { query } from "@/lib/db";
 export const runtime = "nodejs";
 
 async function fulfillCreditPurchase(session: Stripe.Checkout.Session) {
@@ -14,12 +14,9 @@ async function fulfillCreditPurchase(session: Stripe.Checkout.Session) {
     return new Response("Invalid AI credit purchase metadata", { status: 400 });
   }
 
-  const { error } = await supabaseAdmin().rpc("grant_gemini_coach_credits", {
-    p_checkout_session_id: session.id,
-    p_user_id: userId,
-    p_credits: credits,
-  });
-  if (error) {
+  try {
+    await query("select grant_gemini_coach_credits($1, $2, $3)", [session.id, userId, credits]);
+  } catch (error) {
     console.error("Could not grant purchased Gemini credits:", error);
     return new Response("Could not grant purchased credits", { status: 500 });
   }
@@ -31,16 +28,16 @@ export async function POST(req: Request) {
   let ev: Stripe.Event;
   try { ev = getStripe().webhooks.constructEvent(body, req.headers.get("stripe-signature")!, process.env.STRIPE_WEBHOOK_SECRET!); }
   catch { return new Response("Bad signature", { status: 400 }); }
-  const db = supabaseAdmin();
   if (ev.type === "checkout.session.completed") {
     const s = ev.data.object as Stripe.Checkout.Session;
     if (s.mode === "subscription" && s.client_reference_id) {
       const customerId = typeof s.customer === "string" ? s.customer : s.customer?.id;
-      const { error } = await db.from("profiles").update({
-        is_paid: true,
-        ...(customerId ? { stripe_customer_id: customerId } : {}),
-      }).eq("id", s.client_reference_id);
-      if (error) {
+      try {
+        await query(
+          "update profiles set is_paid = true, stripe_customer_id = coalesce($1, stripe_customer_id) where id = $2",
+          [customerId ?? null, s.client_reference_id],
+        );
+      } catch (error) {
         console.error("Could not activate subscription from Stripe checkout:", error);
         return new Response("Could not activate subscription", { status: 500 });
       }
@@ -54,8 +51,9 @@ export async function POST(req: Request) {
   }
   if (ev.type === "customer.subscription.deleted") {
     const sub = ev.data.object as Stripe.Subscription;
-    const { error } = await db.from("profiles").update({ is_paid: false }).eq("stripe_customer_id", sub.customer as string);
-    if (error) {
+    try {
+      await query("update profiles set is_paid = false where stripe_customer_id = $1", [sub.customer as string]);
+    } catch (error) {
       console.error("Could not deactivate cancelled Stripe subscription:", error);
       return new Response("Could not deactivate subscription", { status: 500 });
     }
