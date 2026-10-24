@@ -4,8 +4,9 @@ import { requirePaid } from "@/lib/access";
 import { INSTRUMENTS, LESSONS } from "@/lib/lessons";
 import { getLocale, translate } from "@/lib/i18n/server";
 import { spanishLessons } from "@/lib/i18n/lessonTranslations";
+import { query } from "@/lib/db";
 export default async function Academy() {
-  const { sb, user } = await requirePaid();
+  const { user } = await requirePaid();
   const locale = await getLocale();
   const t = (key: string, values?: Record<string, string | number>) => translate(locale, key, values);
   const instrumentNames: Record<string, string> = {
@@ -14,8 +15,8 @@ export default async function Academy() {
   const instrumentNamesEs: Record<string, string> = {
     Guitar: "Guitarra", Piano: "Piano", Bass: "Bajo", Drums: "Batería", Ukulele: "Ukelele", Violin: "Violín", Vocals: "Voz",
   };
-  const { data } = await sb.from("lesson_progress").select("lesson_id").eq("user_id", user.id);
-  const done = new Set((data ?? []).map((d) => d.lesson_id));
+  const { rows } = await query<{ lesson_id: string }>("select lesson_id from lesson_progress where user_id = $1", [user.id]);
+  const done = new Set(rows.map((d) => d.lesson_id));
   return (<>
     <Nav signedIn />
     <main className="mx-auto max-w-5xl px-5 py-12">

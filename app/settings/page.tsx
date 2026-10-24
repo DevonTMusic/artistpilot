@@ -2,16 +2,25 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import Nav from "@/components/Nav";
 import SettingsPanels from "@/components/SettingsPanels";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getCurrentSession } from "@/lib/auth/session";
+import { query } from "@/lib/db";
 import { getStripe } from "@/lib/stripe";
 import { getLocale, translate } from "@/lib/i18n/server";
 export default async function Settings() {
   const locale = await getLocale();
   const t = (key: string, values?: Record<string, string | number>) => translate(locale, key, values);
-  const sb = await supabaseServer();
-  const { data: { user } } = await sb.auth.getUser();
+  const { user } = (await getCurrentSession()) ?? {};
   if (!user) redirect("/login");
-  const { data: p } = await sb.from("profiles").select("*").eq("id", user.id).single();
+  const { rows: [p] } = await query<{
+    display_name: string | null;
+    main_instrument: string;
+    default_bpm: number;
+    weekly_goal: number;
+    notify_reminders: boolean;
+    notify_news: boolean;
+    is_paid: boolean;
+    stripe_customer_id: string | null;
+  }>("select * from profiles where id = $1", [user.id]);
   let card: { brand: string; last4: string; exp: string } | null = null;
   if (p?.stripe_customer_id) {
     try {

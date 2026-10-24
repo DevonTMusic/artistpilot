@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useLanguage } from "@/components/LanguageProvider";
+import { authClient } from "@/lib/auth/client";
 
 export default function Nav({ signedIn }: { signedIn?: boolean }) {
   const { locale, setLocale, t } = useLanguage();
@@ -19,7 +20,7 @@ export default function Nav({ signedIn }: { signedIn?: boolean }) {
             <Link className={link} href="/studio">{t("nav.studio")}</Link>
             <Link className={link} href="/dashboard">{t("nav.ideas")}</Link>
             <Link className={link} href="/settings">{t("nav.settings")}</Link>
-            <form action="/auth/signout" method="post"><button className={link}>{t("nav.logout")}</button></form>
+            <button className={link} onClick={() => void authClient.signOut().then(() => window.location.assign("/"))}>{t("nav.logout")}</button>
           </>) : (<>
             <Link className={link} href="/#how">{t("nav.how")}</Link>
             <Link className={link} href="/#pricing">{t("nav.pricing")}</Link>

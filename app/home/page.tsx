@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import Nav from "@/components/Nav";
 import { IdeaArt, MicArt, PianoArt, StudioArt } from "@/components/Art";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getCurrentSession } from "@/lib/auth/session";
+import { query } from "@/lib/db";
 import { LESSONS } from "@/lib/lessons";
 import { getLocale, translate } from "@/lib/i18n/server";
 function Tile({ href, title, text, art, locked }: { href: string; title: string; text: string; art: React.ReactNode; locked: boolean }) {
@@ -17,11 +18,13 @@ function Tile({ href, title, text, art, locked }: { href: string; title: string;
   );
 }
 export default async function HomeHub() {
-  const sb = await supabaseServer();
-  const { data: { user } } = await sb.auth.getUser();
+  const session = await getCurrentSession();
+  const user = session?.user;
   if (!user) redirect("/login");
-  const { data: profile } = await sb.from("profiles").select("*").eq("id", user.id).single();
-  const { count } = await sb.from("lesson_progress").select("lesson_id", { count: "exact", head: true }).eq("user_id", user.id);
+  const [{ rows: [profile] }, { rows: [{ count }] }] = await Promise.all([
+    query<{ display_name: string | null; is_paid: boolean }>("select display_name, is_paid from profiles where id = $1", [user.id]),
+    query<{ count: string }>("select count(*)::text as count from lesson_progress where user_id = $1", [user.id]),
+  ]);
   const paid = !!profile?.is_paid;
   const name = profile?.display_name || user.email?.split("@")[0] || "there";
   const locale = await getLocale();
@@ -42,7 +45,7 @@ export default async function HomeHub() {
       <div className="mt-8 grid gap-5 md:grid-cols-3">
         <Tile href="/studio" title={t("home.studioTitle")} text={t("home.studioText")} art={<MicArt className={art} />} locked={!paid} />
         <Tile href="/dashboard" title={t("home.ideaTitle")} text={t("home.ideaText")} art={<IdeaArt className={art} />} locked={!paid} />
-        <Tile href="/academy" title={t("home.academyTitle")} text={t("home.lessonProgress", { done: count ?? 0, total: LESSONS.length })} art={<PianoArt className={art} />} locked={!paid} />
+        <Tile href="/academy" title={t("home.academyTitle")} text={t("home.lessonProgress", { done: Number(count ?? 0), total: LESSONS.length })} art={<PianoArt className={art} />} locked={!paid} />
       </div>
       <div className="mt-5 grid items-center gap-5 rounded-2xl border border-zinc-800 bg-zinc-900 p-5 md:grid-cols-[1fr_220px]">
         <div><h2 className="text-xl font-bold">{t("home.marketingTitle")}</h2><p className="mt-1 text-zinc-400">{t("home.marketingText")}</p></div>

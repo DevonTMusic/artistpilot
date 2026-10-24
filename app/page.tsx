@@ -2,14 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import Nav from "@/components/Nav";
 import { GuitarArt, IdeaArt, MicArt, PianoArt, StudioArt } from "@/components/Art";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getCurrentSession } from "@/lib/auth/session";
 import { getLocale, translate } from "@/lib/i18n/server";
 
 const cta = "inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-violet-500 to-blue-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-violet-950/30 transition hover:brightness-110";
 
 export default async function Home() {
-  const sb = await supabaseServer();
-  const { data: { user } } = await sb.auth.getUser();
+  const { user } = (await getCurrentSession()) ?? {};
   if (user) redirect("/home");
   const locale = await getLocale();
   const t = (key: string) => translate(locale, key);
