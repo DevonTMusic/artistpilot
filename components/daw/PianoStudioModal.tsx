@@ -2,6 +2,7 @@
 "use client";
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { PianoEngine, PianoPresetType } from "@/lib/daw/PianoEngine";
+import { SynthSettings } from "@/lib/AudioEngine";
 
 interface PianoStudioModalProps {
   isOpen: boolean;
@@ -9,6 +10,7 @@ interface PianoStudioModalProps {
   ctx: AudioContext;
   trackName: string;
   outputNode?: AudioNode;
+  synthSettings?: SynthSettings;
   onRecordMidiNote?: (pitch: number, velocity: number, isNoteOn: boolean) => void;
 }
 
@@ -34,6 +36,7 @@ export function PianoStudioModal({
   ctx,
   trackName,
   outputNode,
+  synthSettings,
   onRecordMidiNote,
 }: PianoStudioModalProps) {
   const engine = useRef<PianoEngine>(PianoEngine.getInstance());
@@ -57,10 +60,10 @@ export function PianoStudioModal({
   });
 
   const triggerNoteOn = useCallback((pitch: number) => {
-    engine.current.noteOn(ctx, pitch, velocity, selectedPreset, outputNode);
+    engine.current.noteOn(ctx, pitch, velocity, selectedPreset, outputNode, synthSettings);
     setActivePitches((prev) => new Set(prev).add(pitch));
     if (onRecordMidiNote) onRecordMidiNote(pitch, velocity, true);
-  }, [ctx, velocity, selectedPreset, outputNode, onRecordMidiNote]);
+  }, [ctx, velocity, selectedPreset, outputNode, synthSettings, onRecordMidiNote]);
 
   const triggerNoteOff = useCallback((pitch: number) => {
     engine.current.noteOff(ctx, pitch);

@@ -1,6 +1,7 @@
 // components/daw/PianoRoll.tsx
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { SynthSettings } from "@/lib/AudioEngine";
 
 export interface MidiNote {
   id: string;
@@ -19,10 +20,12 @@ interface PianoRollProps {
   onDeleteNote: (id: string) => void;
   onPreviewNote: (pitch: number) => void;
   onUpdateNotes?: (notes: MidiNote[]) => void;
+  synthSettings?: SynthSettings;
+  onSynthSettingsChange?: (settings: SynthSettings) => void;
 }
 
 const PITCH_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-const PITCHES = Array.from({ length: 49 }, (_, index) => 84 - index).map((pitch) => ({
+const PITCHES = Array.from({ length: 85 }, (_, index) => 108 - index).map((pitch) => ({
   pitch,
   name: `${PITCH_NAMES[pitch % 12]}${Math.floor(pitch / 12) - 1}`,
   isBlack: [1, 3, 6, 8, 10].includes(pitch % 12),
@@ -37,15 +40,57 @@ export function PianoRoll({
   onDeleteNote,
   onPreviewNote,
   onUpdateNotes,
+  synthSettings,
+  onSynthSettingsChange,
 }: PianoRollProps) {
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [quantizeStep, setQuantizeStep] = useState(1);
   const [scaleLock, setScaleLock] = useState(false);
   const [chordMode, setChordMode] = useState(false);
+  const [synthControlsOpen, setSynthControlsOpen] = useState(false);
+  const [noteDrag, setNoteDrag] = useState<{
+    id: string;
+    mode: "move" | "resize";
+    x: number;
+    y: number;
+    note: MidiNote;
+  } | null>(null);
   const rootPitchClass = ({ C: 0, "D♭": 1, D: 2, "E♭": 3, E: 4, F: 5, "F#": 6, G: 7, "A♭": 8, A: 9, "B♭": 10, B: 11 } as Record<string, number>)[projectKey] ?? 0;
   const scaleIntervals = scale === "maj" ? [0, 2, 4, 5, 7, 9, 11] : [0, 2, 3, 5, 7, 8, 10];
   const scalePitchClasses = new Set(scaleIntervals.map((interval) => (rootPitchClass + interval) % 12));
   const totalSteps = Math.max(32, Math.ceil((Math.max(0, ...notes.map((note) => note.startStep + note.length)) + 1) / 16) * 16);
+
+  useEffect(() => {
+    if (!noteDrag || !onUpdateNotes) return;
+    const move = (event: PointerEvent) => {
+      const stepDelta = Math.round((event.clientX - noteDrag.x) / 32);
+      if (noteDrag.mode === "resize") {
+        const length = Math.max(1, noteDrag.note.length + stepDelta);
+        onUpdateNotes(notes.map((note) => note.id === noteDrag.id ? { ...note, length } : note));
+      } else {
+        const pitchDelta = Math.round((noteDrag.y - event.clientY) / 24);
+        onUpdateNotes(notes.map((note) => note.id === noteDrag.id ? {
+          ...note,
+          startStep: Math.max(0, noteDrag.note.startStep + stepDelta),
+          pitch: Math.max(24, Math.min(108, noteDrag.note.pitch + pitchDelta)),
+        } : note));
+      }
+    };
+    const up = (event: PointerEvent) => {
+      if (noteDrag.mode === "move" &&
+        Math.abs(event.clientX - noteDrag.x) < 4 &&
+        Math.abs(event.clientY - noteDrag.y) < 4) {
+        onDeleteNote(noteDrag.id);
+      }
+      setNoteDrag(null);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up, { once: true });
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+  }, [noteDrag, notes, onDeleteNote, onUpdateNotes]);
 
   const handleCellClick = (pitch: number, step: number) => {
     const playablePitch = scaleLock
@@ -147,6 +192,15 @@ export function PianoRoll({
           >
             Chord {chordMode ? "On" : "Off"}
           </button>
+          {synthSettings && onSynthSettingsChange && (
+            <button
+              onClick={() => setSynthControlsOpen((open) => !open)}
+              aria-expanded={synthControlsOpen}
+              className={`rounded px-2 py-0.5 text-[10px] ${synthControlsOpen ? "bg-emerald-700 text-white" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}
+            >
+              Synth {synthControlsOpen ? "Hide" : "Controls"}
+            </button>
+          )}
 
           {/* Transpose */}
           <div className="flex items-center gap-1 border-l border-zinc-700 pl-2 text-[10px]">
@@ -157,6 +211,28 @@ export function PianoRoll({
           </div>
         </div>
       </div>
+
+      {synthControlsOpen && synthSettings && onSynthSettingsChange && (
+        <div className="grid grid-cols-2 gap-3 border-b border-zinc-800 bg-[#191a21] px-4 py-3 text-[10px] sm:grid-cols-4">
+          <label className="text-zinc-400">Waveform
+            <select value={synthSettings.waveform} onChange={(event) => onSynthSettingsChange({ ...synthSettings, waveform: event.target.value as OscillatorType })} className="mt-1 block w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-white">
+              {["sine", "square", "sawtooth", "triangle"].map((wave) => <option key={wave} value={wave}>{wave}</option>)}
+            </select>
+          </label>
+          {([
+            ["Attack", "attack", 0.001, 2, 0.001],
+            ["Decay", "decay", 0.001, 2, 0.001],
+            ["Sustain", "sustain", 0, 1, 0.01],
+            ["Release", "release", 0.001, 3, 0.001],
+            ["Cutoff", "cutoff", 40, 20000, 10],
+            ["Resonance", "resonance", 0.1, 20, 0.1],
+          ] as const).map(([label, key, min, max, step]) => (
+            <label key={key} className="text-zinc-400">{label} · {synthSettings[key].toFixed(key === "cutoff" ? 0 : 2)}
+              <input type="range" min={min} max={max} step={step} value={synthSettings[key]} onChange={(event) => onSynthSettingsChange({ ...synthSettings, [key]: Number(event.target.value) })} className="mt-2 block w-full accent-emerald-400" />
+            </label>
+          ))}
+        </div>
+      )}
 
       {/* Grid */}
       <div className="flex-1 overflow-y-auto flex">
@@ -188,12 +264,35 @@ export function PianoRoll({
                   <div
                     key={step}
                     onClick={() => handleCellClick(p.pitch, step)}
-                    className={`h-full w-8 flex-none border-r cursor-pointer transition ${
+                    className={`relative h-full w-8 flex-none border-r cursor-pointer transition ${
                       isBarStart ? "border-zinc-600" : isBeatStart ? "border-zinc-700/60" : "border-zinc-800/40"
                     } ${p.isBlack ? "bg-zinc-900/40" : "bg-transparent"} hover:bg-amber-500/20 flex items-center p-0.5`}
                   >
                     {noteHere && (
-                      <div className="h-full w-full rounded-sm bg-gradient-to-r from-amber-400 to-[#d4af37] shadow-sm border border-amber-300" />
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`MIDI note ${noteHere.pitch}, starts at step ${noteHere.startStep + 1}, length ${noteHere.length}. Drag to move; drag edge to resize; click to delete.`}
+                        onPointerDown={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          setSelectedNoteId(noteHere.id);
+                          setNoteDrag({
+                            id: noteHere.id,
+                              mode: event.clientX >= event.currentTarget.getBoundingClientRect().right - 10 ? "resize" : "move",
+                            x: event.clientX,
+                            y: event.clientY,
+                            note: noteHere,
+                          });
+                        }}
+                        onClick={(event) => event.stopPropagation()}
+                        style={{ width: `${Math.max(1, noteHere.length) * 32}px` }}
+                        className={`absolute left-0 top-0 z-10 h-full rounded-sm border shadow-sm ${
+                          selectedNoteId === noteHere.id ? "border-white bg-amber-400" : "border-amber-300 bg-gradient-to-r from-amber-400 to-[#d4af37]"
+                        }`}
+                      >
+                        <span className="absolute right-0 top-0 h-full w-2 cursor-ew-resize bg-black/20" aria-hidden="true" />
+                      </div>
                     )}
                   </div>
                 );

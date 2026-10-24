@@ -3,6 +3,7 @@ import type {
   DrumPatternData,
   GuitarAmpSettings,
   MidiNoteData,
+  SynthSettings,
   TrackData,
   TrackAutomation,
   TrackProcessingSettings,
@@ -202,14 +203,24 @@ function parseMidiNotes(value: unknown): MidiNoteData[] {
 function parseDrumPattern(value: unknown): DrumPatternData | undefined {
   if (value === undefined) return undefined;
   if (!isRecord(value)) throw new Error("Drum pattern is invalid.");
-  const rows = [value.kick, value.snare, value.hat];
-  if (rows.some((row) => !Array.isArray(row) || row.length > 128 || row.some((step) => typeof step !== "boolean"))) {
+  const rows = ["kick", "snare", "hat", "openHat", "clap", "percussion"]
+    .map((key) => value[key])
+    .filter((row) => row !== undefined);
+  if (rows.some((row) => !Array.isArray(row) || row.length > 64 || row.some((step) => typeof step !== "boolean"))) {
     throw new Error("Drum pattern steps are invalid.");
+  }
+  if (!Array.isArray(value.kick) || !Array.isArray(value.snare) || !Array.isArray(value.hat) ||
+    (value.swing !== undefined && (typeof value.swing !== "number" || !Number.isFinite(value.swing) || value.swing < 0 || value.swing > 0.5))) {
+    throw new Error("Drum pattern settings are invalid.");
   }
   return {
     kick: value.kick as boolean[],
     snare: value.snare as boolean[],
     hat: value.hat as boolean[],
+    openHat: value.openHat as boolean[] | undefined,
+    clap: value.clap as boolean[] | undefined,
+    percussion: value.percussion as boolean[] | undefined,
+    swing: value.swing as number | undefined,
   };
 }
 
@@ -223,7 +234,9 @@ function parseAmpSettings(value: unknown): GuitarAmpSettings | undefined {
   if ((value.drive as number) < 0 || (value.drive as number) > 1 ||
     ["bass", "mid", "treble"].some((key) => (value[key] as number) < -10 || (value[key] as number) > 10) ||
     (value.reverb as number) < 0 || (value.reverb as number) > 1 ||
-    (value.delay as number) < 0 || (value.delay as number) > 1) {
+    (value.delay as number) < 0 || (value.delay as number) > 1 ||
+    (value.master !== undefined && (typeof value.master !== "number" || !Number.isFinite(value.master) || value.master < 0 || value.master > 1)) ||
+    ["driveEnabled", "delayEnabled", "chorusEnabled", "reverbEnabled"].some((key) => value[key] !== undefined && typeof value[key] !== "boolean")) {
     throw new Error("Amp settings are outside their supported range.");
   }
   return {
@@ -231,9 +244,42 @@ function parseAmpSettings(value: unknown): GuitarAmpSettings | undefined {
     bass: value.bass as number,
     mid: value.mid as number,
     treble: value.treble as number,
+    master: typeof value.master === "number" && Number.isFinite(value.master) && value.master >= 0 && value.master <= 1
+      ? value.master
+      : 1,
     cabSim: value.cabSim,
     reverb: value.reverb as number,
     delay: value.delay as number,
+    driveEnabled: typeof value.driveEnabled === "boolean" ? value.driveEnabled : true,
+    delayEnabled: typeof value.delayEnabled === "boolean" ? value.delayEnabled : (value.delay as number) > 0,
+    chorusEnabled: typeof value.chorusEnabled === "boolean" ? value.chorusEnabled : false,
+    reverbEnabled: typeof value.reverbEnabled === "boolean" ? value.reverbEnabled : (value.reverb as number) > 0,
+  };
+}
+
+function parseSynthSettings(value: unknown): SynthSettings | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value) ||
+    !["sine", "square", "sawtooth", "triangle"].includes(String(value.waveform)) ||
+    ["attack", "decay", "sustain", "release", "cutoff", "resonance"].some((key) =>
+      typeof value[key] !== "number" || !Number.isFinite(value[key]))) {
+    throw new Error("Synth settings are invalid.");
+  }
+  const ranges: Record<string, [number, number]> = {
+    attack: [0.001, 2], decay: [0.001, 2], sustain: [0, 1], release: [0.001, 3],
+    cutoff: [40, 20000], resonance: [0.1, 20],
+  };
+  if (Object.entries(ranges).some(([key, [min, max]]) => (value[key] as number) < min || (value[key] as number) > max)) {
+    throw new Error("Synth settings are outside their supported range.");
+  }
+  return {
+    waveform: value.waveform as OscillatorType,
+    attack: value.attack as number,
+    decay: value.decay as number,
+    sustain: value.sustain as number,
+    release: value.release as number,
+    cutoff: value.cutoff as number,
+    resonance: value.resonance as number,
   };
 }
 
@@ -334,6 +380,7 @@ export async function openSessionFile(file: File, ctx: AudioContext): Promise<{ 
         settings: parseProcessingSettings(rawTrack.settings),
         midiNotes: parseMidiNotes(rawTrack.midiNotes),
         drumPattern: parseDrumPattern(rawTrack.drumPattern),
+        synthSettings: parseSynthSettings(rawTrack.synthSettings),
         ampSettings: parseAmpSettings(rawTrack.ampSettings),
         ampEnabled: typeof rawTrack.ampEnabled === "boolean" ? rawTrack.ampEnabled : false,
         inputDevice: typeof rawTrack.inputDevice === "string" ? rawTrack.inputDevice : undefined,

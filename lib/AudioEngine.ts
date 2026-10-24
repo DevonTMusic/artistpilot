@@ -23,6 +23,20 @@ export interface DrumPatternData {
   kick: boolean[];
   snare: boolean[];
   hat: boolean[];
+  openHat?: boolean[];
+  clap?: boolean[];
+  percussion?: boolean[];
+  swing?: number;
+}
+
+export interface SynthSettings {
+  waveform: OscillatorType;
+  attack: number;
+  decay: number;
+  sustain: number;
+  release: number;
+  cutoff: number;
+  resonance: number;
 }
 
 export interface AutomationPoint {
@@ -42,9 +56,14 @@ export interface GuitarAmpSettings {
   bass: number;
   mid: number;
   treble: number;
+  master: number;
   cabSim: boolean;
   reverb: number;
   delay: number;
+  driveEnabled: boolean;
+  delayEnabled: boolean;
+  chorusEnabled: boolean;
+  reverbEnabled: boolean;
 }
 
 export interface TrackProcessingSettings {
@@ -80,6 +99,7 @@ export interface TrackData {
   settings?: TrackProcessingSettings;
   midiNotes?: MidiNoteData[];
   drumPattern?: DrumPatternData;
+  synthSettings?: SynthSettings;
   ampSettings?: GuitarAmpSettings;
   ampEnabled?: boolean;
   inputDevice?: string;
@@ -89,11 +109,16 @@ export interface TrackData {
 
 interface TrackMixNodes {
   gain: GainNode;
+  ampMaster: GainNode;
   pan: StereoPannerNode;
   filters: BiquadFilterNode[];
   compressor: DynamicsCompressorNode;
   ampDrive: WaveShaperNode;
   ampFilters: BiquadFilterNode[];
+  chorusDelay: DelayNode;
+  chorusWet: GainNode;
+  chorusLfo: OscillatorNode;
+  chorusDepth: GainNode;
   sends: Array<{ wet: GainNode; type: "reverb" | "ambience" | "delay" }>;
   currentDrive: number;
   audible: boolean;
@@ -214,6 +239,7 @@ export class AudioEngine {
       nodes.gain.gain.setTargetAtTime(audible ? track.volume : 0, time, 0.015);
     }
     nodes.audible = audible;
+    nodes.ampMaster.gain.setTargetAtTime(track.ampEnabled ? amp?.master ?? 1 : 1, time, 0.015);
     if (!track.automation?.pan?.length) nodes.pan.pan.setTargetAtTime(track.pan, time, 0.015);
     nodes.filters[0].frequency.setTargetAtTime(settings?.lowCut ? 80 : 10, time, 0.02);
     nodes.filters[1].gain.setTargetAtTime(settings?.eqEnabled ? settings.lowGain : 0, time, 0.02);
@@ -232,7 +258,7 @@ export class AudioEngine {
     } else {
       nodes.compressor.ratio.setTargetAtTime(1, time, 0.02);
     }
-    const drive = track.ampEnabled ? (amp?.drive ?? 0) : 0;
+    const drive = track.ampEnabled && amp?.driveEnabled !== false ? (amp?.drive ?? 0) : 0;
     if (drive !== nodes.currentDrive) {
       const curve = new Float32Array(44100);
       const amount = drive * 45;
@@ -249,10 +275,12 @@ export class AudioEngine {
     nodes.ampFilters[1].gain.setTargetAtTime(track.ampEnabled ? (amp?.mid ?? 0) : 0, time, 0.02);
     nodes.ampFilters[2].gain.setTargetAtTime(track.ampEnabled ? (amp?.treble ?? 0) : 0, time, 0.02);
     nodes.ampFilters[3].frequency.setTargetAtTime(track.ampEnabled && amp?.cabSim ? 4500 : 20000, time, 0.02);
+    nodes.chorusWet.gain.setTargetAtTime(track.ampEnabled && amp?.chorusEnabled ? 0.35 : 0, time, 0.02);
+    nodes.chorusLfo.frequency.setTargetAtTime(track.ampEnabled && amp?.chorusEnabled ? 0.8 : 0.01, time, 0.02);
     const sendLevels = {
-      reverb: Math.max(settings?.reverbSend ?? 0, track.ampEnabled ? (amp?.reverb ?? 0) : 0),
+      reverb: Math.max(settings?.reverbSend ?? 0, track.ampEnabled && amp?.reverbEnabled !== false ? (amp?.reverb ?? 0) : 0),
       ambience: settings?.ambienceSend ?? 0,
-      delay: track.ampEnabled ? (amp?.delay ?? 0) : 0,
+      delay: track.ampEnabled && amp?.delayEnabled ? (amp?.delay ?? 0) : 0,
     };
     nodes.sends.forEach(({ wet, type }) => {
       if (type === "reverb" && track.automation?.reverbSend?.length) return;
@@ -331,6 +359,7 @@ export class AudioEngine {
     tracks.forEach((track) => {
       const input = ctx.createGain();
       const trackGain = ctx.createGain();
+      const ampMaster = ctx.createGain();
       const trackPan = ctx.createStereoPanner();
       const filters = [
         ctx.createBiquadFilter(),
@@ -373,7 +402,22 @@ export class AudioEngine {
       ampFilters[1].connect(ampFilters[2]);
       ampFilters[2].connect(ampFilters[3]);
       ampFilters[3].connect(trackGain);
-      trackGain.connect(trackPan);
+      const chorusDelay = ctx.createDelay(0.05);
+      const chorusWet = ctx.createGain();
+      const chorusLfo = ctx.createOscillator();
+      const chorusDepth = ctx.createGain();
+      chorusDelay.delayTime.value = 0.02;
+      chorusWet.gain.value = 0;
+      chorusLfo.frequency.value = 0.01;
+      chorusDepth.gain.value = 0.004;
+      chorusLfo.connect(chorusDepth);
+      chorusDepth.connect(chorusDelay.delayTime);
+      chorusLfo.start();
+      ampFilters[3].connect(chorusDelay);
+      chorusDelay.connect(chorusWet);
+      chorusWet.connect(trackGain);
+      trackGain.connect(ampMaster);
+      ampMaster.connect(trackPan);
       trackPan.connect(this.masterGain!);
       const sends: TrackMixNodes["sends"] = [];
       (["reverb", "ambience", "delay"] as const).forEach((type) => {
@@ -393,11 +437,16 @@ export class AudioEngine {
       });
       const mixNodes: TrackMixNodes = {
         gain: trackGain,
+        ampMaster,
         pan: trackPan,
         filters,
         compressor,
         ampDrive,
         ampFilters,
+        chorusDelay,
+        chorusWet,
+        chorusLfo,
+        chorusDepth,
         sends,
         currentDrive: -1,
         audible: false,
@@ -416,7 +465,7 @@ export class AudioEngine {
       }
       const reverbSend = Math.max(
         track.settings?.reverbSend ?? 0,
-        track.ampEnabled ? (track.ampSettings?.reverb ?? 0) : 0
+        track.ampEnabled && track.ampSettings?.reverbEnabled !== false ? (track.ampSettings?.reverb ?? 0) : 0
       );
       if (track.automation?.reverbSend?.length) {
         const reverbWet = sends.find((send) => send.type === "reverb")?.wet;
@@ -426,7 +475,8 @@ export class AudioEngine {
           this.scheduleAutomation(reverbWet.gain, scaledPoints, Math.min(0.45, reverbSend * 0.25), startOffsetSec, scheduledTime, effectiveEndOffset);
         }
       }
-      this.activeNodes.push(input, trackGain, trackPan, ...filters, compressor, ampDrive, ...ampFilters);
+      this.activeNodes.push(input, trackGain, ampMaster, trackPan, ...filters, compressor, ampDrive, ...ampFilters, chorusDelay, chorusWet, chorusDepth);
+      this.activeSources.push(chorusLfo);
 
       track.regions.forEach((region) => {
         if (!region.muted && region.startTime + region.duration > startOffsetSec && region.startTime < effectiveEndOffset) {
@@ -459,17 +509,19 @@ export class AudioEngine {
         const start = note.startStep * stepDuration;
         const duration = Math.min(Math.max(1, note.length) * stepDuration, effectiveEndOffset - start);
         if (start + duration <= startOffsetSec) return;
-        this.scheduleTone(input, note.pitch, note.velocity ?? 100, start, duration, startOffsetSec, scheduledTime);
+        this.scheduleTone(input, note.pitch, note.velocity ?? 100, start, duration, startOffsetSec, scheduledTime, track.synthSettings);
       });
 
       if (track.category === "drum" && track.drumPattern) {
         const pattern = track.drumPattern;
-        const patternLength = Math.max(pattern.kick.length, pattern.snare.length, pattern.hat.length);
+        const rows = [pattern.kick, pattern.snare, pattern.hat, pattern.openHat ?? [], pattern.clap ?? [], pattern.percussion ?? []];
+        const patternLength = Math.max(...rows.map((row) => row.length));
+        const swing = Math.max(0, Math.min(0.5, pattern.swing ?? 0));
         if (patternLength === 0) return;
         for (let cycle = 0; ; cycle++) {
           let hasScheduledStep = false;
           for (let step = 0; step < patternLength; step++) {
-            const when = (cycle * patternLength + step) * stepDuration;
+            const when = (cycle * patternLength + step) * stepDuration + (step % 2 === 1 ? swing * stepDuration * 0.5 : 0);
             if (when >= effectiveEndOffset) return;
             if (when < startOffsetSec) continue;
             if (pattern.kick[step]) {
@@ -483,6 +535,12 @@ export class AudioEngine {
             if (pattern.hat[step]) {
               this.scheduleDrum(input, "hat", scheduledTime + when - startOffsetSec);
               hasScheduledStep = true;
+            }
+            for (const kind of ["openHat", "clap", "percussion"] as const) {
+              if (pattern[kind]?.[step]) {
+                this.scheduleDrum(input, kind, scheduledTime + when - startOffsetSec);
+                hasScheduledStep = true;
+              }
             }
           }
           if (cycle * patternLength * stepDuration >= effectiveEndOffset || (!hasScheduledStep && cycle > 1)) break;
@@ -498,7 +556,8 @@ export class AudioEngine {
     start: number,
     duration: number,
     offset: number,
-    scheduledTime: number
+    scheduledTime: number,
+    settings?: SynthSettings
   ): void {
     const ctx = this.ctx!;
     const when = scheduledTime + Math.max(0, start - offset);
@@ -506,19 +565,31 @@ export class AudioEngine {
     if (remaining <= 0) return;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = "triangle";
+    const filter = ctx.createBiquadFilter();
+    osc.type = settings?.waveform ?? "triangle";
     osc.frequency.value = 440 * Math.pow(2, (pitch - 69) / 12);
+    filter.type = "lowpass";
+    filter.frequency.value = settings?.cutoff ?? 12000;
+    filter.Q.value = settings?.resonance ?? 0.7;
+    const attack = settings?.attack ?? 0.01;
+    const decay = settings?.decay ?? 0.15;
+    const sustain = settings?.sustain ?? 0.75;
+    const release = settings?.release ?? 0.15;
+    const peak = Math.max(0.02, velocity / 127) * 0.22;
     gain.gain.setValueAtTime(0.0001, when);
-    gain.gain.linearRampToValueAtTime(Math.max(0.02, velocity / 127) * 0.22, when + 0.01);
-    gain.gain.setTargetAtTime(0.0001, when + remaining, 0.06);
-    osc.connect(gain);
+    gain.gain.linearRampToValueAtTime(peak, when + attack);
+    gain.gain.linearRampToValueAtTime(peak * sustain, when + attack + decay);
+    gain.gain.setValueAtTime(peak * sustain, when + remaining);
+    gain.gain.linearRampToValueAtTime(0.0001, when + remaining + release);
+    osc.connect(filter);
+    filter.connect(gain);
     gain.connect(destination);
     osc.start(when);
-    osc.stop(when + remaining + 0.25);
-    this.activeNodes.push(osc, gain);
+    osc.stop(when + remaining + release + 0.02);
+    this.activeNodes.push(osc, filter, gain);
   }
 
-  private scheduleDrum(destination: AudioNode, kind: "kick" | "snare" | "hat", when: number): void {
+  private scheduleDrum(destination: AudioNode, kind: "kick" | "snare" | "hat" | "openHat" | "clap" | "percussion", when: number): void {
     const ctx = this.ctx!;
     const gain = ctx.createGain();
     const osc = ctx.createOscillator();
@@ -536,9 +607,9 @@ export class AudioEngine {
       noise.buffer = buffer;
       const filter = ctx.createBiquadFilter();
       filter.type = "highpass";
-      filter.frequency.value = kind === "hat" ? 7000 : 1000;
-      gain.gain.setValueAtTime(kind === "hat" ? 0.14 : 0.35, when);
-      gain.gain.exponentialRampToValueAtTime(0.001, when + (kind === "hat" ? 0.045 : 0.18));
+      filter.frequency.value = kind === "hat" ? 7000 : kind === "openHat" ? 5500 : kind === "percussion" ? 1800 : 1000;
+      gain.gain.setValueAtTime(kind === "hat" ? 0.14 : kind === "openHat" ? 0.19 : kind === "clap" ? 0.28 : 0.25, when);
+      gain.gain.exponentialRampToValueAtTime(0.001, when + (kind === "hat" ? 0.045 : kind === "openHat" ? 0.22 : kind === "percussion" ? 0.1 : 0.18));
       noise.connect(filter);
       filter.connect(gain);
       gain.connect(destination);
@@ -611,11 +682,19 @@ export class AudioEngine {
 
       const input = offlineCtx.createGain();
       const tGain = offlineCtx.createGain();
-      tGain.gain.value = track.volume;
+      const ampMaster = track.ampEnabled ? track.ampSettings?.master ?? 1 : 1;
+      tGain.gain.value = track.volume * ampMaster;
       const tPan = offlineCtx.createStereoPanner();
       tPan.pan.value = track.pan;
       if (track.automation?.volume?.length) {
-        this.scheduleAutomation(tGain.gain, track.automation.volume, track.volume, 0, 0, totalDurationSec);
+        this.scheduleAutomation(
+          tGain.gain,
+          track.automation.volume.map((point) => ({ ...point, value: point.value * ampMaster })),
+          track.volume * ampMaster,
+          0,
+          0,
+          totalDurationSec
+        );
       }
       if (track.automation?.pan?.length) {
         this.scheduleAutomation(tPan.pan, track.automation.pan, track.pan, 0, 0, totalDurationSec);
@@ -654,10 +733,10 @@ export class AudioEngine {
         if (track.ampEnabled && track.ampSettings) {
           const drive = offlineCtx.createWaveShaper();
           const curve = new Float32Array(44100);
-          const amount = track.ampSettings.drive * 45;
+          const amount = (track.ampSettings.driveEnabled ? track.ampSettings.drive : 0) * 45;
           for (let i = 0; i < curve.length; i++) {
             const x = (i * 2) / curve.length - 1;
-            curve[i] = ((3 + amount) * x * 20 * (Math.PI / 180)) /
+            curve[i] = amount === 0 ? x : ((3 + amount) * x * 20 * (Math.PI / 180)) /
               (Math.PI + amount * Math.abs(x));
           }
           drive.curve = curve;
@@ -684,6 +763,23 @@ export class AudioEngine {
           midTone.connect(treble);
           treble.connect(cab);
           cab.connect(tGain);
+          if (track.ampSettings.chorusEnabled) {
+            const chorusDelay = offlineCtx.createDelay(0.05);
+            const chorusWet = offlineCtx.createGain();
+            const chorusLfo = offlineCtx.createOscillator();
+            const chorusDepth = offlineCtx.createGain();
+            chorusDelay.delayTime.value = 0.02;
+            chorusWet.gain.value = 0.35;
+            chorusLfo.frequency.value = 0.8;
+            chorusDepth.gain.value = 0.004;
+            chorusLfo.connect(chorusDepth);
+            chorusDepth.connect(chorusDelay.delayTime);
+            cab.connect(chorusDelay);
+            chorusDelay.connect(chorusWet);
+            chorusWet.connect(tGain);
+            chorusLfo.start(0);
+            chorusLfo.stop(totalDurationSec);
+          }
         } else comp.connect(tGain);
       } else {
         input.connect(tGain);
@@ -702,9 +798,9 @@ export class AudioEngine {
         src.start(region.startTime, region.offset, Math.min(region.duration, totalDurationSec - region.startTime));
       });
       const wetAmounts = [
-        Math.max(track.settings?.reverbSend ?? 0, track.ampEnabled ? (track.ampSettings?.reverb ?? 0) : 0),
+        Math.max(track.settings?.reverbSend ?? 0, track.ampEnabled && track.ampSettings?.reverbEnabled !== false ? (track.ampSettings?.reverb ?? 0) : 0),
         track.settings?.ambienceSend ?? 0,
-        track.ampEnabled ? (track.ampSettings?.delay ?? 0) : 0,
+        track.ampEnabled && track.ampSettings?.delayEnabled ? (track.ampSettings?.delay ?? 0) : 0,
       ];
       wetAmounts.forEach((amount, index) => {
         if (amount <= 0 && !(index === 0 && track.automation?.reverbSend?.length)) return;
@@ -736,28 +832,46 @@ export class AudioEngine {
         if (when >= totalDurationSec) return;
         const osc = offlineCtx.createOscillator();
         const gain = offlineCtx.createGain();
+        const filter = offlineCtx.createBiquadFilter();
         const duration = Math.min(Math.max(1, note.length) * stepDuration, totalDurationSec - when);
-        osc.type = "triangle";
+        const synth = track.synthSettings;
+        osc.type = synth?.waveform ?? "triangle";
         osc.frequency.value = 440 * Math.pow(2, (note.pitch - 69) / 12);
-        gain.gain.setValueAtTime(Math.max(0.02, (note.velocity ?? 100) / 127) * 0.22, when);
-        gain.gain.setTargetAtTime(0.0001, when + duration, 0.06);
-        osc.connect(gain);
+        filter.type = "lowpass";
+        filter.frequency.value = synth?.cutoff ?? 12000;
+        filter.Q.value = synth?.resonance ?? 0.7;
+        const peak = Math.max(0.02, (note.velocity ?? 100) / 127) * 0.22;
+        const attack = synth?.attack ?? 0.01;
+        const decay = synth?.decay ?? 0.15;
+        const release = synth?.release ?? 0.15;
+        gain.gain.setValueAtTime(0.0001, when);
+        gain.gain.linearRampToValueAtTime(peak, when + attack);
+        gain.gain.linearRampToValueAtTime(peak * (synth?.sustain ?? 0.75), when + attack + decay);
+        gain.gain.setValueAtTime(peak * (synth?.sustain ?? 0.75), when + duration);
+        gain.gain.linearRampToValueAtTime(0.0001, when + duration + release);
+        osc.connect(filter);
+        filter.connect(gain);
         gain.connect(input);
         osc.start(when);
-        osc.stop(Math.min(totalDurationSec, when + duration + 0.25));
+        osc.stop(Math.min(totalDurationSec, when + duration + release + 0.02));
       });
 
       if (track.category === "drum" && track.drumPattern) {
         const pattern = track.drumPattern;
-        const patternLength = Math.max(pattern.kick.length, pattern.snare.length, pattern.hat.length);
+        const rows = [pattern.kick, pattern.snare, pattern.hat, pattern.openHat ?? [], pattern.clap ?? [], pattern.percussion ?? []];
+        const patternLength = Math.max(...rows.map((row) => row.length));
+        const swing = Math.max(0, Math.min(0.5, pattern.swing ?? 0));
         if (patternLength === 0) return;
         for (let cycle = 0; cycle * patternLength * stepDuration < totalDurationSec; cycle++) {
           for (let step = 0; step < patternLength; step++) {
-            const when = (cycle * patternLength + step) * stepDuration;
+            const when = (cycle * patternLength + step) * stepDuration + (step % 2 === 1 ? swing * stepDuration * 0.5 : 0);
             const notes = [
               ["kick", pattern.kick[step]],
               ["snare", pattern.snare[step]],
               ["hat", pattern.hat[step]],
+              ["openHat", pattern.openHat?.[step]],
+              ["clap", pattern.clap?.[step]],
+              ["percussion", pattern.percussion?.[step]],
             ] as const;
             notes.forEach(([kind, active]) => {
               if (!active) return;
@@ -780,9 +894,9 @@ export class AudioEngine {
                 noise.buffer = buffer;
                 const filter = offlineCtx.createBiquadFilter();
                 filter.type = "highpass";
-                filter.frequency.value = kind === "hat" ? 7000 : 1000;
-                gain.gain.setValueAtTime(kind === "hat" ? 0.14 : 0.35, when);
-                gain.gain.exponentialRampToValueAtTime(0.001, when + (kind === "hat" ? 0.045 : 0.18));
+                filter.frequency.value = kind === "hat" ? 7000 : kind === "openHat" ? 5500 : kind === "percussion" ? 1800 : 1000;
+                gain.gain.setValueAtTime(kind === "hat" ? 0.14 : kind === "openHat" ? 0.19 : kind === "clap" ? 0.28 : 0.25, when);
+                gain.gain.exponentialRampToValueAtTime(0.001, when + (kind === "hat" ? 0.045 : kind === "openHat" ? 0.22 : kind === "percussion" ? 0.1 : 0.18));
                 noise.connect(filter);
                 filter.connect(gain);
                 gain.connect(input);
