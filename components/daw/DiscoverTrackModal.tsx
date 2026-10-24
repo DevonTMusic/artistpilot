@@ -1,7 +1,7 @@
 // components/daw/DiscoverTrackModal.tsx
 "use client";
 import React from "react";
-import { MicIcon, PianoIcon, GuitarIcon, DrumIcon } from "./StudioIcons";
+import { MicIcon, PianoIcon, GuitarIcon, BassIcon, DrumIcon } from "./StudioIcons";
 
 interface DiscoverTrackModalProps {
   isOpen: boolean;
@@ -146,7 +146,7 @@ export function DiscoverTrackModal({
               className="flex items-center gap-3.5 p-3.5 rounded-xl border border-zinc-800 bg-[#18191f] hover:border-cyan-500/50 hover:bg-[#1f2129] transition text-left"
             >
               <div className="h-12 w-12 rounded-xl bg-[#319795] flex items-center justify-center text-white shadow-lg">
-                <GuitarIcon className="w-6 h-6 fill-white" />
+                <BassIcon className="w-6 h-6 fill-white" />
               </div>
               <div>
                 <span className="text-xs font-bold text-white block">Guitar</span>

@@ -63,8 +63,18 @@ export function PianoIcon({ className = "w-5 h-5 fill-current" }: { className?: 
 
 export function GuitarIcon({ className = "w-5 h-5 fill-current" }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24">
-      <path d="M19.59 4.41c-.78-.78-2.05-.78-2.83 0l-1.41 1.41 2.83 2.83 1.41-1.41c.78-.78.78-2.05 0-2.83zM14.65 6.53L4.22 16.96c-.78.78-.78 2.05 0 2.83.78.78 2.05.78 2.83 0L17.48 9.36l-2.83-2.83z" />
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M20.8 2.2a1 1 0 0 0-1.4 0l-2.1 2.1 2.4 2.4 2.1-2.1a1 1 0 0 0 0-1.4l-1-1ZM17.8 5.7l-2.4-2.4-2.1 2.1 1.2 1.2-2.1 2.1a5 5 0 0 0-5.7 1.1 5 5 0 0 0-1.1 5.7l-2.2 2.2a2.2 2.2 0 0 0 3.1 3.1l2.2-2.2a5 5 0 0 0 5.7-1.1 5 5 0 0 0 1.1-5.7l2.1-2.1 1.2 1.2 2.1-2.1-2.4-2.4-2.1 2.1-1.2-1.2 2.6-2.6ZM9.1 12.5a1 1 0 1 1 1.4 1.4 1 1 0 0 1-1.4-1.4Z" />
+      <path d="m8.9 15.1 7.2-7.2m-5.7 8.7 7.2-7.2" fill="none" stroke="currentColor" strokeWidth=".65" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function BassIcon({ className = "w-5 h-5 fill-current" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M22 2.7a1 1 0 0 0-1.4 0l-2 2 2.7 2.7 2-2a1 1 0 0 0 0-1.4L22 2.7ZM18 6.4l-2.7-2.7-2.2 2.2 1.4 1.4-2.2 2.2a5.4 5.4 0 0 0-5.9 1.2 5.1 5.1 0 0 0-1.2 5.9l-2.3 2.3a2.3 2.3 0 0 0 3.2 3.2l2.3-2.3a5.1 5.1 0 0 0 5.9-1.2 5.4 5.4 0 0 0 1.2-5.9l2.2-2.2 1.4 1.4 2.2-2.2L18.6 7l-2.2 2.2L15 7.8 18 4.8l2.7 2.7L18 10.2Z" />
+      <path d="m7.1 15.1 9.5-9.5m-8 11 9.5-9.5m-8 11 9.5-9.5m-8 11 9.5-9.5" fill="none" stroke="currentColor" strokeWidth=".55" strokeLinecap="round" />
     </svg>
   );
 }
