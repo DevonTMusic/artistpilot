@@ -13,75 +13,84 @@ export interface MidiNote {
 interface PianoRollProps {
   notes: MidiNote[];
   instrumentName: string;
+  projectKey?: string;
+  scale?: "maj" | "min";
   onAddNote: (note: MidiNote) => void;
   onDeleteNote: (id: string) => void;
   onPreviewNote: (pitch: number) => void;
   onUpdateNotes?: (notes: MidiNote[]) => void;
 }
 
-const PITCHES = [
-  { pitch: 72, name: "C5", isBlack: false },
-  { pitch: 71, name: "B4", isBlack: false },
-  { pitch: 70, name: "A#4", isBlack: true },
-  { pitch: 69, name: "A4", isBlack: false },
-  { pitch: 68, name: "G#4", isBlack: true },
-  { pitch: 67, name: "G4", isBlack: false },
-  { pitch: 66, name: "F#4", isBlack: true },
-  { pitch: 65, name: "F4", isBlack: false },
-  { pitch: 64, name: "E4", isBlack: false },
-  { pitch: 63, name: "D#4", isBlack: true },
-  { pitch: 62, name: "D4", isBlack: false },
-  { pitch: 61, name: "C#4", isBlack: true },
-  { pitch: 60, name: "C4", isBlack: false },
-  { pitch: 59, name: "B3", isBlack: false },
-  { pitch: 58, name: "A#3", isBlack: true },
-  { pitch: 57, name: "A3", isBlack: false },
-  { pitch: 56, name: "G#3", isBlack: true },
-  { pitch: 55, name: "G3", isBlack: false },
-  { pitch: 54, name: "F#3", isBlack: true },
-  { pitch: 53, name: "F3", isBlack: false },
-  { pitch: 52, name: "E3", isBlack: false },
-  { pitch: 51, name: "D#3", isBlack: true },
-  { pitch: 50, name: "D3", isBlack: false },
-  { pitch: 49, name: "C#3", isBlack: true },
-  { pitch: 48, name: "C3", isBlack: false },
-];
-
-const TOTAL_STEPS = 32;
+const PITCH_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const PITCHES = Array.from({ length: 49 }, (_, index) => 84 - index).map((pitch) => ({
+  pitch,
+  name: `${PITCH_NAMES[pitch % 12]}${Math.floor(pitch / 12) - 1}`,
+  isBlack: [1, 3, 6, 8, 10].includes(pitch % 12),
+}));
 
 export function PianoRoll({
   notes,
   instrumentName,
+  projectKey = "C",
+  scale = "maj",
   onAddNote,
   onDeleteNote,
   onPreviewNote,
   onUpdateNotes,
 }: PianoRollProps) {
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [quantizeStep, setQuantizeStep] = useState(1);
+  const [scaleLock, setScaleLock] = useState(false);
+  const [chordMode, setChordMode] = useState(false);
+  const rootPitchClass = ({ C: 0, "D♭": 1, D: 2, "E♭": 3, E: 4, F: 5, "F#": 6, G: 7, "A♭": 8, A: 9, "B♭": 10, B: 11 } as Record<string, number>)[projectKey] ?? 0;
+  const scaleIntervals = scale === "maj" ? [0, 2, 4, 5, 7, 9, 11] : [0, 2, 3, 5, 7, 8, 10];
+  const scalePitchClasses = new Set(scaleIntervals.map((interval) => (rootPitchClass + interval) % 12));
+  const totalSteps = Math.max(32, Math.ceil((Math.max(0, ...notes.map((note) => note.startStep + note.length)) + 1) / 16) * 16);
 
   const handleCellClick = (pitch: number, step: number) => {
-    const existing = notes.find((n) => n.pitch === pitch && n.startStep === step);
+    const playablePitch = scaleLock
+      ? Array.from({ length: 13 }, (_, index) => pitch - 6 + index)
+        .filter((candidate) => scalePitchClasses.has(candidate % 12))
+        .sort((a, b) => Math.abs(a - pitch) - Math.abs(b - pitch))[0] ?? pitch
+      : pitch;
+    const existing = notes.find((n) => n.pitch === playablePitch && n.startStep === step);
     if (existing) {
       onDeleteNote(existing.id);
     } else {
-      onPreviewNote(pitch);
-      onAddNote({
-        id: `note-${Date.now()}-${pitch}-${step}`,
-        pitch,
-        startStep: step,
-        length: 2,
-        velocity: 100,
+      const rootOffset = (playablePitch - rootPitchClass + 120) % 12;
+      const degree = scaleIntervals.reduce((closest, interval, index) =>
+        Math.abs(interval - rootOffset) < Math.abs(scaleIntervals[closest] - rootOffset) ? index : closest, 0
+      );
+      const thirdDegree = degree + 2;
+      const fifthDegree = degree + 4;
+      const third = scaleIntervals[thirdDegree % 7] - scaleIntervals[degree] + (thirdDegree >= 7 ? 12 : 0);
+      const fifth = scaleIntervals[fifthDegree % 7] - scaleIntervals[degree] + (fifthDegree >= 7 ? 12 : 0);
+      const uniquePitches = chordMode
+        ? [playablePitch, playablePitch + third, playablePitch + fifth]
+        : [playablePitch];
+      uniquePitches.forEach((notePitch, index) => {
+        onPreviewNote(notePitch);
+        if (!notes.some((note) => note.pitch === notePitch && note.startStep === step)) {
+          onAddNote({
+            id: `note-${Date.now()}-${notePitch}-${step}-${index}`,
+            pitch: notePitch,
+            startStep: step,
+            length: 2,
+            velocity: 100,
+          });
+        }
       });
     }
   };
 
-  // Quantize: Snaps all notes to 16th or 8th intervals
-  const quantizeNotes = (snapStep: number = 2) => {
+  // A step represents one sixteenth note.
+  const quantizeNotes = (snapStep: number = 1) => {
     if (!onUpdateNotes) return;
-    const quantized = notes.map((n) => ({
-      ...n,
-      startStep: Math.round(n.startStep / snapStep) * snapStep,
-    }));
+    const quantized = notes.map((note) => {
+      const startStep = Math.max(0, Math.round(note.startStep / snapStep) * snapStep);
+      const endStep = Math.max(startStep + snapStep, Math.round((note.startStep + note.length) / snapStep) * snapStep);
+      return { ...note, startStep, length: endStep - startStep };
+    });
     onUpdateNotes(quantized);
   };
 
@@ -107,11 +116,36 @@ export function PianoRoll({
         <div className="flex items-center gap-2">
           {/* Quantize */}
           <button
-            onClick={() => quantizeNotes(2)}
+            onClick={() => quantizeNotes(quantizeStep)}
             className="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-[10px] text-white"
-            title="Snap notes to 1/16th grid"
+            title={`Align note starts and ends to ${quantizeStep === 1 ? "1/16" : "1/8"} grid`}
           >
-            Quantize (1/16)
+            Quantize ({quantizeStep === 1 ? "1/16" : "1/8"})
+          </button>
+          <select
+            aria-label="Piano roll quantize grid"
+            value={quantizeStep}
+            onChange={(event) => setQuantizeStep(Number(event.target.value))}
+            className="rounded border border-zinc-700 bg-zinc-900 px-1 py-0.5 text-[10px]"
+          >
+            <option value={1}>1/16</option>
+            <option value={2}>1/8</option>
+          </select>
+          <button
+            onClick={() => setScaleLock((enabled) => !enabled)}
+            aria-pressed={scaleLock}
+            className={`rounded px-2 py-0.5 text-[10px] ${scaleLock ? "bg-sky-700 text-white" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}
+            title={`Constrain note entry to ${projectKey} ${scale === "maj" ? "major" : "minor"}`}
+          >
+            Scale {scaleLock ? "On" : "Off"}
+          </button>
+          <button
+            onClick={() => setChordMode((enabled) => !enabled)}
+            aria-pressed={chordMode}
+            className={`rounded px-2 py-0.5 text-[10px] ${chordMode ? "bg-violet-700 text-white" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}
+            title="Add a triad when entering a root note"
+          >
+            Chord {chordMode ? "On" : "Off"}
           </button>
 
           {/* Transpose */}
@@ -145,7 +179,7 @@ export function PianoRoll({
         <div className="flex-1 overflow-x-auto bg-[#0f1013]">
           {PITCHES.map((p) => (
             <div key={p.pitch} className="flex h-6 border-b border-zinc-800/40">
-              {Array.from({ length: TOTAL_STEPS }, (_, step) => {
+              {Array.from({ length: totalSteps }, (_, step) => {
                 const noteHere = notes.find((n) => n.pitch === p.pitch && n.startStep === step);
                 const isBarStart = step % 16 === 0;
                 const isBeatStart = step % 4 === 0;

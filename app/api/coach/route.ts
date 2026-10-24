@@ -8,8 +8,12 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "Please log in." }, { status: 401 });
   const { data: p } = await sb.from("profiles").select("is_paid").eq("id", user.id).single();
   if (!p?.is_paid) return NextResponse.json({ error: "ArtistPilot Pro is required." }, { status: 402 });
-  const { instrument, message } = await req.json();
+  const body = await req.json();
+  const { instrument, message, context } = body;
   if (typeof message !== "string" || !message.trim() || message.length > 1000) return NextResponse.json({ error: "Write a message under 1000 characters." }, { status: 400 });
+  if (context !== undefined && (typeof context !== "string" || context.length > 300)) {
+    return NextResponse.json({ error: "Studio context is invalid." }, { status: 400 });
+  }
   try {
     const model = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
@@ -17,7 +21,10 @@ export async function POST(req: Request) {
       headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM }] },
-        contents: [{ role: "user", parts: [{ text: `Instrument: ${String(instrument).slice(0, 20)}\n${message}` }] }],
+        contents: [{
+          role: "user",
+          parts: [{ text: `Instrument: ${typeof instrument === "string" ? instrument.slice(0, 40) : "general"}\n${context ? `Studio context: ${context}\n` : ""}${message}` }],
+        }],
         generationConfig: { maxOutputTokens: 700 },
       }),
     });

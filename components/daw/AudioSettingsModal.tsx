@@ -8,8 +8,10 @@ interface AudioSettingsModalProps {
   onClose: () => void;
   ctx: AudioContext | null;
   activeInputDeviceName: string;
+  activeInputDeviceId: string;
+  activeOutputDeviceId: string;
   onSelectInputDevice: (deviceId: string, label: string) => void;
-  onSelectOutputDevice: (deviceId: string) => void;
+  onSelectOutputDevice: (deviceId: string) => boolean | Promise<boolean>;
   isMonitoring: boolean;
   onToggleMonitoring: (enabled: boolean) => void;
 }
@@ -19,6 +21,8 @@ export function AudioSettingsModal({
   onClose,
   ctx,
   activeInputDeviceName,
+  activeInputDeviceId,
+  activeOutputDeviceId,
   onSelectInputDevice,
   onSelectOutputDevice,
   isMonitoring,
@@ -32,12 +36,14 @@ export function AudioSettingsModal({
   const [inputLevel, setInputLevel] = useState<number>(0);
   const [isClipping, setIsClipping] = useState<boolean>(false);
   const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
-
-  const meterAnim = useRef<number | null>(null);
+  const [meterError, setMeterError] = useState("");
+  const [outputError, setOutputError] = useState("");
 
   // Scan hardware on open
   useEffect(() => {
     if (!isOpen) return;
+    setSelectedInput(activeInputDeviceId);
+    setSelectedOutput(activeOutputDeviceId);
 
     manager.current.requestPermissionAndEnumerate().then(({ inputs, outputs }) => {
       setInputs(inputs);
@@ -51,35 +57,63 @@ export function AudioSettingsModal({
     });
 
     return () => unsubscribe();
-  }, [isOpen]);
+  }, [isOpen, activeInputDeviceId, activeOutputDeviceId]);
 
   // Real-time Peak Level & Clipping Meter
   useEffect(() => {
-    if (!isOpen) return;
-    const analyser = (manager.current as any).analyserNode;
-    if (!analyser) return;
-
-    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    if (!isOpen || !ctx || !permissionGranted) return;
+    let cancelled = false;
+    let frameId = 0;
+    let previewStream: MediaStream | null = null;
+    let source: MediaStreamAudioSourceNode | null = null;
+    let analyser: AnalyserNode | null = null;
 
     const updateMeter = () => {
-      meterAnim.current = requestAnimationFrame(updateMeter);
+      if (!analyser) return;
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
       analyser.getByteTimeDomainData(dataArray);
-
       let peak = 0;
       for (let i = 0; i < dataArray.length; i++) {
-        const val = Math.abs((dataArray[i] - 128) / 128);
-        if (val > peak) peak = val;
+        peak = Math.max(peak, Math.abs((dataArray[i] - 128) / 128));
       }
-
       setInputLevel(Math.min(100, Math.round(peak * 115)));
       setIsClipping(peak >= 0.98);
+      frameId = requestAnimationFrame(updateMeter);
     };
 
-    updateMeter();
-    return () => {
-      if (meterAnim.current) cancelAnimationFrame(meterAnim.current);
+    const startPreview = async () => {
+      try {
+        previewStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            deviceId: selectedInput === "default" ? undefined : { exact: selectedInput },
+            echoCancellation: false,
+            autoGainControl: false,
+            noiseSuppression: false,
+          },
+        });
+        if (cancelled) {
+          previewStream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        source = ctx.createMediaStreamSource(previewStream);
+        analyser = ctx.createAnalyser();
+        analyser.fftSize = 512;
+        source.connect(analyser);
+        setMeterError("");
+        updateMeter();
+      } catch (error) {
+        setMeterError(error instanceof Error ? error.message : "Could not access the selected input.");
+      }
     };
-  }, [isOpen]);
+    void startPreview();
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frameId);
+      try { source?.disconnect(); } catch {}
+      previewStream?.getTracks().forEach((track) => track.stop());
+    };
+  }, [isOpen, ctx, selectedInput, permissionGranted]);
 
   if (!isOpen) return null;
 
@@ -105,7 +139,7 @@ export function AudioSettingsModal({
           {!permissionGranted && (
             <div className="p-3 bg-amber-950/40 border border-amber-800/60 rounded-xl text-xs text-amber-200">
               <span className="font-bold block mb-0.5">Microphone Permission Required</span>
-              Allow browser audio permissions so ArtistPilot can identify your Scarlett Solo, USB mic, and studio monitors by name.
+              Allow browser audio permissions so ArtistPilot can identify available audio devices by name.
             </div>
           )}
 
@@ -129,7 +163,7 @@ export function AudioSettingsModal({
               <option value="default">System Default Input</option>
               {inputs.map((d) => (
                 <option key={d.deviceId} value={d.deviceId}>
-                  {d.label.includes("Scarlett") ? `⚡ ${d.label}` : d.label}
+                  {d.label}
                 </option>
               ))}
             </select>
@@ -152,6 +186,7 @@ export function AudioSettingsModal({
                 }`}
               />
             </div>
+            {meterError && <p role="alert" className="mt-1 text-[10px] text-amber-300">{meterError}</p>}
           </div>
 
           {/* 3. Output Device Selector */}
@@ -161,19 +196,28 @@ export function AudioSettingsModal({
               value={selectedOutput}
               onChange={(e) => {
                 const devId = e.target.value;
-                setSelectedOutput(devId);
-                onSelectOutputDevice(devId);
+                void (async () => {
+                  const applied = await onSelectOutputDevice(devId);
+                  if (applied) {
+                    setSelectedOutput(devId);
+                    setOutputError("");
+                  } else {
+                    setSelectedOutput(activeOutputDeviceId);
+                    setOutputError("This browser could not route audio to that output. Playback remains on the current output.");
+                  }
+                })();
               }}
               className="w-full rounded-lg bg-[#0d0e12] border border-zinc-700/80 p-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-sky-500"
             >
               <option value="default">System Default Speakers / Headphones</option>
               {outputs.map((d) => (
                 <option key={d.deviceId} value={d.deviceId}>
-                  {d.label.includes("Scarlett") ? `⚡ ${d.label}` : d.label}
+                  {d.label}
                 </option>
               ))}
             </select>
-            <span className="text-[9px] text-zinc-500 mt-1 block">Output routing routes playback to your Scarlett headphone or monitor outs</span>
+            <span className="text-[9px] text-zinc-500 mt-1 block">Output routing depends on support in your browser and audio device.</span>
+            {outputError && <p role="alert" className="mt-1 text-[10px] text-amber-300">{outputError}</p>}
           </div>
 
           {/* 4. Direct Monitoring Switch */}
