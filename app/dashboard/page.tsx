@@ -20,7 +20,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       {sp.credits === "cancelled" && <p role="status" className="mb-5 max-w-2xl rounded-lg border border-zinc-800 bg-zinc-900 p-3 text-sm text-zinc-200">{t("dashboard.paymentCancelled")}</p>}
       {p?.is_paid ? <IdeaLab /> : (
         <div className="max-w-md rounded-2xl border border-violet-500 bg-zinc-900 p-8">
-          {sp.paid ? <p className="mb-4 text-amber-200">{t("dashboard.paymentSuccess")}</p> : null}
+          {sp.paid ? <p className="mb-4 text-amber-200">{t("dashboard.subscriptionPending")}</p> : null}
           <h2 className="text-2xl font-bold">{t("dashboard.pro")}</h2>
           <p className="mt-2 text-zinc-300">{t("dashboard.subscribeText")}</p>
           <form action="/api/checkout" method="post"><button className="mt-6 w-full rounded-xl bg-gradient-to-r from-violet-500 to-blue-500 py-3 font-bold">{t("dashboard.getStarted")}</button></form>
