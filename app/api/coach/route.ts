@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { getCurrentSession } from "@/lib/auth/session";
 import { query } from "@/lib/db";
 
-const GEMINI_MODEL = "gemini-2.5-flash-lite";
+const GEMINI_MODEL = "gemini-3.5-flash-lite";
 const USER_MONTHLY_REQUEST_LIMIT = 50;
 const GLOBAL_MONTHLY_REQUEST_LIMIT = 500;
 

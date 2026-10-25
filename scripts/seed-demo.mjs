@@ -9,7 +9,7 @@ if (!process.env.DATABASE_URL) throw new Error("Set DATABASE_URL to the Neon con
 async function authRequest(endpoint, body) {
   const response = await fetch(`${baseUrl}/api/auth/${endpoint}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: new URL(baseUrl).origin },
     body: JSON.stringify(body),
   });
   const result = await response.json().catch(() => null);
