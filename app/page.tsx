@@ -29,10 +29,6 @@ export default async function Home() {
             <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-white md:text-3xl">{t("public.founderName")}</h2>
             <p className="mt-1 text-sm font-semibold text-sky-300">{t("public.founderRole")}</p>
             <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-300 md:text-base">{t("public.founderBio")}</p>
-            <div className="mt-4 flex flex-wrap gap-4 text-sm font-semibold">
-              <a href="https://artistpilot-sable.vercel.app" className="text-violet-300 underline-offset-4 hover:underline">{t("public.founderLive")}: artistpilot-sable.vercel.app</a>
-              <a href="https://github.com/DevonTMusic/artistpilot" className="text-violet-300 underline-offset-4 hover:underline">{t("public.founderGithub")}: github.com/DevonTMusic/artistpilot</a>
-            </div>
           </div>
         </section>
         <section className="relative mx-auto grid max-w-6xl items-center gap-8 px-5 pb-16 pt-14 md:grid-cols-[1.05fr_.95fr] md:gap-12 md:pb-24 md:pt-20">
