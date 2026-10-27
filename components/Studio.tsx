@@ -107,7 +107,9 @@ const DEFAULT_AMP_SETTINGS: GuitarAmpSettings = {
   reverbEnabled: false,
 };
 
-export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
+const FREE_TRACK_LIMIT = 3;
+
+export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?: number; isPro?: boolean }) {
   const { t, locale } = useLanguage();
   const engine = useRef<AudioEngine>(AudioEngine.getInstance());
   const deviceManager = useRef<AudioDeviceManager>(AudioDeviceManager.getInstance());
@@ -194,6 +196,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   const [discoverModalOpen, setDiscoverModalOpen] = useState(false);
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
+  const [upgradeFeature, setUpgradeFeature] = useState<string | null>(null);
   const [aiFeature, setAiFeature] = useState<"coach" | "palette" | "songstarter">("coach");
 
   useEffect(() => {
@@ -1303,6 +1306,10 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
 
   // Add Track from Discover Modal (Screenshot 2 functionality)
   const handleAddTrackType = (type: "vocal" | "guitar" | "bass" | "piano" | "drum", preset?: SoundPreset) => {
+    if (!isPro && tracks.length >= FREE_TRACK_LIMIT) {
+      setUpgradeFeature(t("studio.upgradeTracks", { count: FREE_TRACK_LIMIT }));
+      return;
+    }
     if (tracks.length >= 12) {
       setStatusMsg(t("studio.statusTrackLimit"));
       return;
@@ -1623,6 +1630,10 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   }, [sharedProjectId, hasEditLease]);
 
   const exportProject = async () => {
+    if (!isPro) {
+      setUpgradeFeature(t("studio.upgradeExport"));
+      return;
+    }
     if (isExporting) return;
     if (isRecording) {
       setStatusMsg(t("studio.statusStopBeforeExport"));
@@ -1656,6 +1667,10 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
   };
 
   const exportStems = async () => {
+    if (!isPro) {
+      setUpgradeFeature(t("studio.upgradeStems"));
+      return;
+    }
     if (isExportingStems || isExporting) return;
     if (isRecording) {
       setStatusMsg(t("studio.statusStopBeforeStems"));
@@ -1895,7 +1910,7 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
           <div className="h-4 w-[1px] bg-zinc-800" />
           <button onClick={() => void saveProject()} className="rounded bg-[#20222a] px-2 py-1 text-[10px] font-semibold text-zinc-200 hover:bg-zinc-700">{t("studio.save")}</button>
           <button onClick={() => fileInputRef.current?.click()} className="rounded bg-[#20222a] px-2 py-1 text-[10px] font-semibold text-zinc-200 hover:bg-zinc-700">{t("studio.open")}</button>
-          <button onClick={() => setCollaborationOpen(true)} className="rounded bg-violet-900/60 px-2 py-1 text-[10px] font-semibold text-violet-200 hover:bg-violet-800">{t("studio.collaborate")}</button>
+          <button onClick={() => (isPro ? setCollaborationOpen(true) : setUpgradeFeature(t("studio.upgradeCollab")))} className="rounded bg-violet-900/60 px-2 py-1 text-[10px] font-semibold text-violet-200 hover:bg-violet-800">{t("studio.collaborate")}</button>
           <button onClick={() => setBusPanelOpen(true)} className="rounded bg-[#20222a] px-2 py-1 text-[10px] font-semibold text-zinc-200 hover:bg-zinc-700">{t("studio.buses")}</button>
 
           {/* Metronome & Count-In Pill */}
@@ -2697,6 +2712,10 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
 
           <button
             onClick={() => {
+              if (!isPro) {
+                setUpgradeFeature(t("studio.upgradeCoach"));
+                return;
+              }
               setAiFeature("coach");
               toggleModal("ai");
             }}
@@ -3016,6 +3035,19 @@ export default function Studio({ defaultBpm = 120 }: { defaultBpm?: number }) {
         onSettingsChange={(settings) => setTracks((prev) => prev.map((track) => track.id === selectedTrackId ? { ...track, ampSettings: settings } : track))}
         onToggleEnabled={() => setTracks((prev) => prev.map((track) => track.id === selectedTrackId ? { ...track, ampEnabled: !track.ampEnabled } : track))}
       />
+
+      {upgradeFeature && (
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-[80] grid place-items-center bg-black/60 p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-violet-500 bg-[#18191d] p-6 text-white shadow-2xl">
+            <h2 className="text-lg font-extrabold">{t("studio.upgradeTitle")}</h2>
+            <p className="mt-2 text-sm text-zinc-300">{upgradeFeature}</p>
+            <div className="mt-5 flex gap-2">
+              <a href="/dashboard" className="flex-1 rounded-lg bg-gradient-to-r from-violet-500 to-blue-500 px-4 py-2 text-center text-sm font-bold">{t("studio.upgradeCta")}</a>
+              <button onClick={() => setUpgradeFeature(null)} className="rounded-lg bg-zinc-800 px-4 py-2 text-sm font-semibold hover:bg-zinc-700">{t("studio.upgradeLater")}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <AiCoachModal
         isOpen={windowState.ai.open}

@@ -1,9 +1,9 @@
 import Nav from "@/components/Nav";
 import Studio from "@/components/Studio";
-import { requirePaid } from "@/lib/access";
+import { requireUser } from "@/lib/access";
 
 export default async function StudioPage() {
-  const { profile } = await requirePaid();
+  const { profile, isPro } = await requireUser();
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#121316] text-white">
@@ -11,7 +11,7 @@ export default async function StudioPage() {
         <Nav signedIn />
       </header>
       <main className="min-h-0 flex-1 w-full overflow-hidden">
-        <Studio defaultBpm={profile?.default_bpm ?? 118} />
+        <Studio defaultBpm={profile?.default_bpm ?? 118} isPro={isPro} />
       </main>
     </div>
   );

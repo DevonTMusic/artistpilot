@@ -38,14 +38,14 @@ export default async function HomeHub() {
       {!paid && (
         <div className="mt-6 rounded-2xl border border-violet-500 bg-zinc-900 p-5">
           <p className="font-bold">{t("home.unlock")}</p>
-          <p className="text-zinc-400">{t("home.planIncluded")}</p>
+          <p className="text-zinc-400">{t("home.freePlan")}</p>
           <Link href="/dashboard" className="mt-3 inline-block rounded-lg bg-gradient-to-r from-violet-500 to-blue-500 px-4 py-2 font-bold">{t("home.seePlan")}</Link>
         </div>
       )}
       <div className="mt-8 grid gap-5 md:grid-cols-3">
-        <Tile href="/studio" title={t("home.studioTitle")} text={t("home.studioText")} art={<MicArt className={art} />} locked={!paid} />
+        <Tile href="/studio" title={t("home.studioTitle")} text={t("home.studioText")} art={<MicArt className={art} />} locked={false} />
         <Tile href="/dashboard" title={t("home.ideaTitle")} text={t("home.ideaText")} art={<IdeaArt className={art} />} locked={!paid} />
-        <Tile href="/academy" title={t("home.academyTitle")} text={t("home.lessonProgress", { done: Number(count ?? 0), total: LESSONS.length })} art={<PianoArt className={art} />} locked={!paid} />
+        <Tile href="/academy" title={t("home.academyTitle")} text={t("home.lessonProgress", { done: Number(count ?? 0), total: LESSONS.length })} art={<PianoArt className={art} />} locked={false} />
       </div>
       <div className="mt-5 grid items-center gap-5 rounded-2xl border border-zinc-800 bg-zinc-900 p-5 md:grid-cols-[1fr_220px]">
         <div><h2 className="text-xl font-bold">{t("home.marketingTitle")}</h2><p className="mt-1 text-zinc-400">{t("home.marketingText")}</p></div>

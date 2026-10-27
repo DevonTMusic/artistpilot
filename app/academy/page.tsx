@@ -1,12 +1,12 @@
 import Link from "next/link";
 import Nav from "@/components/Nav";
-import { requirePaid } from "@/lib/access";
-import { INSTRUMENTS, LESSONS } from "@/lib/lessons";
+import { requireUser } from "@/lib/access";
+import { INSTRUMENTS, LESSONS, isFreeLesson } from "@/lib/lessons";
 import { getLocale, translate } from "@/lib/i18n/server";
 import { spanishLessons } from "@/lib/i18n/lessonTranslations";
 import { query } from "@/lib/db";
 export default async function Academy() {
-  const { user } = await requirePaid();
+  const { user, isPro } = await requireUser();
   const locale = await getLocale();
   const t = (key: string, values?: Record<string, string | number>) => translate(locale, key, values);
   const instrumentNames: Record<string, string> = {
@@ -26,7 +26,8 @@ export default async function Academy() {
         {INSTRUMENTS.map((inst) => {
           const ls = LESSONS.filter((l) => l.instrument === inst);
           const n = ls.filter((l) => done.has(l.id)).length;
-          const nextLesson = ls.find((lesson) => !done.has(lesson.id)) ?? ls[0];
+          const accessible = ls.filter((lesson) => isPro || isFreeLesson(lesson.id));
+          const nextLesson = accessible.find((lesson) => !done.has(lesson.id)) ?? accessible[0];
           const shownInstrument = locale === "es" ? instrumentNamesEs[inst] : instrumentNames[inst];
           return (<section key={inst} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
             <div className="flex items-baseline justify-between gap-2"><h2 className="text-xl font-bold">{shownInstrument}</h2><span className="text-sm text-zinc-400">{t("academy.completed", { done: n, total: ls.length })}</span></div>
@@ -39,7 +40,7 @@ export default async function Academy() {
               </Link>
             )}
             <ul className="mt-4 space-y-2">
-              {ls.map((l) => (<li key={l.id}><Link href={`/academy/${l.id}`} className="flex items-center justify-between rounded-lg border border-zinc-800 px-4 py-3 hover:border-violet-500"><span>{locale === "es" ? spanishLessons[l.id]?.title ?? l.title : l.title}</span><span className="text-sm text-emerald-400">{done.has(l.id) ? t("academy.done") : ""}</span></Link></li>))}
+              {ls.map((l) => (<li key={l.id}><Link href={isPro || isFreeLesson(l.id) ? `/academy/${l.id}` : "/dashboard"} className="flex items-center justify-between rounded-lg border border-zinc-800 px-4 py-3 hover:border-violet-500"><span>{locale === "es" ? spanishLessons[l.id]?.title ?? l.title : l.title}</span><span className="text-sm text-emerald-400">{done.has(l.id) ? t("academy.done") : !isPro && !isFreeLesson(l.id) ? <span className="rounded bg-violet-500/20 px-2 py-0.5 text-xs text-violet-300">Pro</span> : ""}</span></Link></li>))}
             </ul>
           </section>);
         })}
