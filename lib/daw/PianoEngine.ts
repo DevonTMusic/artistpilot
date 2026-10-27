@@ -17,8 +17,21 @@ export interface ActiveVoice {
   release?: number;
 }
 
+const SAMPLE_BASE = "/samples/piano";
+const SAMPLE_NOTES = ["C", "Ds", "Fs", "A"];
+const SAMPLE_NAMES = ["A0", ...Array.from({ length: 7 }, (_, i) => SAMPLE_NOTES.map((n) => `${n}${i + 1}`)).flat(), "C8"];
+const NOTE_OFFSETS: Record<string, number> = { C: 0, Ds: 3, Fs: 6, A: 9 };
+const SAMPLED_PRESETS: PianoPresetType[] = ["Concert Grand", "Studio Upright", "Felt Piano", "Ambient Cinematic Piano"];
+
+function sampleMidi(name: string) {
+  const match = /^([A-G]s?)(\d)$/.exec(name)!;
+  return 12 * (Number(match[2]) + 1) + NOTE_OFFSETS[match[1]];
+}
+
 export class PianoEngine {
   private static instance: PianoEngine;
+  private sampleBuffers = new WeakMap<BaseAudioContext, Map<number, AudioBuffer>>();
+  private sampleLoads = new WeakMap<BaseAudioContext, Promise<void>>();
   private activeVoices = new Map<number, ActiveVoice>();
   public sustainPedalDown = false;
   private sustainedNotes = new Set<number>();
@@ -30,6 +43,61 @@ export class PianoEngine {
       PianoEngine.instance = new PianoEngine();
     }
     return PianoEngine.instance;
+  }
+
+  public preload(ctx: BaseAudioContext): Promise<void> {
+    const existing = this.sampleLoads.get(ctx);
+    if (existing) return existing;
+    const buffers = new Map<number, AudioBuffer>();
+    this.sampleBuffers.set(ctx, buffers);
+    const load = Promise.all(
+      SAMPLE_NAMES.map(async (name) => {
+        try {
+          const response = await fetch(`${SAMPLE_BASE}/${name}.mp3`);
+          if (!response.ok) return;
+          buffers.set(sampleMidi(name), await ctx.decodeAudioData(await response.arrayBuffer()));
+        } catch {}
+      }),
+    ).then(() => undefined);
+    this.sampleLoads.set(ctx, load);
+    return load;
+  }
+
+  private playSample(
+    ctx: AudioContext,
+    pitch: number,
+    vel: number,
+    preset: PianoPresetType,
+    destination: AudioNode,
+    synthSettings?: SynthSettings,
+  ): boolean {
+    const buffers = this.sampleBuffers.get(ctx);
+    if (!buffers || buffers.size === 0) return false;
+    let nearest = -1;
+    buffers.forEach((_, midi) => {
+      if (nearest < 0 || Math.abs(midi - pitch) < Math.abs(nearest - pitch)) nearest = midi;
+    });
+    const buffer = buffers.get(nearest);
+    if (!buffer) return false;
+
+    const t = ctx.currentTime;
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.playbackRate.value = Math.pow(2, (pitch - nearest) / 12);
+
+    const tone = ctx.createBiquadFilter();
+    tone.type = "lowpass";
+    tone.frequency.value = preset === "Felt Piano" ? 1800 : preset === "Studio Upright" ? 5000 : 18000;
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.9 * vel * vel + 0.1, t);
+
+    source.connect(tone);
+    tone.connect(gain);
+    gain.connect(destination);
+    source.start(t);
+    this.activeVoices.set(pitch, { nodes: [source, tone, gain], gain, pitch, release: synthSettings?.release ?? 0.35 });
+    return true;
   }
 
   // Realistic Acoustic Piano String Resonance & Hammer Model
@@ -47,6 +115,11 @@ export class PianoEngine {
     const destination = destNode || ctx.destination;
     const t = ctx.currentTime;
     const vel = Math.max(0.1, Math.min(1.0, velocity / 127));
+
+    if (SAMPLED_PRESETS.includes(preset)) {
+      if (this.playSample(ctx, pitch, vel, preset, destination, synthSettings)) return;
+      void this.preload(ctx);
+    }
 
     const masterGain = ctx.createGain();
     const nodesToClean: AudioNode[] = [masterGain];
