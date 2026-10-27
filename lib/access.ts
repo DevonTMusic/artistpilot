@@ -13,3 +13,15 @@ export async function requirePaid() {
   if (!profile?.is_paid) redirect("/dashboard");
   return { user, profile };
 }
+
+// Use on pages that free users may open. Returns whether the user has Pro instead of redirecting.
+export async function requireUser() {
+  const session = await getCurrentSession();
+  const user = session?.user;
+  if (!user) redirect("/login");
+  const { rows: [profile] } = await query<{ is_paid: boolean; default_bpm: number }>(
+    "select is_paid, default_bpm from profiles where id = $1",
+    [user.id],
+  );
+  return { user, profile, isPro: !!profile?.is_paid };
+}

@@ -66,3 +66,8 @@ export const LESSONS: Lesson[] = [
     practice: "Record the C major scale on a Studio track and listen back, noting which notes were off." },
 ];
 export const lessonById = (id: string) => LESSONS.find((l) => l.id === id);
+// The first lesson of each instrument course is free; the rest need Pro.
+export const isFreeLesson = (id: string) => {
+  const lesson = lessonById(id);
+  return !!lesson && LESSONS.find((l) => l.instrument === lesson.instrument)?.id === id;
+};
