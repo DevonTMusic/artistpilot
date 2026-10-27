@@ -100,7 +100,7 @@ export default async function Home() {
                 <h3 className="text-xl font-bold text-white">{t("public.planName")}</h3>
                 <p className="mt-1 text-xs text-zinc-400">{t("public.planDetail")}</p>
               </div>
-              <p className="text-4xl font-extrabold text-white">$15<span className="text-sm font-medium text-zinc-400"> {t("public.month")}</span></p>
+              <p className="text-4xl font-extrabold text-white">$12<span className="text-sm font-medium text-zinc-400"> {t("public.month")}</span></p>
             </div>
             <ul className="mt-6 grid gap-x-6 gap-y-3 sm:grid-cols-2">
               {benefits.map(([title, description]) => (
