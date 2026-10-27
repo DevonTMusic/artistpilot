@@ -172,9 +172,13 @@ export function PianoStudioModal({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
-      engine.current.releaseAllNotes(ctx);
     };
   }, [isOpen, ctx, currentOctave, triggerNoteOn, triggerNoteOff]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    return () => engine.current.releaseAllNotes(ctx);
+  }, [isOpen, ctx]);
 
   const playChord = (degree: number) => {
     const rootPitch = 60 + rootPitchClass + scaleIntervals[degree];
