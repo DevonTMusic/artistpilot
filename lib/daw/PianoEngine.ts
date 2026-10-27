@@ -109,6 +109,7 @@ export class PianoEngine {
     destNode?: AudioNode,
     synthSettings?: SynthSettings
   ) {
+    if (ctx.state === "suspended") void ctx.resume();
     this.noteOff(ctx, pitch, true);
 
     const freq = 440 * Math.pow(2, (pitch - 69) / 12);
