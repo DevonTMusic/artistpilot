@@ -110,6 +110,10 @@ export function PianoStudioModal({
   }, [ctx, velocity, onRecordMidiNote]);
 
   useEffect(() => {
+    void engine.current.preload(ctx);
+  }, [ctx]);
+
+  useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
