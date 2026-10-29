@@ -13,7 +13,7 @@ interface GuitarAmpModalProps {
   onToggleEnabled: () => void;
 }
 
-const rangeClass = "w-full accent-amber-400";
+const rangeClass = "w-full accent-[#3ddc78]";
 const labelClass = "mb-1 block text-[10px] font-semibold tracking-wide text-zinc-400";
 
 export function GuitarAmpModal({
@@ -63,7 +63,7 @@ export function GuitarAmpModal({
       <section role="dialog" aria-modal="true" aria-label={t("amp.effectsLabel", { track: trackName })} className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-zinc-700 bg-[#17191f] text-white shadow-2xl">
         <header className="flex items-center justify-between border-b border-zinc-800 bg-[#22242c] px-5 py-3">
           <div>
-            <h2 className="text-sm font-bold text-amber-300">{t("amp.title")}</h2>
+            <h2 className="text-sm font-bold text-[#5ee38f]">{t("amp.title")}</h2>
             <p className="text-xs text-zinc-400">{t("amp.playbackNote", { track: trackName })}</p>
           </div>
           <div className="flex items-center gap-3">
@@ -89,13 +89,13 @@ export function GuitarAmpModal({
             ))}
           </div>
           <label className="flex items-center gap-2 text-xs text-zinc-300">
-            <input type="checkbox" checked={settings.cabSim} onChange={(event) => update("cabSim", event.target.checked)} className="accent-amber-400" />
+            <input type="checkbox" checked={settings.cabSim} onChange={(event) => update("cabSim", event.target.checked)} className="accent-[#3ddc78]" />
             {t("amp.cabSim")}
           </label>
           <div className="grid gap-3 sm:grid-cols-2">
             {pedal(t("amp.overdrive"), "driveEnabled", settings.drive, "drive", "bg-emerald-300")}
             {pedal(t("amp.delay"), "delayEnabled", settings.delay, "delay", "bg-sky-300")}
-            {pedal(t("amp.chorus"), "chorusEnabled", 0, null, "bg-amber-300")}
+            {pedal(t("amp.chorus"), "chorusEnabled", 0, null, "bg-[#5ee38f]")}
             {pedal(t("amp.reverb"), "reverbEnabled", settings.reverb, "reverb", "bg-rose-300")}
           </div>
         </div>

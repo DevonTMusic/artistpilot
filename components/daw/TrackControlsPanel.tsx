@@ -163,7 +163,7 @@ export function TrackControlsPanel({
             onClick={handleToggleCompare}
             className={`px-2.5 py-0.5 rounded text-[10px] font-bold border transition ${
               activeSnapshot === "B"
-                ? "bg-amber-500/20 border-amber-500/60 text-amber-300"
+                ? "bg-[#1DB954]/20 border-[#1DB954]/60 text-[#5ee38f]"
                 : "bg-black/20 border-zinc-700 text-zinc-300 hover:bg-zinc-700/50"
             }`}
           >
@@ -344,7 +344,7 @@ export function TrackControlsPanel({
                     key={i}
                     className={`h-1.5 w-1.5 rounded-full ${
                       currentSettings.compEnabled && currentSettings.compAmount * 6 >= i
-                        ? i > 4 ? "bg-amber-400 shadow-sm" : "bg-emerald-400"
+                        ? i > 4 ? "bg-[#3ddc78] shadow-sm" : "bg-emerald-400"
                         : "bg-zinc-800"
                     }`}
                   />

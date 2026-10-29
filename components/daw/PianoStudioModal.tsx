@@ -258,7 +258,7 @@ export function PianoStudioModal({
                   engine.current.setSustainPedal(ctx, next);
                 }}
                 className={`px-3 py-0.5 rounded text-[11px] font-bold border transition ${
-                  sustainOn ? "border-amber-400 bg-amber-400/20 text-amber-300 shadow-[0_0_8px_#f59e0b]" : "border-zinc-700 bg-zinc-800 text-zinc-400"
+                  sustainOn ? "border-[#3ddc78] bg-[#3ddc78]/20 text-[#5ee38f] shadow-[0_0_8px_#f59e0b]" : "border-zinc-700 bg-zinc-800 text-zinc-400"
                 }`}
               >
                 {t("pianoStudio.sustain")} {sustainOn ? t("track.on") : t("track.off")}
@@ -290,7 +290,7 @@ export function PianoStudioModal({
             <button
               onClick={() => setChordMode((enabled) => !enabled)}
               aria-pressed={chordMode}
-              className={`rounded px-2 py-1 text-[10px] font-semibold ${chordMode ? "bg-amber-700 text-white" : "bg-zinc-800 text-zinc-300"}`}
+              className={`rounded px-2 py-1 text-[10px] font-semibold ${chordMode ? "bg-[#118a3e] text-white" : "bg-zinc-800 text-zinc-300"}`}
             >
               {t("pianoStudio.chordMode")} {chordMode ? t("pianoRoll.on") : t("pianoRoll.off")}
             </button>
@@ -366,7 +366,7 @@ export function PianoStudioModal({
                     onLostPointerCapture={() => triggerNoteOff(key.pitch)}
                     className={`relative h-full w-8 flex-none rounded-b border border-x-zinc-400 border-b-zinc-500 transition ${
                       isPressed
-                        ? "bg-amber-300"
+                        ? "bg-[#5ee38f]"
                         : scaleLock && !scalePitchClasses.has(key.pitch % 12)
                           ? "bg-zinc-400 opacity-30"
                           : scalePitchClasses.has(key.pitch % 12)
@@ -400,7 +400,7 @@ export function PianoStudioModal({
                     style={{ left: `${precedingWhiteKeys * 32 - 11}px` }}
                     className={`absolute top-0 z-10 h-[62%] w-[22px] rounded-b border border-black shadow-[0_3px_5px_rgba(0,0,0,0.55)] ${
                       isPressed
-                        ? "bg-amber-400"
+                        ? "bg-[#3ddc78]"
                         : scaleLock && !scalePitchClasses.has(key.pitch % 12)
                           ? "bg-black opacity-25"
                           : scalePitchClasses.has(key.pitch % 12)

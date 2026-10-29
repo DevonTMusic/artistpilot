@@ -4,8 +4,8 @@ import Nav from "@/components/Nav";
 import { getCurrentSession } from "@/lib/auth/session";
 import { getLocale, translate } from "@/lib/i18n/server";
 
-const primary = "inline-block rounded-full bg-[#ff5a36] px-6 py-3 font-bold text-white hover:bg-[#ff7152]";
-const frame = "rounded-lg border-2 border-zinc-900 bg-zinc-900 shadow-[8px_8px_0_#ff5a36]";
+const primary = "inline-block rounded-full bg-[#1DB954] px-6 py-3 font-bold text-black hover:bg-[#3ddc78]";
+const frame = "rounded-lg border-2 border-zinc-800 bg-zinc-900 shadow-[8px_8px_0_#ff2d95]";
 
 export default async function Home() {
   const { user } = (await getCurrentSession().catch(() => null)) ?? {};
@@ -34,25 +34,25 @@ export default async function Home() {
           </div>
         </section>
 
-        <section id="how" className="bg-[#f4efe6] text-zinc-900">
+        <section id="how" className="bg-[#0D0D0D] text-white">
           <div className="mx-auto grid max-w-5xl items-center gap-10 px-5 py-20 md:grid-cols-2">
             <div>
               <h2 className="text-3xl font-extrabold md:text-4xl">{t("public.studioHead")}</h2>
-              <p className="mt-4 text-lg text-zinc-700">{t("public.studioText")}</p>
+              <p className="mt-4 text-lg text-zinc-300">{t("public.studioText")}</p>
             </div>
             <figure>
               <img src="/img/shot-drums.png" alt={t("public.drumsCaption")} className={frame} />
-              <figcaption className="mt-5 text-sm font-semibold text-zinc-600">{t("public.drumsCaption")}</figcaption>
+              <figcaption className="mt-5 text-sm font-semibold text-zinc-400">{t("public.drumsCaption")}</figcaption>
             </figure>
           </div>
           <div className="mx-auto grid max-w-5xl items-center gap-10 px-5 pb-20 md:grid-cols-2">
             <figure className="md:order-1">
               <img src="/img/shot-pianoroll.png" alt={t("public.rollCaption")} className={frame} />
-              <figcaption className="mt-5 text-sm font-semibold text-zinc-600">{t("public.rollCaption")}</figcaption>
+              <figcaption className="mt-5 text-sm font-semibold text-zinc-400">{t("public.rollCaption")}</figcaption>
             </figure>
             <div>
               <h2 className="text-3xl font-extrabold md:text-4xl">{t("public.recordTitle")}</h2>
-              <p className="mt-4 text-lg text-zinc-700">{t("public.recordText")}</p>
+              <p className="mt-4 text-lg text-zinc-300">{t("public.recordText")}</p>
             </div>
           </div>
         </section>
@@ -67,7 +67,7 @@ export default async function Home() {
           ))}
         </section>
 
-        <section className="bg-[#1d1d1f]">
+        <section className="bg-[#191414]">
           <div className="mx-auto grid max-w-5xl items-center gap-10 px-5 py-20 md:grid-cols-2">
             <div>
               <h2 className="text-3xl font-extrabold text-white md:text-4xl">{t("public.labHead")}</h2>
@@ -84,7 +84,7 @@ export default async function Home() {
           </div>
         </section>
 
-        <section id="pricing" className="bg-[#ff5a36] text-zinc-950">
+        <section id="pricing" className="bg-[#1DB954] text-zinc-950">
           <div className="mx-auto max-w-5xl px-5 py-20">
             <h2 className="text-3xl font-extrabold md:text-4xl">{t("public.planTitle")}</h2>
             <div className="mt-8 grid gap-6 md:grid-cols-2">
@@ -95,7 +95,7 @@ export default async function Home() {
                   <li>{t("public.freeItem1")}</li>
                   <li>{t("public.freeItem2")}</li>
                 </ul>
-                <Link href="/signup" className="mt-6 inline-block rounded-full border-2 border-zinc-900 px-5 py-2.5 font-bold hover:bg-zinc-900 hover:text-white">{t("public.startFree")}</Link>
+                <Link href="/signup" className="mt-6 inline-block rounded-full border-2 border-zinc-800 px-5 py-2.5 font-bold hover:bg-zinc-900 hover:text-white">{t("public.startFree")}</Link>
               </div>
               <div className="rounded-lg bg-zinc-900 p-6 text-white">
                 <h3 className="text-xl font-bold">{t("public.planName")}</h3>
@@ -113,11 +113,11 @@ export default async function Home() {
           </div>
         </section>
 
-        <section className="bg-[#f4efe6] text-zinc-900">
+        <section className="bg-[#0D0D0D] text-white">
           <div className="mx-auto max-w-3xl px-5 py-16">
             <h2 className="text-2xl font-extrabold">{t("public.founderEyebrow")}</h2>
-            <p className="mt-3 text-lg text-zinc-700">{t("public.founderBio")}</p>
-            <p className="mt-3 text-sm font-semibold text-zinc-600">{t("public.founderName")}, {t("public.founderRole")}</p>
+            <p className="mt-3 text-lg text-zinc-300">{t("public.founderBio")}</p>
+            <p className="mt-3 text-sm font-semibold text-zinc-400">{t("public.founderName")}, {t("public.founderRole")}</p>
           </div>
         </section>
       </main>

@@ -8,9 +8,9 @@ import { LESSONS } from "@/lib/lessons";
 import { getLocale, translate } from "@/lib/i18n/server";
 function Tile({ href, title, text, art, locked }: { href: string; title: string; text: string; art: React.ReactNode; locked: boolean }) {
   return (
-    <Link href={locked ? "/dashboard" : href} className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 transition hover:border-amber-500">
+    <Link href={locked ? "/dashboard" : href} className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 transition hover:border-[#1DB954]">
       <div className="p-5">
-        <h2 className="text-xl font-bold">{title}{locked && <span className="ml-2 rounded bg-amber-500/20 px-2 py-0.5 text-xs text-amber-300">Pro</span>}</h2>
+        <h2 className="text-xl font-bold">{title}{locked && <span className="ml-2 rounded bg-[#1DB954]/20 px-2 py-0.5 text-xs text-[#5ee38f]">Pro</span>}</h2>
         <p className="mt-1 text-zinc-400">{text}</p>
       </div>
     </Link>
@@ -35,10 +35,10 @@ export default async function HomeHub() {
       <h1 className="text-3xl font-extrabold md:text-4xl">{t("home.greeting", { name })}</h1>
       <p className="mt-2 text-zinc-400">{t("home.prompt")}</p>
       {!paid && (
-        <div className="mt-6 rounded-2xl border border-amber-500 bg-zinc-900 p-5">
+        <div className="mt-6 rounded-2xl border border-[#1DB954] bg-zinc-900 p-5">
           <p className="font-bold">{t("home.unlock")}</p>
           <p className="text-zinc-400">{t("home.freePlan")}</p>
-          <Link href="/dashboard" className="mt-3 inline-block rounded-lg bg-amber-500 text-zinc-950 hover:bg-amber-400 px-4 py-2 font-bold">{t("home.seePlan")}</Link>
+          <Link href="/dashboard" className="mt-3 inline-block rounded-lg bg-[#1DB954] text-black hover:bg-[#3ddc78] px-4 py-2 font-bold">{t("home.seePlan")}</Link>
         </div>
       )}
       <div className="mt-8 grid gap-5 md:grid-cols-3">

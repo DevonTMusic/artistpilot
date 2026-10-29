@@ -176,7 +176,7 @@ export function CollaborationPanel({
                   {currentOwnerId && <button disabled={busy} onClick={() => void run(createInvite, t("collab.inviteReady"))} className="rounded bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50">{t("collab.invite")}</button>}
                   {hasEditLease
                     ? <button disabled={busy} onClick={() => void run(onRelease, t("collab.lockReleased"))} className="rounded bg-zinc-800 px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50">{t("collab.releaseLock")}</button>
-                    : <button disabled={busy} onClick={() => void run(onClaim, t("collab.lockAcquired"))} className="rounded bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 disabled:opacity-50">{t("collab.takeLock")}</button>}
+                    : <button disabled={busy} onClick={() => void run(onClaim, t("collab.lockAcquired"))} className="rounded bg-[#118a3e] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#17a34a] disabled:opacity-50">{t("collab.takeLock")}</button>}
                 </>
               )}
             </div>

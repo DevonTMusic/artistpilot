@@ -208,7 +208,7 @@ export function PianoRoll({
           <button
             onClick={() => setChordMode((enabled) => !enabled)}
             aria-pressed={chordMode}
-            className={`rounded px-2 py-0.5 text-[10px] ${chordMode ? "bg-amber-700 text-white" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}
+            className={`rounded px-2 py-0.5 text-[10px] ${chordMode ? "bg-[#118a3e] text-white" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}
             title={t("pianoRoll.chordTitle")}
           >
             {t("pianoRoll.chord")} {chordMode ? t("pianoRoll.on") : t("pianoRoll.off")}
@@ -287,7 +287,7 @@ export function PianoRoll({
                     onClick={() => handleCellClick(p.pitch, step)}
                     className={`relative h-full w-8 flex-none border-r cursor-pointer transition ${
                       isBarStart ? "border-zinc-600" : isBeatStart ? "border-zinc-700/60" : "border-zinc-800/40"
-                    } ${p.isBlack ? "bg-zinc-900/40" : "bg-transparent"} hover:bg-amber-500/20 flex items-center p-0.5`}
+                    } ${p.isBlack ? "bg-zinc-900/40" : "bg-transparent"} hover:bg-[#1DB954]/20 flex items-center p-0.5`}
                   >
                     {noteHere && (
                       <div
@@ -309,7 +309,7 @@ export function PianoRoll({
                         onClick={(event) => event.stopPropagation()}
                         style={{ width: `${Math.max(1, noteHere.length) * 32}px` }}
                         className={`absolute left-0 top-0 z-10 h-full rounded-sm border shadow-sm ${
-                          selectedNoteId === noteHere.id ? "border-white bg-amber-400" : "border-amber-300 bg-gradient-to-r from-amber-400 to-[#d4af37]"
+                          selectedNoteId === noteHere.id ? "border-white bg-[#3ddc78]" : "border-[#5ee38f] bg-gradient-to-r from-[#3ddc78] to-[#d4af37]"
                         }`}
                       >
                         <span className="absolute right-0 top-0 h-full w-2 cursor-ew-resize bg-black/20" aria-hidden="true" />

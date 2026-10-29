@@ -14,7 +14,7 @@ export default function CompleteButton({ lessonId, done }: { lessonId: string; d
     setBusy(false);
   }
   return (<div>
-    <button onClick={go} disabled={busy} className="rounded-lg bg-amber-500 text-zinc-950 hover:bg-amber-400 px-5 py-3 font-bold disabled:opacity-60">{t("progress.markComplete")}</button>
-    {err && <p role="alert" className="mt-2 text-sm text-amber-300">{err}</p>}
+    <button onClick={go} disabled={busy} className="rounded-lg bg-[#1DB954] text-black hover:bg-[#3ddc78] px-5 py-3 font-bold disabled:opacity-60">{t("progress.markComplete")}</button>
+    {err && <p role="alert" className="mt-2 text-sm text-[#5ee38f]">{err}</p>}
   </div>);
 }

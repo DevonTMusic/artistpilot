@@ -25,7 +25,7 @@ export default function Nav({ signedIn }: { signedIn?: boolean }) {
             <Link className={link} href="/#how">{t("nav.how")}</Link>
             <Link className={link} href="/#pricing">{t("nav.pricing")}</Link>
             <Link className={link} href="/login">{t("nav.login")}</Link>
-            <Link href="/signup" className="rounded-lg bg-[#ff5a36] text-white hover:bg-[#ff7152] px-4 py-2 font-bold ">{t("nav.signup")}</Link>
+            <Link href="/signup" className="rounded-lg bg-[#1DB954] text-black hover:bg-[#3ddc78] px-4 py-2 font-bold ">{t("nav.signup")}</Link>
           </>)}
           <label className="flex items-center gap-2 text-xs text-zinc-400">
             <span>{t("language.label")}</span>

@@ -125,7 +125,7 @@ export function DiscoverTrackModal({
                 onSelectTrackType("drum");
                 onClose();
               }}
-              className="flex items-center gap-3.5 p-3.5 rounded-xl border border-zinc-800 bg-[#18191f] hover:border-amber-500/50 hover:bg-[#1f2129] transition text-left"
+              className="flex items-center gap-3.5 p-3.5 rounded-xl border border-zinc-800 bg-[#18191f] hover:border-[#1DB954]/50 hover:bg-[#1f2129] transition text-left"
             >
               <div className="h-12 w-12 rounded-xl bg-[#d69e2e] flex items-center justify-center text-white shadow-lg">
                 <DrumIcon className="w-6 h-6 stroke-white" />
