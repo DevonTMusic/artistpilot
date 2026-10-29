@@ -67,10 +67,10 @@ export function AICreditPacks({ usage }: { usage: CoachUsage | null }) {
         <>
             <p className="mt-2 text-[11px] text-zinc-400">{t("credits.needMore")}</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            <button type="button" disabled={busy} onClick={() => void buy("100")} className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-100 hover:border-violet-500 disabled:opacity-50">
+            <button type="button" disabled={busy} onClick={() => void buy("100")} className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-100 hover:border-amber-500 disabled:opacity-50">
                 {busy ? t("credits.opening") : t("credits.pack100")}
             </button>
-            <button type="button" disabled={busy} onClick={() => void buy("250")} className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-100 hover:border-violet-500 disabled:opacity-50">
+            <button type="button" disabled={busy} onClick={() => void buy("250")} className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-100 hover:border-amber-500 disabled:opacity-50">
                 {busy ? t("credits.opening") : t("credits.pack250")}
             </button>
           </div>

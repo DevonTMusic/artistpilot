@@ -11,7 +11,7 @@ export default function Nav({ signedIn }: { signedIn?: boolean }) {
     <header className="border-b border-zinc-800">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-5 py-3">
         <Link href={signedIn ? "/home" : "/"} className="flex items-center gap-2 rounded text-xl font-extrabold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-400">
-          <span aria-hidden className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-violet-500 to-blue-500 text-sm">♪</span>ArtistPilot
+          ArtistPilot
         </Link>
         <nav aria-label={t("nav.main")} className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm sm:text-base">
           {signedIn ? (<>
@@ -25,7 +25,7 @@ export default function Nav({ signedIn }: { signedIn?: boolean }) {
             <Link className={link} href="/#how">{t("nav.how")}</Link>
             <Link className={link} href="/#pricing">{t("nav.pricing")}</Link>
             <Link className={link} href="/login">{t("nav.login")}</Link>
-            <Link href="/signup" className="rounded-lg bg-gradient-to-r from-violet-500 to-blue-500 px-4 py-2 font-bold text-white">{t("nav.signup")}</Link>
+            <Link href="/signup" className="rounded-lg bg-amber-500 text-zinc-950 hover:bg-amber-400 px-4 py-2 font-bold ">{t("nav.signup")}</Link>
           </>)}
           <label className="flex items-center gap-2 text-xs text-zinc-400">
             <span>{t("language.label")}</span>

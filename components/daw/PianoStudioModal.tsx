@@ -290,7 +290,7 @@ export function PianoStudioModal({
             <button
               onClick={() => setChordMode((enabled) => !enabled)}
               aria-pressed={chordMode}
-              className={`rounded px-2 py-1 text-[10px] font-semibold ${chordMode ? "bg-violet-700 text-white" : "bg-zinc-800 text-zinc-300"}`}
+              className={`rounded px-2 py-1 text-[10px] font-semibold ${chordMode ? "bg-amber-700 text-white" : "bg-zinc-800 text-zinc-300"}`}
             >
               {t("pianoStudio.chordMode")} {chordMode ? t("pianoRoll.on") : t("pianoRoll.off")}
             </button>
@@ -370,8 +370,8 @@ export function PianoStudioModal({
                         : scaleLock && !scalePitchClasses.has(key.pitch % 12)
                           ? "bg-zinc-400 opacity-30"
                           : scalePitchClasses.has(key.pitch % 12)
-                            ? "bg-gradient-to-b from-emerald-50 via-white to-zinc-200"
-                            : "bg-gradient-to-b from-white via-zinc-100 to-zinc-300 hover:from-white hover:to-white"
+                            ? "bg-zinc-900"
+                            : "bg-zinc-900 hover:from-white hover:to-white"
                     }`}
                   >
                     {key.pitch % 12 === 0 && (
@@ -404,8 +404,8 @@ export function PianoStudioModal({
                         : scaleLock && !scalePitchClasses.has(key.pitch % 12)
                           ? "bg-black opacity-25"
                           : scalePitchClasses.has(key.pitch % 12)
-                            ? "bg-gradient-to-b from-emerald-700 via-emerald-900 to-black"
-                            : "bg-gradient-to-b from-zinc-700 via-zinc-900 to-black hover:from-zinc-600"
+                            ? "bg-zinc-900"
+                            : "bg-zinc-900 hover:from-zinc-600"
                     }`}
                   />
                 );
@@ -416,7 +416,7 @@ export function PianoStudioModal({
 
         {/* CHORD ASSIST */}
         <div className="p-3 border-t border-zinc-800 bg-[#161720] flex items-center justify-between text-xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">{t("pianoStudio.chordPads")}</span>
+          <span className="text-[10px] font-bold tracking-wider text-zinc-400">{t("pianoStudio.chordPads")}</span>
           <div className="flex gap-2 overflow-x-auto">
             {scaleIntervals.slice(0, 5).map((interval, degree) => (
               <button

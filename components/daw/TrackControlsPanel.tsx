@@ -75,7 +75,7 @@ function RotaryKnob({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className="h-12 w-12 rounded-full border-2 border-zinc-700 bg-gradient-to-b from-zinc-800 to-black shadow-lg flex items-center justify-center relative cursor-ns-resize active:scale-95 transition-transform"
+        className="h-12 w-12 rounded-full border-2 border-zinc-700 bg-zinc-900 shadow-lg flex items-center justify-center relative cursor-ns-resize active:scale-95 transition-transform"
       >
         <div
           style={{ transform: `rotate(${angle}deg)` }}
@@ -209,7 +209,7 @@ export function TrackControlsPanel({
         {/* LEFT: Recording Settings (NOW FULLY SCROLLABLE) */}
         <div className="w-56 flex-none border-r border-[#1a1b22] p-2 flex flex-col bg-[#262830] overflow-y-auto">
           <div className="space-y-2 pb-3">
-            <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 block">
+            <span className="text-[10px] font-black tracking-wider text-zinc-400 block">
               {t("track.recordingSettings")}
             </span>
 
@@ -324,7 +324,7 @@ export function TrackControlsPanel({
           
           {/* COMPRESSOR */}
           <div className="flex flex-col items-center border-r border-sky-400/20 pr-6 flex-none">
-            <span className="text-[10px] font-black tracking-wider text-sky-200 uppercase mb-1.5">{t("track.compressor")}</span>
+            <span className="text-[10px] font-black tracking-wider text-sky-200 mb-1.5">{t("track.compressor")}</span>
             <div className="flex items-center gap-3">
               <RotaryKnob
                 label={t("track.amount")}
@@ -355,7 +355,7 @@ export function TrackControlsPanel({
 
           {/* EQUALIZER (True Rotating Dials) */}
           <div className="flex flex-col items-center border-r border-sky-400/20 px-6 flex-none">
-            <span className="text-[10px] font-black tracking-wider text-sky-200 uppercase mb-1.5">{t("track.equalizer")}</span>
+            <span className="text-[10px] font-black tracking-wider text-sky-200 mb-1.5">{t("track.equalizer")}</span>
             <div className="flex items-center gap-4">
               <RotaryKnob
                 label={t("track.low")}
@@ -397,14 +397,14 @@ export function TrackControlsPanel({
                 >
                   HPF
                 </button>
-                <span className="text-[7px] text-sky-200 mt-1 font-bold uppercase">{t("track.lowCut")}</span>
+                <span className="text-[7px] text-sky-200 mt-1 font-bold">{t("track.lowCut")}</span>
               </div>
             </div>
           </div>
 
           {/* SENDS (Rotating Circular Dials) */}
           <div className="flex flex-col items-center pl-6 flex-none">
-            <span className="text-[10px] font-black tracking-wider text-sky-200 uppercase mb-1.5">{t("track.sends")}</span>
+            <span className="text-[10px] font-black tracking-wider text-sky-200 mb-1.5">{t("track.sends")}</span>
             <div className="flex items-center gap-4">
               <RotaryKnob
                 label={t("track.ambience")}

@@ -114,7 +114,7 @@ export function DrumPatternEditor({
           ))}
         </div>
         <footer className="mt-5 flex justify-end">
-          <button onClick={onClose} className="rounded bg-violet-600 px-4 py-2 text-xs font-bold hover:bg-violet-500">{t("drums.done")}</button>
+          <button onClick={onClose} className="rounded bg-amber-600 px-4 py-2 text-xs font-bold hover:bg-amber-500">{t("drums.done")}</button>
         </footer>
       </section>
     </div>

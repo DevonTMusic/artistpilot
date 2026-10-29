@@ -19,10 +19,10 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
       <Nav signedIn />
       <main className="mx-auto max-w-2xl px-5 py-12">
         <Link href="/academy" className="text-sm text-zinc-300 hover:text-white">{t("lesson.backAcademy")}</Link>
-        <div className="mt-6 rounded-2xl border border-violet-500 bg-zinc-900 p-8">
+        <div className="mt-6 rounded-2xl border border-amber-500 bg-zinc-900 p-8">
           <h1 className="text-2xl font-extrabold">{t("academy.lockedTitle")}</h1>
           <p className="mt-2 text-zinc-300">{t("academy.lockedText")}</p>
-          <Link href="/dashboard" className="mt-5 inline-block rounded-lg bg-gradient-to-r from-violet-500 to-blue-500 px-4 py-2 font-bold">{t("home.seePlan")}</Link>
+          <Link href="/dashboard" className="mt-5 inline-block rounded-lg bg-amber-500 text-zinc-950 hover:bg-amber-400 px-4 py-2 font-bold">{t("home.seePlan")}</Link>
         </div>
       </main>
     </>);
@@ -35,7 +35,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
     <Nav signedIn />
     <main className="mx-auto max-w-2xl px-5 py-12">
       <Link href="/academy" className="text-sm text-zinc-300 hover:text-white">{t("lesson.backAcademy")}</Link>
-      <p className="mt-6 text-sm text-violet-200">{localizedLesson.instrument}</p>
+      <p className="mt-6 text-sm text-amber-200">{localizedLesson.instrument}</p>
       <h1 className="mb-6 text-3xl font-extrabold">{localizedLesson.title}</h1>
       <AcademyLessonPlayer
         lesson={lesson}

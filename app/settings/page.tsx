@@ -39,9 +39,9 @@ export default async function Settings() {
       </dl>
       <div className="mt-5 flex flex-wrap gap-3">
         {p?.stripe_customer_id && (
-          <form action="/api/portal" method="post"><button className="rounded-lg border border-zinc-700 px-4 py-2.5 font-bold hover:border-violet-500">{t("settings.billingAction")}</button></form>
+          <form action="/api/portal" method="post"><button className="rounded-lg border border-zinc-700 px-4 py-2.5 font-bold hover:border-amber-500">{t("settings.billingAction")}</button></form>
         )}
-        {!p?.is_paid && <Link href="/dashboard" className="rounded-lg bg-gradient-to-r from-violet-500 to-blue-500 px-4 py-2.5 font-bold">{t("settings.getPlan")}</Link>}
+        {!p?.is_paid && <Link href="/dashboard" className="rounded-lg bg-amber-500 text-zinc-950 hover:bg-amber-400 px-4 py-2.5 font-bold">{t("settings.getPlan")}</Link>}
       </div>
       <p className="mt-3 text-sm text-zinc-500">{t("settings.stripeNote")}</p>
     </section>

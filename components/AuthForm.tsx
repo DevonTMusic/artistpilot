@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth/client";
-import { MicArt } from "@/components/Art";
 import { useLanguage } from "@/components/LanguageProvider";
 
 export default function AuthForm({ mode }: { mode: "in" | "up" }) {
@@ -33,11 +32,10 @@ export default function AuthForm({ mode }: { mode: "in" | "up" }) {
   const input = "mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-3 font-normal";
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
-      <section className="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-violet-700/50 via-zinc-900 to-blue-700/40 p-12 lg:flex">
+      <section className="hidden flex-col justify-between border-r border-zinc-800 bg-zinc-900 p-12 lg:flex">
         <Link href="/" className="text-xl font-extrabold">ArtistPilot</Link>
         <div>
-          <MicArt className="mx-auto h-64 w-auto" />
-          <h2 className="mt-8 text-4xl font-extrabold leading-tight">{t("auth.sideTitle")}</h2>
+          <h2 className="text-4xl font-extrabold leading-tight">{t("auth.sideTitle")}</h2>
           <ul className="mt-4 space-y-2 text-lg text-zinc-300">
             <li>{t("auth.lessonBlurb")}</li><li>{t("auth.ideaBlurb")}</li><li>{t("auth.studioBlurb")}</li>
           </ul>
@@ -52,7 +50,7 @@ export default function AuthForm({ mode }: { mode: "in" | "up" }) {
           <form onSubmit={submit} className="space-y-4">
             <label className="block text-sm font-bold">{t("auth.email")}<input className={input} type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
             <label className="block text-sm font-bold">{t("auth.password")}<input className={input} type="password" required minLength={8} autoComplete={mode === "in" ? "current-password" : "new-password"} value={password} onChange={(e) => setPassword(e.target.value)} /></label>
-            <button disabled={busy} className="w-full rounded-lg bg-gradient-to-r from-violet-500 to-blue-500 py-3 font-bold disabled:opacity-60">{mode === "in" ? t("auth.loginButton") : t("auth.signupButton")}</button>
+            <button disabled={busy} className="w-full rounded-lg bg-amber-500 text-zinc-950 hover:bg-amber-400 py-3 font-bold disabled:opacity-60">{mode === "in" ? t("auth.loginButton") : t("auth.signupButton")}</button>
             {msg && <p role="alert" className="text-sm text-amber-300">{msg}</p>}
           </form>
           <p className="mt-6 text-sm text-zinc-400">

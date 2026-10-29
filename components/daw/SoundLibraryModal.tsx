@@ -76,7 +76,7 @@ export function SoundLibraryModal({ isOpen, onClose, onApply }: SoundLibraryModa
               <div>
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="text-sm font-semibold text-white">{preset.name}</h3>
-                  <span className="rounded bg-zinc-800 px-2 py-0.5 text-[9px] uppercase tracking-wide text-zinc-400">{preset.category}</span>
+                  <span className="rounded bg-zinc-800 px-2 py-0.5 text-[9px] tracking-wide text-zinc-400">{preset.category}</span>
                 </div>
                 <p className="mt-1 text-xs text-zinc-400">{preset.description}</p>
                 <p className="mt-2 text-[10px] text-zinc-500">{soundPresetSummary(preset)}</p>
