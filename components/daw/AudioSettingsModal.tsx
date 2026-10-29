@@ -148,7 +148,7 @@ export function AudioSettingsModal({
           {/* 1. Input Device Selector */}
           <div>
             <div className="flex justify-between items-center mb-1.5">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">{t("audio.inputLabel")}</label>
+              <label className="text-[11px] font-bold tracking-wider text-zinc-400">{t("audio.inputLabel")}</label>
               <span className="text-[10px] text-sky-400 font-mono truncate max-w-[200px]">{activeInputDeviceName}</span>
             </div>
 
@@ -193,7 +193,7 @@ export function AudioSettingsModal({
 
           {/* 3. Output Device Selector */}
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 block mb-1.5">{t("audio.outputLabel")}</label>
+            <label className="text-[11px] font-bold tracking-wider text-zinc-400 block mb-1.5">{t("audio.outputLabel")}</label>
             <select
               value={selectedOutput}
               onChange={(e) => {

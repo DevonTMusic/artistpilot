@@ -77,7 +77,7 @@ export function DiscoverTrackModal({
             </button>
           </div>
 
-          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 block">{t("discover.newTrack")}</span>
+          <span className="text-[11px] font-bold tracking-wider text-zinc-500 block">{t("discover.newTrack")}</span>
 
           {/* 2. Track Category Tiles (Exact BandLab Look) */}
           <div className="grid grid-cols-2 gap-3.5">
@@ -113,7 +113,7 @@ export function DiscoverTrackModal({
               <div>
                 <div className="flex items-center gap-1">
                   <span className="text-xs font-bold text-white">{t("discover.instruments")}</span>
-                  <span className="text-[8px] bg-zinc-800 text-zinc-300 px-1 rounded uppercase font-bold">MIDI</span>
+                  <span className="text-[8px] bg-zinc-800 text-zinc-300 px-1 rounded font-bold">MIDI</span>
                 </div>
                 <p className="text-[10px] text-zinc-400 mt-0.5">{t("discover.instrumentsText")}</p>
               </div>
@@ -133,7 +133,7 @@ export function DiscoverTrackModal({
               <div>
                 <div className="flex items-center gap-1">
                   <span className="text-xs font-bold text-white">{t("discover.drums")}</span>
-                  <span className="text-[8px] bg-zinc-800 text-zinc-300 px-1 rounded uppercase font-bold">MIDI</span>
+                  <span className="text-[8px] bg-zinc-800 text-zinc-300 px-1 rounded font-bold">MIDI</span>
                 </div>
                 <p className="text-[10px] text-zinc-400 mt-0.5">{t("discover.drumsText")}</p>
               </div>

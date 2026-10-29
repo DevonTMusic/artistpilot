@@ -176,7 +176,7 @@ export function CollaborationPanel({
                   {currentOwnerId && <button disabled={busy} onClick={() => void run(createInvite, t("collab.inviteReady"))} className="rounded bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50">{t("collab.invite")}</button>}
                   {hasEditLease
                     ? <button disabled={busy} onClick={() => void run(onRelease, t("collab.lockReleased"))} className="rounded bg-zinc-800 px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50">{t("collab.releaseLock")}</button>
-                    : <button disabled={busy} onClick={() => void run(onClaim, t("collab.lockAcquired"))} className="rounded bg-violet-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-600 disabled:opacity-50">{t("collab.takeLock")}</button>}
+                    : <button disabled={busy} onClick={() => void run(onClaim, t("collab.lockAcquired"))} className="rounded bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 disabled:opacity-50">{t("collab.takeLock")}</button>}
                 </>
               )}
             </div>
@@ -192,7 +192,7 @@ export function CollaborationPanel({
         {projectId && isOwner && (
           <div className="mb-4 grid gap-3 sm:grid-cols-2">
             <section className="rounded-lg border border-zinc-800 bg-[#101116] p-3">
-              <h3 className="mb-2 text-[10px] font-bold uppercase tracking-wide text-zinc-400">{t("collab.collaborators")}</h3>
+              <h3 className="mb-2 text-[10px] font-bold tracking-wide text-zinc-400">{t("collab.collaborators")}</h3>
               <div className="space-y-2">
                 {members.map((member) => (
                   <div key={member.user_id} className="flex items-center justify-between gap-2 text-[10px]">
@@ -204,7 +204,7 @@ export function CollaborationPanel({
               </div>
             </section>
             <section className="rounded-lg border border-zinc-800 bg-[#101116] p-3">
-              <h3 className="mb-2 text-[10px] font-bold uppercase tracking-wide text-zinc-400">{t("collab.invites")}</h3>
+              <h3 className="mb-2 text-[10px] font-bold tracking-wide text-zinc-400">{t("collab.invites")}</h3>
               <div className="space-y-2">
                 {invites.map((invite) => {
                   const expired = new Date(invite.expires_at).getTime() <= Date.now();
@@ -223,7 +223,7 @@ export function CollaborationPanel({
         )}
 
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">{t("collab.sharedWithYou")}</h3>
+          <h3 className="text-[10px] font-bold tracking-wide text-zinc-400">{t("collab.sharedWithYou")}</h3>
           <button disabled={busy} onClick={() => void refreshProjects().catch((cause: unknown) => setError(cause instanceof Error ? cause.message : t("collab.refreshError")))} className="text-[10px] text-sky-300 hover:text-white">{t("collab.refresh")}</button>
         </div>
         <div className="space-y-2">

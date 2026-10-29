@@ -101,7 +101,7 @@ export function RecordingSettingsModal({
       <div className="p-4 space-y-4">
         {/* Device Dropdown */}
         <div>
-          <label className="text-[10px] uppercase font-bold text-zinc-400 block mb-1.5">{t("audio.inputDevice")}</label>
+          <label className="text-[10px] font-bold text-zinc-400 block mb-1.5">{t("audio.inputDevice")}</label>
           <select
             value={selectedDevice}
             onChange={(e) => {
@@ -121,7 +121,7 @@ export function RecordingSettingsModal({
 
         {/* Live Input Waveform Monitor */}
         <div>
-          <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-1.5">{t("audio.liveWaveform")}</span>
+          <span className="text-[10px] font-bold text-zinc-400 block mb-1.5">{t("audio.liveWaveform")}</span>
           <div className="h-16 w-full rounded-lg border border-zinc-800 overflow-hidden bg-black">
             <canvas ref={canvasRef} width={450} height={64} className="h-full w-full" />
           </div>

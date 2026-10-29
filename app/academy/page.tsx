@@ -32,15 +32,15 @@ export default async function Academy() {
           return (<section key={inst} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
             <div className="flex items-baseline justify-between gap-2"><h2 className="text-xl font-bold">{shownInstrument}</h2><span className="text-sm text-zinc-400">{t("academy.completed", { done: n, total: ls.length })}</span></div>
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-800" aria-label={`${inst} course progress`}>
-              <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-blue-500" style={{ width: `${ls.length ? (n / ls.length) * 100 : 0}%` }} />
+              <div className="h-full rounded-full bg-amber-500" style={{ width: `${ls.length ? (n / ls.length) * 100 : 0}%` }} />
             </div>
             {nextLesson && (
-              <Link href={`/academy/${nextLesson.id}`} className="mt-4 inline-flex rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white hover:bg-violet-500">
+              <Link href={`/academy/${nextLesson.id}`} className="mt-4 inline-flex rounded-lg bg-amber-600 px-3 py-2 text-xs font-bold text-white hover:bg-amber-500">
                 {n === ls.length ? t("academy.review") : n > 0 ? t("academy.continue") : t("academy.start")}
               </Link>
             )}
             <ul className="mt-4 space-y-2">
-              {ls.map((l) => (<li key={l.id}><Link href={isPro || isFreeLesson(l.id) ? `/academy/${l.id}` : "/dashboard"} className="flex items-center justify-between rounded-lg border border-zinc-800 px-4 py-3 hover:border-violet-500"><span>{locale === "es" ? spanishLessons[l.id]?.title ?? l.title : l.title}</span><span className="text-sm text-emerald-400">{done.has(l.id) ? t("academy.done") : !isPro && !isFreeLesson(l.id) ? <span className="rounded bg-violet-500/20 px-2 py-0.5 text-xs text-violet-300">Pro</span> : ""}</span></Link></li>))}
+              {ls.map((l) => (<li key={l.id}><Link href={isPro || isFreeLesson(l.id) ? `/academy/${l.id}` : "/dashboard"} className="flex items-center justify-between rounded-lg border border-zinc-800 px-4 py-3 hover:border-amber-500"><span>{locale === "es" ? spanishLessons[l.id]?.title ?? l.title : l.title}</span><span className="text-sm text-emerald-400">{done.has(l.id) ? t("academy.done") : !isPro && !isFreeLesson(l.id) ? <span className="rounded bg-amber-500/20 px-2 py-0.5 text-xs text-amber-300">Pro</span> : ""}</span></Link></li>))}
             </ul>
           </section>);
         })}

@@ -14,7 +14,7 @@ interface GuitarAmpModalProps {
 }
 
 const rangeClass = "w-full accent-amber-400";
-const labelClass = "mb-1 block text-[10px] font-semibold uppercase tracking-wide text-zinc-400";
+const labelClass = "mb-1 block text-[10px] font-semibold tracking-wide text-zinc-400";
 
 export function GuitarAmpModal({
   isOpen,
@@ -95,7 +95,7 @@ export function GuitarAmpModal({
           <div className="grid gap-3 sm:grid-cols-2">
             {pedal(t("amp.overdrive"), "driveEnabled", settings.drive, "drive", "bg-emerald-300")}
             {pedal(t("amp.delay"), "delayEnabled", settings.delay, "delay", "bg-sky-300")}
-            {pedal(t("amp.chorus"), "chorusEnabled", 0, null, "bg-violet-300")}
+            {pedal(t("amp.chorus"), "chorusEnabled", 0, null, "bg-amber-300")}
             {pedal(t("amp.reverb"), "reverbEnabled", settings.reverb, "reverb", "bg-rose-300")}
           </div>
         </div>

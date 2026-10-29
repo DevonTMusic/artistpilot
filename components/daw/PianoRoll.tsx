@@ -208,7 +208,7 @@ export function PianoRoll({
           <button
             onClick={() => setChordMode((enabled) => !enabled)}
             aria-pressed={chordMode}
-            className={`rounded px-2 py-0.5 text-[10px] ${chordMode ? "bg-violet-700 text-white" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}
+            className={`rounded px-2 py-0.5 text-[10px] ${chordMode ? "bg-amber-700 text-white" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}
             title={t("pianoRoll.chordTitle")}
           >
             {t("pianoRoll.chord")} {chordMode ? t("pianoRoll.on") : t("pianoRoll.off")}
@@ -325,7 +325,7 @@ export function PianoRoll({
 
       {/* Velocity Lane */}
       <div className="h-16 flex-none border-t border-zinc-800 bg-[#111217] flex items-center px-4">
-        <span className="text-[9px] font-bold text-zinc-500 uppercase mr-3">{t("pianoRoll.velocity")}</span>
+        <span className="text-[9px] font-bold text-zinc-500 mr-3">{t("pianoRoll.velocity")}</span>
         <div className="flex-1 flex gap-1 h-10 items-end">
           {notes.map((n) => (
             <div key={n.id} className="flex flex-col items-center flex-1">

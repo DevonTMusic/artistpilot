@@ -55,7 +55,7 @@ export default function IdeaLab() {
           </select></label>
         <label className="block text-sm font-bold">{t("ideas.prompt")}
           <textarea className={field + " mt-1 font-normal"} rows={4} maxLength={1000} required value={message} onChange={(e) => setMessage(e.target.value)} placeholder={t("ideas.placeholder")} /></label>
-        <button disabled={busy} className="rounded-lg bg-gradient-to-r from-violet-500 to-blue-500 px-5 py-3 font-bold disabled:opacity-60">{busy ? t("ideas.thinking") : t("ideas.ask")}</button>
+        <button disabled={busy} className="rounded-lg bg-amber-500 text-zinc-950 hover:bg-amber-400 px-5 py-3 font-bold disabled:opacity-60">{busy ? t("ideas.thinking") : t("ideas.ask")}</button>
       </form>
       <AICreditPacks usage={usage} />
       {error && <p className="mt-4 rounded-lg border border-rose-900 bg-rose-950/30 p-3 text-sm text-rose-300" role="alert">{error}</p>}
