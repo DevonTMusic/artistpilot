@@ -147,7 +147,7 @@ export function SamplerPadModal({ isOpen, track, audioContext, onChange, onClose
                     <input type="range" min={0} max={Math.max(0.01, pad.endTime - 0.01)} step={0.01} value={pad.startTime} onChange={(event) => updatePad(pad.id, { startTime: Number(event.target.value) })} className="block w-full accent-sky-400" />
                   </label>
                   <label className="block text-[9px] text-zinc-500">{t("sampler.end")} {pad.endTime.toFixed(2)}s
-                    <input type="range" min={Math.min(sampler.sample.duration, pad.startTime + 0.01)} max={sampler.sample.duration} step={0.01} value={pad.endTime} onChange={(event) => updatePad(pad.id, { endTime: Number(event.target.value) })} className="block w-full accent-amber-400" />
+                    <input type="range" min={Math.min(sampler.sample.duration, pad.startTime + 0.01)} max={sampler.sample.duration} step={0.01} value={pad.endTime} onChange={(event) => updatePad(pad.id, { endTime: Number(event.target.value) })} className="block w-full accent-[#3ddc78]" />
                   </label>
                 </div>
               ))}

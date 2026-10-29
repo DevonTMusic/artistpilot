@@ -139,7 +139,7 @@ export function AudioSettingsModal({
           
           {/* Permission Alert if labels are hidden */}
           {!permissionGranted && (
-            <div className="p-3 bg-amber-950/40 border border-amber-800/60 rounded-xl text-xs text-amber-200">
+            <div className="p-3 bg-[#073d1b]/40 border border-[#0c6b30]/60 rounded-xl text-xs text-[#b9f6d0]">
               <span className="font-bold block mb-0.5">{t("audio.permissionTitle")}</span>
               {t("audio.permissionHelp")}
             </div>
@@ -184,11 +184,11 @@ export function AudioSettingsModal({
               <div
                 style={{ width: `${inputLevel}%` }}
                 className={`h-full rounded-sm transition-all duration-75 ${
-                  inputLevel > 85 ? "bg-red-500 shadow-[0_0_8px_#ef4444]" : inputLevel > 65 ? "bg-amber-400" : "bg-emerald-400"
+                  inputLevel > 85 ? "bg-red-500 shadow-[0_0_8px_#ef4444]" : inputLevel > 65 ? "bg-[#3ddc78]" : "bg-emerald-400"
                 }`}
               />
             </div>
-            {meterError && <p role="alert" className="mt-1 text-[10px] text-amber-300">{meterError}</p>}
+            {meterError && <p role="alert" className="mt-1 text-[10px] text-[#5ee38f]">{meterError}</p>}
           </div>
 
           {/* 3. Output Device Selector */}
@@ -219,7 +219,7 @@ export function AudioSettingsModal({
               ))}
             </select>
             <span className="text-[9px] text-zinc-500 mt-1 block">{t("audio.routingNote")}</span>
-            {outputError && <p role="alert" className="mt-1 text-[10px] text-amber-300">{outputError}</p>}
+            {outputError && <p role="alert" className="mt-1 text-[10px] text-[#5ee38f]">{outputError}</p>}
           </div>
 
           {/* 4. Direct Monitoring Switch */}

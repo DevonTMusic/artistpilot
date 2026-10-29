@@ -197,7 +197,7 @@ export function ChromaticTuner({ isOpen, onClose, instrumentName }: ChromaticTun
               <div key={value} className="absolute top-8 h-5 w-px bg-zinc-500" style={{ left: `${50 + value}%` }} />
             ))}
             <div
-              className={`absolute left-1/2 top-1 h-10 w-1 origin-bottom rounded-full transition-transform duration-100 ${Math.abs(cents) <= 5 && frequency !== null ? "bg-emerald-400" : "bg-amber-400"}`}
+              className={`absolute left-1/2 top-1 h-10 w-1 origin-bottom rounded-full transition-transform duration-100 ${Math.abs(cents) <= 5 && frequency !== null ? "bg-emerald-400" : "bg-[#3ddc78]"}`}
               style={{ transform: `translateX(-50%) rotate(${needle * 0.8}deg)` }}
             />
             <span className="absolute bottom-0 left-0 text-[10px] text-zinc-500">♭</span>
@@ -207,7 +207,7 @@ export function ChromaticTuner({ isOpen, onClose, instrumentName }: ChromaticTun
           <div className="text-5xl font-black tracking-tight text-white">
             {noteName}<span className="ml-1 text-2xl text-zinc-400">{octave}</span>
           </div>
-          <div className={`mt-2 text-sm font-semibold ${frequency === null ? "text-zinc-500" : Math.abs(cents) <= 5 ? "text-emerald-400" : "text-amber-300"}`}>
+          <div className={`mt-2 text-sm font-semibold ${frequency === null ? "text-zinc-500" : Math.abs(cents) <= 5 ? "text-emerald-400" : "text-[#5ee38f]"}`}>
             {frequency === null ? (isListening ? t("tuner.listening") : t("tuner.startListening")) : `${cents > 0 ? "+" : ""}${cents} cents`}
           </div>
           <div className="mt-1 font-mono text-xs text-zinc-500">

@@ -211,7 +211,7 @@ export function AcademyLessonPlayer({
       <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 sm:p-7">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold text-amber-300">{localizedLesson.instrument} · {t("lesson.guided")}</p>
+            <p className="text-xs font-semibold text-[#5ee38f]">{localizedLesson.instrument} · {t("lesson.guided")}</p>
             <h2 className="mt-1 text-lg font-bold text-white">{steps[currentStep].title}</h2>
           </div>
           <span className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-400">{t("lesson.step", { current: currentStep + 1, total: steps.length })}</span>
@@ -219,7 +219,7 @@ export function AcademyLessonPlayer({
 
         <div className="mb-5 flex gap-1.5" role="progressbar" aria-label={t("lesson.progress")} aria-valuemin={1} aria-valuemax={steps.length} aria-valuenow={currentStep + 1}>
           {steps.map((step, index) => (
-            <div key={step.title} className={`h-1.5 flex-1 rounded-full ${index <= currentStep ? "bg-amber-400" : "bg-zinc-700"}`} />
+            <div key={step.title} className={`h-1.5 flex-1 rounded-full ${index <= currentStep ? "bg-[#3ddc78]" : "bg-zinc-700"}`} />
           ))}
         </div>
 
@@ -274,7 +274,7 @@ export function AcademyLessonPlayer({
         <div className="mt-6 flex items-center justify-between gap-3 border-t border-zinc-800 pt-4">
           <button type="button" onClick={goBack} disabled={currentStep === 0} className="rounded-lg px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-800 disabled:opacity-40">{t("lesson.previousStep")}</button>
           {currentStep < steps.length - 1 ? (
-            <button type="button" onClick={advance} className="rounded-lg bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-500">{t("lesson.nextStep")}</button>
+            <button type="button" onClick={advance} className="rounded-lg bg-[#17a34a] px-4 py-2 text-xs font-bold text-white hover:bg-[#1DB954]">{t("lesson.nextStep")}</button>
           ) : (
             <span role="status" className="text-xs font-semibold text-emerald-200">{t("lesson.practiceReached")}</span>
           )}
@@ -282,7 +282,7 @@ export function AcademyLessonPlayer({
       </section>
 
       {currentStep === steps.length - 1 && (
-        <section className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-500/50 bg-amber-950/20 p-5">
+        <section className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#1DB954]/50 bg-[#073d1b]/20 p-5">
           <div>
             <h2 className="font-bold text-white">{t("lesson.saveProgress")}</h2>
             <p className="mt-1 text-xs text-zinc-300">{t("lesson.finishHint")}</p>

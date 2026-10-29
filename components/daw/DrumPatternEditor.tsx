@@ -84,7 +84,7 @@ export function DrumPatternEditor({
           </label>
           <label className="flex items-center gap-2 text-zinc-300">
             {t("drums.swing")}
-            <input type="range" min={0} max={0.5} step={0.01} value={pattern.swing ?? 0} onChange={(event) => onChange({ ...pattern, swing: Number(event.target.value) })} className="accent-amber-400" />
+            <input type="range" min={0} max={0.5} step={0.01} value={pattern.swing ?? 0} onChange={(event) => onChange({ ...pattern, swing: Number(event.target.value) })} className="accent-[#3ddc78]" />
             <span className="w-8 font-mono text-zinc-400">{Math.round((pattern.swing ?? 0) * 100)}%</span>
           </label>
           <span className="ml-auto text-zinc-500">{isPlaying ? `${bpm} BPM · ${t("drums.step")} ${currentStep + 1}` : `${bpm} BPM · ${t("drums.stopped")}`}</span>
@@ -102,7 +102,7 @@ export function DrumPatternEditor({
                     aria-pressed={Boolean((pattern[key] ?? [])[index])}
                     className={`aspect-square rounded border text-[9px] transition ${
                       (pattern[key] ?? [])[index]
-                        ? "border-amber-300 bg-amber-400 text-black"
+                        ? "border-[#5ee38f] bg-[#3ddc78] text-black"
                         : "border-zinc-700 bg-zinc-900 text-zinc-500 hover:border-zinc-500"
                     } ${index % 4 === 0 ? "ml-1" : ""} ${isPlaying && currentStep === index ? "ring-2 ring-white ring-offset-1 ring-offset-[#15161b]" : ""}`}
                   >
@@ -114,7 +114,7 @@ export function DrumPatternEditor({
           ))}
         </div>
         <footer className="mt-5 flex justify-end">
-          <button onClick={onClose} className="rounded bg-amber-600 px-4 py-2 text-xs font-bold hover:bg-amber-500">{t("drums.done")}</button>
+          <button onClick={onClose} className="rounded bg-[#17a34a] px-4 py-2 text-xs font-bold hover:bg-[#1DB954]">{t("drums.done")}</button>
         </footer>
       </section>
     </div>

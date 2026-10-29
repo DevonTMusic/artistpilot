@@ -50,8 +50,8 @@ export default function AuthForm({ mode }: { mode: "in" | "up" }) {
           <form onSubmit={submit} className="space-y-4">
             <label className="block text-sm font-bold">{t("auth.email")}<input className={input} type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
             <label className="block text-sm font-bold">{t("auth.password")}<input className={input} type="password" required minLength={8} autoComplete={mode === "in" ? "current-password" : "new-password"} value={password} onChange={(e) => setPassword(e.target.value)} /></label>
-            <button disabled={busy} className="w-full rounded-lg bg-amber-500 text-zinc-950 hover:bg-amber-400 py-3 font-bold disabled:opacity-60">{mode === "in" ? t("auth.loginButton") : t("auth.signupButton")}</button>
-            {msg && <p role="alert" className="text-sm text-amber-300">{msg}</p>}
+            <button disabled={busy} className="w-full rounded-lg bg-[#1DB954] text-black hover:bg-[#3ddc78] py-3 font-bold disabled:opacity-60">{mode === "in" ? t("auth.loginButton") : t("auth.signupButton")}</button>
+            {msg && <p role="alert" className="text-sm text-[#5ee38f]">{msg}</p>}
           </form>
           <p className="mt-6 text-sm text-zinc-400">
             {mode === "in" ? <>{t("auth.newHere")} <Link className="underline" href="/signup">{t("auth.createAccount")}</Link></> : <>{t("auth.already")} <Link className="underline" href="/login">{t("auth.loginLink")}</Link></>}

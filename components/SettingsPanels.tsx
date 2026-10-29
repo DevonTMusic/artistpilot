@@ -6,8 +6,8 @@ import { useLanguage } from "@/components/LanguageProvider";
 type Init = { displayName: string; instrument: string; bpm: number; goal: number; reminders: boolean; news: boolean; isDemo: boolean };
 const card = "rounded-2xl border border-zinc-800 bg-zinc-900 p-6";
 const input = "mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 font-normal";
-const btn = "rounded-lg border border-zinc-700 px-4 py-2.5 font-bold hover:border-amber-500 disabled:opacity-60";
-const pri = "rounded-lg bg-amber-500 text-zinc-950 hover:bg-amber-400 px-4 py-2.5 font-bold disabled:opacity-60";
+const btn = "rounded-lg border border-zinc-700 px-4 py-2.5 font-bold hover:border-[#1DB954] disabled:opacity-60";
+const pri = "rounded-lg bg-[#1DB954] text-black hover:bg-[#3ddc78] px-4 py-2.5 font-bold disabled:opacity-60";
 async function post(url: string, body: unknown) {
   const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({}));
@@ -64,7 +64,7 @@ export default function SettingsPanels({ init, billing }: { init: Init; billing:
       {init.isDemo ? <p className="mt-2 text-zinc-400">{t("settings.demoDelete")}</p> : (<>
         <p className="mt-2 text-zinc-400">{t("settings.deleteWarning")}</p>
         <label className="mt-4 block text-sm font-bold">{t("settings.typeDelete")}<input className={input} value={conf} onChange={(e) => setConf(e.target.value)} /></label>
-        <div className="mt-5 flex items-center gap-4"><button className={btn + " border-red-700 text-red-300"} disabled={conf !== "DELETE"}>{t("settings.deleteButton")}</button><span role="alert" className="text-sm text-amber-300">{dmsg}</span></div>
+        <div className="mt-5 flex items-center gap-4"><button className={btn + " border-red-700 text-red-300"} disabled={conf !== "DELETE"}>{t("settings.deleteButton")}</button><span role="alert" className="text-sm text-[#5ee38f]">{dmsg}</span></div>
       </>)}
     </form>
   </div>);

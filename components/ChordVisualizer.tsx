@@ -154,7 +154,7 @@ export function ChordVisualizer({ instrument, chord }: { instrument: string; cho
   const { t } = useLanguage();
   const parsed = parseChord(chord);
   if (!parsed) {
-    return <p className="text-xs text-amber-300">{t("chord.invalid")}</p>;
+    return <p className="text-xs text-[#5ee38f]">{t("chord.invalid")}</p>;
   }
   const chordName = `${parsed.rootName}${parsed.quality}`;
   const noteNames = parsed.intervals.map((interval) => NOTE_NAMES[(parsed.root + interval) % 12]);

@@ -131,9 +131,9 @@ export function StudioWelcomeModal({ isOpen, onClose, onAddTrack, onPlay, onSave
                 <p className="mt-2 text-sm leading-relaxed text-zinc-300">{t(description)}</p>
               </article>
             ))}
-            <article className="rounded-xl border border-amber-900/70 bg-amber-950/20 p-4">
-              <h3 className="text-sm font-semibold text-amber-100">{t("studio.guideAgain")}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-amber-100/80">{t("studio.guideAgainHint")}</p>
+            <article className="rounded-xl border border-[#0c6b30]/70 bg-[#073d1b]/20 p-4">
+              <h3 className="text-sm font-semibold text-[#b9f6d0]">{t("studio.guideAgain")}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-[#b9f6d0]/80">{t("studio.guideAgainHint")}</p>
             </article>
           </div>
         ) : (
@@ -158,9 +158,9 @@ export function StudioWelcomeModal({ isOpen, onClose, onAddTrack, onPlay, onSave
             <div className="mt-5 flex justify-between gap-3 border-t border-zinc-800 pt-4">
               <button type="button" disabled={step === 0} onClick={() => updateStep(step - 1)} className="rounded-lg border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-zinc-800 disabled:opacity-40">{t("studio.previous")}</button>
               {step < 3 ? (
-                <button type="button" onClick={() => updateStep(step + 1)} className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white hover:bg-amber-500">{t("studio.next")}</button>
+                <button type="button" onClick={() => updateStep(step + 1)} className="rounded-lg bg-[#17a34a] px-4 py-2 text-sm font-bold text-white hover:bg-[#1DB954]">{t("studio.next")}</button>
               ) : (
-                <button type="button" onClick={() => updateStep(4)} className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white hover:bg-amber-500">{t("studio.finishGuide")}</button>
+                <button type="button" onClick={() => updateStep(4)} className="rounded-lg bg-[#17a34a] px-4 py-2 text-sm font-bold text-white hover:bg-[#1DB954]">{t("studio.finishGuide")}</button>
               )}
             </div>
           </div>
