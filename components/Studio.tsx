@@ -2307,16 +2307,39 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                     className="w-20 accent-[#75DEFF] h-1 bg-[#322849] rounded"
                   />
                 </div>
-                <input
-                  type="range"
-                  min={-1}
-                  max={1}
-                  step={0.05}
-                  value={track.pan}
-                  aria-label={t("studio.trackPanAria", { track: track.name })}
-                  onChange={(e) => setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, pan: Number(e.target.value) } : t))}
-                  className="h-1 w-full accent-[#D0BCFF]"
-                />
+                <div className="mt-1">
+                  <div className="mb-0.5 flex items-center justify-between text-[8px] text-zinc-500">
+                    <span>{t("studio.panLeft")}</span>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setTracks((current) => current.map((item) => item.id === track.id ? { ...item, pan: 0 } : item));
+                      }}
+                      aria-label={t("studio.centerTrackPanAria", { track: track.name })}
+                      className="rounded px-1 text-zinc-300 hover:bg-[#322849] hover:text-white"
+                    >
+                      {t("studio.panCenter")}
+                    </button>
+                    <span>{t("studio.panRight")}</span>
+                  </div>
+                  <div className="relative flex items-center">
+                    <input
+                      type="range"
+                      min={-1}
+                      max={1}
+                      step={0.01}
+                      value={track.pan}
+                      aria-label={t("studio.trackPanAria", { track: track.name })}
+                      aria-valuetext={track.pan === 0
+                        ? t("studio.panCenter")
+                        : `${track.pan < 0 ? t("studio.panLeft") : t("studio.panRight")} ${Math.round(Math.abs(track.pan) * 100)}%`}
+                      onChange={(event) => setTracks((current) => current.map((item) => item.id === track.id ? { ...item, pan: Number(event.target.value) } : item))}
+                      className="h-1 w-full accent-[#D0BCFF]"
+                    />
+                    <span aria-hidden="true" className="pointer-events-none absolute left-1/2 h-2.5 w-px -translate-x-1/2 bg-zinc-300/70" />
+                  </div>
+                </div>
               </div>
             ))}
             <div
