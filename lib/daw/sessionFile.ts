@@ -1,3 +1,4 @@
+import type { PianoPresetType } from "@/lib/daw/PianoEngine";
 import type {
   AudioRegion,
   ArrangerSection,
@@ -600,6 +601,7 @@ export async function openSessionFile(file: File, ctx: AudioContext): Promise<{ 
         midiNotes: parseMidiNotes(rawTrack.midiNotes),
         drumPattern: parseDrumPattern(rawTrack.drumPattern),
         synthSettings: parseSynthSettings(rawTrack.synthSettings),
+        pianoPreset: typeof rawTrack.pianoPreset === "string" ? (rawTrack.pianoPreset as PianoPresetType) : undefined,
         ampSettings: parseAmpSettings(rawTrack.ampSettings),
         ampEnabled: typeof rawTrack.ampEnabled === "boolean" ? rawTrack.ampEnabled : false,
         inputDevice: typeof rawTrack.inputDevice === "string" ? rawTrack.inputDevice : undefined,

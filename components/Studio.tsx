@@ -228,6 +228,10 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
   });
 
   const [trackNotes, setTrackNotes] = useState<Record<number, MidiNote[]>>({});
+  const tracksRef = useRef<ExtendedTrackData[]>([]);
+  const trackNotesRef = useRef<Record<number, MidiNote[]>>({});
+  tracksRef.current = tracks;
+  trackNotesRef.current = trackNotes;
 
   const animFrame = useRef<number | null>(null);
   const playStartTime = useRef(0);
@@ -1727,22 +1731,29 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
     }
   };
 
-  const addMidiNote = (note: MidiNote) => {
-    const next = [...(trackNotes[selectedTrackId] ?? []), note];
-    setTrackNotes((prev) => ({ ...prev, [selectedTrackId]: next }));
-    setTracks((prev) => prev.map((track) => track.id === selectedTrackId ? { ...track, midiNotes: next } : track));
+  const editTrackNotes = (trackId: number, edit: (notes: MidiNote[]) => MidiNote[]) => {
+    setTrackNotes((prev) => {
+      const base = prev[trackId] ?? tracksRef.current.find((track) => track.id === trackId)?.midiNotes ?? [];
+      return { ...prev, [trackId]: edit(base) };
+    });
+    setTracks((prev) => prev.map((track) => track.id === trackId
+      ? { ...track, midiNotes: edit(trackNotesRef.current[trackId] ?? track.midiNotes ?? []) }
+      : track));
   };
+
+  const addMidiNote = (note: MidiNote) => editTrackNotes(selectedTrackId, (notes) => [...notes, note]);
 
   const deleteMidiNote = (noteId: string) => {
-    const next = (trackNotes[selectedTrackId] ?? []).filter((note) => note.id !== noteId);
-    setTrackNotes((prev) => ({ ...prev, [selectedTrackId]: next }));
-    setTracks((prev) => prev.map((track) => track.id === selectedTrackId ? { ...track, midiNotes: next } : track));
+    Object.keys(activeMidiInputNotes.current).forEach((pitch) => {
+      const key = Number(pitch);
+      const remaining = activeMidiInputNotes.current[key].filter((active) => active.id !== noteId);
+      if (remaining.length) activeMidiInputNotes.current[key] = remaining;
+      else delete activeMidiInputNotes.current[key];
+    });
+    editTrackNotes(selectedTrackId, (notes) => notes.filter((note) => note.id !== noteId));
   };
 
-  const updateMidiNotes = (next: MidiNote[]) => {
-    setTrackNotes((prev) => ({ ...prev, [selectedTrackId]: next }));
-    setTracks((prev) => prev.map((track) => track.id === selectedTrackId ? { ...track, midiNotes: next } : track));
-  };
+  const updateMidiNotes = (next: MidiNote[]) => editTrackNotes(selectedTrackId, () => next);
 
   const previewMidiNote = (pitch: number) => {
     const ctx = engine.current.init();
@@ -1768,7 +1779,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
         [selectedTrack.id]: [...(prev[selectedTrack.id] ?? selectedTrack.midiNotes ?? []), note],
       }));
       setTracks((prev) => prev.map((track) => track.id === selectedTrack.id
-        ? { ...track, midiNotes: [...(track.midiNotes ?? []), note] }
+        ? { ...track, midiNotes: [...(track.midiNotes ?? []), note], pianoPreset: track.pianoPreset ?? "Concert Grand" }
         : track));
     } else {
       const activeNotes = activeMidiInputNotes.current[pitch];
@@ -2959,6 +2970,12 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
         isRecording={isRecording}
         recordedNoteCount={selectedTrack ? (trackNotes[selectedTrack.id] ?? selectedTrack.midiNotes ?? []).length : 0}
         onToggleRecording={() => void handleRecord()}
+        preset={selectedTrack?.pianoPreset ?? "Concert Grand"}
+        onPresetChange={(preset) => {
+          if (!selectedTrack) return;
+          void PianoEngine.getInstance().preload(engine.current.init());
+          setTracks((prev) => prev.map((track) => track.id === selectedTrack.id ? { ...track, pianoPreset: preset } : track));
+        }}
         onRecordMidiNote={handlePianoMidiNote}
       />
 

@@ -100,6 +100,51 @@ export class PianoEngine {
     return true;
   }
 
+  public isSampledPreset(preset: string | undefined): preset is PianoPresetType {
+    return !!preset && SAMPLED_PRESETS.includes(preset as PianoPresetType);
+  }
+
+  // Schedules a fixed-length note for timeline playback and export.
+  public scheduleNote(
+    ctx: BaseAudioContext,
+    pitch: number,
+    velocity: number,
+    preset: PianoPresetType,
+    destination: AudioNode,
+    when: number,
+    duration: number,
+    release = 0.35,
+  ): boolean {
+    if (!this.isSampledPreset(preset)) return false;
+    const buffers = this.sampleBuffers.get(ctx);
+    if (!buffers || buffers.size === 0) return false;
+    let nearest = -1;
+    buffers.forEach((_, midi) => {
+      if (nearest < 0 || Math.abs(midi - pitch) < Math.abs(nearest - pitch)) nearest = midi;
+    });
+    const buffer = buffers.get(nearest);
+    if (!buffer) return false;
+    const vel = Math.max(0.1, Math.min(1.0, velocity / 127));
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.playbackRate.value = Math.pow(2, (pitch - nearest) / 12);
+    const tone = ctx.createBiquadFilter();
+    tone.type = "lowpass";
+    tone.frequency.value = preset === "Felt Piano" ? 1800 : preset === "Studio Upright" ? 5000 : 18000;
+    const gain = ctx.createGain();
+    const level = 0.9 * vel * vel + 0.1;
+    const end = when + Math.max(0.05, duration);
+    gain.gain.setValueAtTime(level, when);
+    gain.gain.setValueAtTime(level, end);
+    gain.gain.exponentialRampToValueAtTime(0.0001, end + release);
+    source.connect(tone);
+    tone.connect(gain);
+    gain.connect(destination);
+    source.start(when);
+    source.stop(end + release + 0.05);
+    return true;
+  }
+
   // Realistic Acoustic Piano String Resonance & Hammer Model
   public noteOn(
     ctx: AudioContext,

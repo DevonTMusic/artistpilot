@@ -1,4 +1,5 @@
 // lib/daw/AudioEngine.ts
+import { PianoEngine, type PianoPresetType } from "@/lib/daw/PianoEngine";
 
 export interface AudioRegion {
   id: string;
@@ -147,6 +148,7 @@ export interface TrackData {
   midiNotes?: MidiNoteData[];
   drumPattern?: DrumPatternData;
   synthSettings?: SynthSettings;
+  pianoPreset?: PianoPresetType;
   ampSettings?: GuitarAmpSettings;
   ampEnabled?: boolean;
   inputDevice?: string;
@@ -643,6 +645,7 @@ export class AudioEngine {
       this.activeBusMix.set(bus.id, { input, gain, pan, delay, reverbWet });
       this.activeNodes.push(input, gain, pan, delay, feedback, reverbWet);
     });
+    const piano = PianoEngine.getInstance();
     const stepDuration = 60 / Math.max(1, bpm) / 4;
     const effectiveEndOffset = Number.isFinite(endOffsetSec)
       ? Math.max(startOffsetSec, endOffsetSec)
@@ -815,7 +818,17 @@ export class AudioEngine {
         const start = note.startStep * stepDuration;
         const duration = Math.min(Math.max(1, note.length) * stepDuration, effectiveEndOffset - start);
         if (start + duration <= startOffsetSec) return;
-        this.scheduleTone(input, note.pitch, note.velocity ?? 100, start, duration, startOffsetSec, scheduledTime, track.synthSettings);
+        const playedAsPiano = track.pianoPreset && piano.scheduleNote(
+          ctx,
+          note.pitch,
+          note.velocity ?? 100,
+          track.pianoPreset,
+          input,
+          scheduledTime + Math.max(0, start - startOffsetSec),
+          duration - Math.max(0, startOffsetSec - start),
+          track.synthSettings?.release,
+        );
+        if (!playedAsPiano) this.scheduleTone(input, note.pitch, note.velocity ?? 100, start, duration, startOffsetSec, scheduledTime, track.synthSettings);
       });
 
       if (track.category === "drum" && track.drumPattern) {
@@ -949,6 +962,8 @@ export class AudioEngine {
     }
     const length = Math.ceil(sampleRate * totalDurationSec);
     const offlineCtx = new OfflineAudioContext(2, length, sampleRate);
+    const piano = PianoEngine.getInstance();
+    if (tracks.some((track) => track.pianoPreset && piano.isSampledPreset(track.pianoPreset))) await piano.preload(offlineCtx);
     const offlineMaster = offlineCtx.createGain();
     offlineMaster.gain.value = Math.max(0, Math.min(1, masterVolume));
     if (masterAutomation.length) {
@@ -1177,6 +1192,16 @@ export class AudioEngine {
       (track.midiNotes ?? []).forEach((note) => {
         const when = note.startStep * stepDuration;
         if (when >= totalDurationSec) return;
+        if (track.pianoPreset && piano.scheduleNote(
+          offlineCtx,
+          note.pitch,
+          note.velocity ?? 100,
+          track.pianoPreset,
+          input,
+          when,
+          Math.min(Math.max(1, note.length) * stepDuration, totalDurationSec - when),
+          track.synthSettings?.release,
+        )) return;
         const osc = offlineCtx.createOscillator();
         const gain = offlineCtx.createGain();
         const filter = offlineCtx.createBiquadFilter();

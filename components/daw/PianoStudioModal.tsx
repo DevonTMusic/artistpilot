@@ -17,6 +17,8 @@ interface PianoStudioModalProps {
   isRecording: boolean;
   recordedNoteCount: number;
   onToggleRecording: () => void;
+  preset: PianoPresetType;
+  onPresetChange: (preset: PianoPresetType) => void;
   onRecordMidiNote?: (pitch: number, velocity: number, isNoteOn: boolean) => void;
 }
 
@@ -48,11 +50,12 @@ export function PianoStudioModal({
   isRecording,
   recordedNoteCount,
   onToggleRecording,
+  preset: selectedPreset,
+  onPresetChange,
   onRecordMidiNote,
 }: PianoStudioModalProps) {
   const { t } = useLanguage();
   const engine = useRef<PianoEngine>(PianoEngine.getInstance());
-  const [selectedPreset, setSelectedPreset] = useState<PianoPresetType>("Concert Grand");
   const [currentOctave, setCurrentOctave] = useState<number>(3);
   const [sustainOn, setSustainOn] = useState<boolean>(false);
   const [activePitches, setActivePitches] = useState<Set<number>>(new Set());
@@ -220,7 +223,7 @@ export function PianoStudioModal({
 
             <select
               value={selectedPreset}
-              onChange={(e) => setSelectedPreset(e.target.value as PianoPresetType)}
+              onChange={(e) => onPresetChange(e.target.value as PianoPresetType)}
               className="bg-[#0e0f14] border border-[#51456F] text-xs font-semibold text-white rounded px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-[#FF72B6]"
             >
               {PIANO_PRESETS.map((p) => (
