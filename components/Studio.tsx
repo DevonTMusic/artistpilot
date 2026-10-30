@@ -2602,27 +2602,51 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                 )}
 
                 {track.category === "midi" && (trackNotes[track.id] ?? track.midiNotes ?? []).length > 0 && (
-                  <div
-                    className="pointer-events-none absolute inset-0 z-10"
-                    role="img"
-                    aria-label={t("studio.midiNotesOnTimeline", { count: (trackNotes[track.id] ?? track.midiNotes ?? []).length })}
-                  >
-                    {(trackNotes[track.id] ?? track.midiNotes ?? []).map((note) => {
-                      const stepDuration = 60 / Math.max(1, bpm) / 4;
-                      const noteY = 94 - (Math.max(21, Math.min(108, note.pitch)) - 21) / 87 * 88;
-                      return (
-                        <span
-                          key={note.id}
-                          style={{
-                            left: `${note.startStep * stepDuration * pixelsPerSecond}px`,
-                            top: `${noteY}%`,
-                            width: `${Math.max(3, note.length * stepDuration * pixelsPerSecond)}px`,
+                  (() => {
+                    const clipNotes = trackNotes[track.id] ?? track.midiNotes ?? [];
+                    const stepDuration = 60 / Math.max(1, bpm) / 4;
+                    const clipStart = Math.min(...clipNotes.map((note) => note.startStep));
+                    const clipEnd = Math.max(...clipNotes.map((note) => note.startStep + note.length));
+                    const clipLeft = clipStart * stepDuration * pixelsPerSecond;
+                    const clipWidth = Math.max(24, (clipEnd - clipStart) * stepDuration * pixelsPerSecond);
+                    return (
+                      <div
+                        className="absolute inset-y-1 z-10 overflow-hidden rounded-md border border-[#75EBD0]/60 bg-[#75EBD0]/15"
+                        style={{ left: `${clipLeft}px`, width: `${clipWidth}px` }}
+                        role="img"
+                        aria-label={t("studio.midiNotesOnTimeline", { count: clipNotes.length })}
+                      >
+                        <span className="pointer-events-none absolute left-1 top-0 text-[9px] font-bold text-[#75EBD0]">{track.name}</span>
+                        <button
+                          type="button"
+                          aria-label="Delete recording"
+                          title="Delete recording"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            activeMidiInputNotes.current = {};
+                            editTrackNotes(track.id, () => []);
                           }}
-                          className="absolute h-[4px] min-w-[3px] rounded-sm bg-[#75EBD0] shadow-[0_0_4px_#75EBD0]"
-                        />
-                      );
-                    })}
-                  </div>
+                          className="absolute right-0.5 top-0.5 z-20 rounded bg-black/60 px-1 text-[10px] font-bold text-white hover:bg-red-600"
+                        >
+                          ✕
+                        </button>
+                        {clipNotes.map((note) => {
+                          const noteY = 94 - (Math.max(21, Math.min(108, note.pitch)) - 21) / 87 * 88;
+                          return (
+                            <span
+                              key={note.id}
+                              style={{
+                                left: `${(note.startStep - clipStart) * stepDuration * pixelsPerSecond}px`,
+                                top: `${noteY}%`,
+                                width: `${Math.max(3, note.length * stepDuration * pixelsPerSecond)}px`,
+                              }}
+                              className="pointer-events-none absolute h-[4px] min-w-[3px] rounded-sm bg-[#75EBD0]"
+                            />
+                          );
+                        })}
+                      </div>
+                    );
+                  })()
                 )}
 
                 {/* Empty Track Prompt */}
