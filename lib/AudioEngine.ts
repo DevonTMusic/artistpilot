@@ -720,7 +720,12 @@ export class AudioEngine {
       chorusDelay.connect(chorusWet);
       chorusWet.connect(trackGain);
       trackGain.connect(ampMaster);
-      ampMaster.connect(trackPan);
+      const monoMix = ctx.createGain();
+      monoMix.channelCount = 1;
+      monoMix.channelCountMode = "explicit";
+      ampMaster.connect(monoMix);
+      monoMix.connect(trackPan);
+      this.activeNodes.push(monoMix);
       const bus = track.busId ? busNodes.get(track.busId) : undefined;
       trackPan.connect(routingNode);
       routingNode.connect(bus?.input ?? this.masterGain!);
@@ -1146,7 +1151,11 @@ export class AudioEngine {
       } else {
         input.connect(tGain);
       }
-      tGain.connect(tPan);
+      const tMono = offlineCtx.createGain();
+      tMono.channelCount = 1;
+      tMono.channelCountMode = "explicit";
+      tGain.connect(tMono);
+      tMono.connect(tPan);
       tPan.connect(bus?.input ?? offlineMaster);
 
       track.regions.forEach((region) => {

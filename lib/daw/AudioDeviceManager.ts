@@ -137,6 +137,9 @@ export class AudioDeviceManager {
     this.activeSourceNode.connect(this.analyserNode);
 
     const inputGain = ctx.createGain();
+    inputGain.channelCount = 1;
+    inputGain.channelCountMode = "explicit";
+    inputGain.channelInterpretation = "speakers";
     inputGain.gain.value = settings?.inputGain ?? 1;
     const highPass = ctx.createBiquadFilter();
     highPass.type = "highpass";
@@ -240,6 +243,9 @@ export class AudioDeviceManager {
     });
 
     this.recordingDestination = ctx.createMediaStreamDestination();
+    this.recordingDestination.channelCount = 2;
+    this.recordingDestination.channelCountMode = "explicit";
+    this.recordingDestination.channelInterpretation = "speakers";
     outputBus.connect(this.recordingDestination);
     this.monitorGainNode = ctx.createGain();
     this.setMonitoring(ctx, enableMonitoring);
