@@ -67,24 +67,24 @@ export function DrumPatternEditor({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
-      <section className="w-full max-w-3xl rounded-xl border border-zinc-700 bg-[#15161b] p-5 text-white shadow-2xl">
+      <section className="w-full max-w-3xl rounded-xl border border-[#51456F] bg-[#15161b] p-5 text-white shadow-2xl">
         <header className="mb-5 flex items-center justify-between">
           <div>
             <h2 className="font-bold">{t("drums.title")}</h2>
             <p className="text-xs text-zinc-400">{t("drums.help")}</p>
           </div>
-          <button onClick={onClose} className="rounded px-2 py-1 text-zinc-400 hover:bg-zinc-800 hover:text-white" aria-label={t("drums.close")}>✕</button>
+          <button onClick={onClose} className="rounded px-2 py-1 text-zinc-400 hover:bg-[#322849] hover:text-white" aria-label={t("drums.close")}>✕</button>
         </header>
         <div className="mb-4 flex flex-wrap items-center gap-4 text-xs">
           <label className="flex items-center gap-2 text-zinc-300">
             {t("drums.length")}
-            <select value={stepCount} onChange={(event) => changeLength(Number(event.target.value))} className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-white">
+            <select value={stepCount} onChange={(event) => changeLength(Number(event.target.value))} className="rounded border border-[#51456F] bg-[#241D3A] px-2 py-1 text-white">
               {[16, 32, 64].map((length) => <option key={length} value={length}>{t(length === 16 ? "drums.barSingular" : "drums.barPlural", { count: length / 16 })}</option>)}
             </select>
           </label>
           <label className="flex items-center gap-2 text-zinc-300">
             {t("drums.swing")}
-            <input type="range" min={0} max={0.5} step={0.01} value={pattern.swing ?? 0} onChange={(event) => onChange({ ...pattern, swing: Number(event.target.value) })} className="accent-[#3ddc78]" />
+            <input type="range" min={0} max={0.5} step={0.01} value={pattern.swing ?? 0} onChange={(event) => onChange({ ...pattern, swing: Number(event.target.value) })} className="accent-[#D0BCFF]" />
             <span className="w-8 font-mono text-zinc-400">{Math.round((pattern.swing ?? 0) * 100)}%</span>
           </label>
           <span className="ml-auto text-zinc-500">{isPlaying ? `${bpm} BPM · ${t("drums.step")} ${currentStep + 1}` : `${bpm} BPM · ${t("drums.stopped")}`}</span>
@@ -102,8 +102,8 @@ export function DrumPatternEditor({
                     aria-pressed={Boolean((pattern[key] ?? [])[index])}
                     className={`aspect-square rounded border text-[9px] transition ${
                       (pattern[key] ?? [])[index]
-                        ? "border-[#5ee38f] bg-[#3ddc78] text-black"
-                        : "border-zinc-700 bg-zinc-900 text-zinc-500 hover:border-zinc-500"
+                        ? "border-[#D0BCFF] bg-[#D0BCFF] text-[#19152B]"
+                        : "border-[#51456F] bg-[#241D3A] text-zinc-500 hover:border-zinc-500"
                     } ${index % 4 === 0 ? "ml-1" : ""} ${isPlaying && currentStep === index ? "ring-2 ring-white ring-offset-1 ring-offset-[#15161b]" : ""}`}
                   >
                     {index + 1}
@@ -114,7 +114,7 @@ export function DrumPatternEditor({
           ))}
         </div>
         <footer className="mt-5 flex justify-end">
-          <button onClick={onClose} className="rounded bg-[#17a34a] px-4 py-2 text-xs font-bold hover:bg-[#1DB954]">{t("drums.done")}</button>
+          <button onClick={onClose} className="rounded bg-[#986FEF] px-4 py-2 text-xs font-bold hover:bg-[#B89CFF]">{t("drums.done")}</button>
         </footer>
       </section>
     </div>

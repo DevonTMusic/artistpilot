@@ -74,7 +74,7 @@ export function ArrangerLane({ sections, width, pixelsPerBar, onSeek, onCommit, 
         backgroundImage: "linear-gradient(to right, rgba(63, 70, 86, 0.45) 1px, transparent 1px)",
         backgroundSize: `${pixelsPerBar}px 100%`,
       }}
-      className="relative h-9 flex-none border-b border-zinc-800 bg-[#101116]"
+      className="relative h-9 flex-none border-b border-[#3B3155] bg-[#101116]"
       aria-label={t("arranger.sections")}
     >
       {previewSections.map((section) => (

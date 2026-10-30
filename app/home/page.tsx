@@ -8,9 +8,9 @@ import { LESSONS } from "@/lib/lessons";
 import { getLocale, translate } from "@/lib/i18n/server";
 function Tile({ href, title, text, art, locked }: { href: string; title: string; text: string; art: React.ReactNode; locked: boolean }) {
   return (
-    <Link href={locked ? "/dashboard" : href} className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 transition hover:border-[#1DB954]">
+    <Link href={locked ? "/dashboard" : href} className="overflow-hidden rounded-2xl border border-[#3B3155] bg-[#241D3A] transition hover:border-[#B89CFF]">
       <div className="p-5">
-        <h2 className="text-xl font-bold">{title}{locked && <span className="ml-2 rounded bg-[#1DB954]/20 px-2 py-0.5 text-xs text-[#5ee38f]">Pro</span>}</h2>
+        <h2 className="text-xl font-bold">{title}{locked && <span className="ml-2 rounded bg-[#B89CFF]/20 px-2 py-0.5 text-xs text-[#D0BCFF]">Pro</span>}</h2>
         <p className="mt-1 text-zinc-400">{text}</p>
       </div>
     </Link>
@@ -35,10 +35,10 @@ export default async function HomeHub() {
       <h1 className="text-3xl font-extrabold md:text-4xl">{t("home.greeting", { name })}</h1>
       <p className="mt-2 text-zinc-400">{t("home.prompt")}</p>
       {!paid && (
-        <div className="mt-6 rounded-2xl border border-[#1DB954] bg-zinc-900 p-5">
+        <div className="mt-6 rounded-2xl border border-[#B89CFF] bg-[#241D3A] p-5">
           <p className="font-bold">{t("home.unlock")}</p>
           <p className="text-zinc-400">{t("home.freePlan")}</p>
-          <Link href="/dashboard" className="mt-3 inline-block rounded-lg bg-[#1DB954] text-black hover:bg-[#3ddc78] px-4 py-2 font-bold">{t("home.seePlan")}</Link>
+          <Link href="/dashboard" className="mt-3 inline-block rounded-lg bg-[#B89CFF] text-[#19152B] hover:bg-[#D0BCFF] px-4 py-2 font-bold">{t("home.seePlan")}</Link>
         </div>
       )}
       <div className="mt-8 grid gap-5 md:grid-cols-3">
@@ -46,7 +46,7 @@ export default async function HomeHub() {
         <Tile href="/dashboard" title={t("home.ideaTitle")} text={t("home.ideaText")} art={<IdeaArt className={art} />} locked={!paid} />
         <Tile href="/academy" title={t("home.academyTitle")} text={t("home.lessonProgress", { done: Number(count ?? 0), total: LESSONS.length })} art={<PianoArt className={art} />} locked={false} />
       </div>
-      <div className="mt-5 grid items-center gap-5 rounded-2xl border border-zinc-800 bg-zinc-900 p-5 md:grid-cols-[1fr_220px]">
+      <div className="mt-5 grid items-center gap-5 rounded-2xl border border-[#3B3155] bg-[#241D3A] p-5 md:grid-cols-[1fr_220px]">
         <div><h2 className="text-xl font-bold">{t("home.marketingTitle")}</h2><p className="mt-1 text-zinc-400">{t("home.marketingText")}</p></div>
         <StudioArt className="hidden h-24 w-full md:block" />
       </div>

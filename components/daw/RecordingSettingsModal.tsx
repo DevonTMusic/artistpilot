@@ -91,7 +91,7 @@ export function RecordingSettingsModal({
     <div className="absolute top-24 left-32 z-50 w-[480px] rounded-2xl border-2 border-[#20222a] bg-[#14151b] shadow-[0_25px_60px_rgba(0,0,0,0.9)] overflow-hidden font-sans select-none">
       
       {/* Header */}
-      <div className="flex h-10 items-center justify-between border-b border-zinc-800 bg-[#1e2028] px-4 cursor-move">
+      <div className="flex h-10 items-center justify-between border-b border-[#3B3155] bg-[#1e2028] px-4 cursor-move">
         <span className="text-xs font-bold text-white flex items-center gap-1.5">
           {t("audio.recordingInput")}
         </span>
@@ -108,7 +108,7 @@ export function RecordingSettingsModal({
               setSelectedDevice(e.target.value);
               onSelectDevice(e.target.value);
             }}
-            className="w-full rounded-lg bg-[#0a0a0d] border border-zinc-700/80 p-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+            className="w-full rounded-lg bg-[#19142B] border border-[#51456F]/80 p-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-sky-500"
           >
             {devices.map((d) => (
               <option key={d.deviceId} value={d.deviceId}>
@@ -122,13 +122,13 @@ export function RecordingSettingsModal({
         {/* Live Input Waveform Monitor */}
         <div>
           <span className="text-[10px] font-bold text-zinc-400 block mb-1.5">{t("audio.liveWaveform")}</span>
-          <div className="h-16 w-full rounded-lg border border-zinc-800 overflow-hidden bg-black">
+          <div className="h-16 w-full rounded-lg border border-[#3B3155] overflow-hidden bg-black">
             <canvas ref={canvasRef} width={450} height={64} className="h-full w-full" />
           </div>
         </div>
 
         {/* Direct Monitoring Toggle */}
-        <div className="flex items-center justify-between p-3 rounded-lg bg-[#191b22] border border-zinc-800">
+        <div className="flex items-center justify-between p-3 rounded-lg bg-[#191b22] border border-[#3B3155]">
           <div>
             <span className="text-xs font-bold text-white block">{t("audio.monitoring")}</span>
             <span className="text-[10px] text-zinc-400">{t("audio.monitoringHelp")}</span>
@@ -137,8 +137,8 @@ export function RecordingSettingsModal({
             onClick={() => onToggleMonitoring(!monitoringEnabled)}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shadow ${
               monitoringEnabled
-                ? "bg-sky-500 text-black shadow-sky-500/50"
-                : "bg-zinc-800 text-zinc-400 hover:text-white"
+                ? "bg-sky-500 text-[#19152B] shadow-sky-500/50"
+                : "bg-[#322849] text-zinc-400 hover:text-white"
             }`}
           >
             {monitoringEnabled ? t("audio.monitoringOn") : t("audio.muted")}

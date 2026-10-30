@@ -96,11 +96,11 @@ export function StudioWelcomeModal({ isOpen, onClose, onAddTrack, onPlay, onSave
         aria-modal="true"
         aria-labelledby="studio-welcome-title"
         aria-describedby="studio-welcome-description"
-        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-zinc-700 bg-[#15171d] p-5 shadow-2xl sm:p-7"
+        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#51456F] bg-[#15171d] p-5 shadow-2xl sm:p-7"
       >
         <header className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <p className="text-[10px] font-bold tracking-normal text-sky-300">{t("studio.brand")}</p>
+            <p className="text-[10px] font-bold tracking-normal text-[#75DEFF]">{t("studio.brand")}</p>
             <h2 id="studio-welcome-title" className="mt-1 text-xl font-bold text-white">{t("studio.welcome")}</h2>
             <p id="studio-welcome-description" className="mt-2 text-sm leading-relaxed text-zinc-300">{t("studio.guideIntro")}</p>
           </div>
@@ -109,13 +109,13 @@ export function StudioWelcomeModal({ isOpen, onClose, onAddTrack, onPlay, onSave
             type="button"
             onClick={onClose}
             aria-label={t("studio.closeGuide")}
-            className="rounded-lg px-2 py-1 text-lg text-zinc-400 hover:bg-zinc-800 hover:text-white"
+            className="rounded-lg px-2 py-1 text-lg text-zinc-400 hover:bg-[#322849] hover:text-white"
           >
             ×
           </button>
         </header>
 
-        <div className="mb-4 flex gap-2 border-b border-zinc-800" role="group" aria-label={t("studio.brand")}>
+        <div className="mb-4 flex gap-2 border-b border-[#3B3155]" role="group" aria-label={t("studio.brand")}>
           {(["guide", "first-song"] as const).map((value) => (
             <button key={value} type="button" aria-pressed={tab === value} onClick={() => setTab(value)} className={`border-b-2 px-3 py-2 text-sm font-semibold focus-visible:outline ${tab === value ? "border-sky-400 text-white" : "border-transparent text-zinc-300 hover:text-white"}`}>
               {t(value === "guide" ? "studio.guideTab" : "studio.firstSongTab")}
@@ -126,18 +126,18 @@ export function StudioWelcomeModal({ isOpen, onClose, onAddTrack, onPlay, onSave
         {tab === "guide" ? (
           <div className="grid gap-3 sm:grid-cols-2">
             {guideSections.map(([title, description]) => (
-              <article key={title} className="rounded-xl border border-zinc-800 bg-[#101116] p-4">
+              <article key={title} className="rounded-xl border border-[#3B3155] bg-[#101116] p-4">
                 <h3 className="text-sm font-semibold text-white">{t(title)}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-zinc-300">{t(description)}</p>
               </article>
             ))}
-            <article className="rounded-xl border border-[#0c6b30]/70 bg-[#073d1b]/20 p-4">
+            <article className="rounded-xl border border-[#493578]/70 bg-[#34204D]/20 p-4">
               <h3 className="text-sm font-semibold text-[#b9f6d0]">{t("studio.guideAgain")}</h3>
               <p className="mt-2 text-sm leading-relaxed text-[#b9f6d0]/80">{t("studio.guideAgainHint")}</p>
             </article>
           </div>
         ) : (
-          <div aria-live="polite" className="rounded-xl border border-zinc-800 bg-[#101116] p-5">
+          <div aria-live="polite" className="rounded-xl border border-[#3B3155] bg-[#101116] p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-bold text-white">{t("studio.beginnerPath")}</h3>
@@ -155,12 +155,12 @@ export function StudioWelcomeModal({ isOpen, onClose, onAddTrack, onPlay, onSave
                 {t(current.action)}
               </button>
             )}
-            <div className="mt-5 flex justify-between gap-3 border-t border-zinc-800 pt-4">
-              <button type="button" disabled={step === 0} onClick={() => updateStep(step - 1)} className="rounded-lg border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-zinc-800 disabled:opacity-40">{t("studio.previous")}</button>
+            <div className="mt-5 flex justify-between gap-3 border-t border-[#3B3155] pt-4">
+              <button type="button" disabled={step === 0} onClick={() => updateStep(step - 1)} className="rounded-lg border border-[#51456F] px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-[#322849] disabled:opacity-40">{t("studio.previous")}</button>
               {step < 3 ? (
-                <button type="button" onClick={() => updateStep(step + 1)} className="rounded-lg bg-[#17a34a] px-4 py-2 text-sm font-bold text-white hover:bg-[#1DB954]">{t("studio.next")}</button>
+                <button type="button" onClick={() => updateStep(step + 1)} className="rounded-lg bg-[#986FEF] px-4 py-2 text-sm font-bold text-white hover:bg-[#B89CFF]">{t("studio.next")}</button>
               ) : (
-                <button type="button" onClick={() => updateStep(4)} className="rounded-lg bg-[#17a34a] px-4 py-2 text-sm font-bold text-white hover:bg-[#1DB954]">{t("studio.finishGuide")}</button>
+                <button type="button" onClick={() => updateStep(4)} className="rounded-lg bg-[#986FEF] px-4 py-2 text-sm font-bold text-white hover:bg-[#B89CFF]">{t("studio.finishGuide")}</button>
               )}
             </div>
           </div>

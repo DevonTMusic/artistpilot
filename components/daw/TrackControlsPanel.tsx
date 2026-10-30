@@ -75,7 +75,7 @@ function RotaryKnob({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className="h-12 w-12 rounded-full border-2 border-zinc-700 bg-zinc-900 shadow-lg flex items-center justify-center relative cursor-ns-resize active:scale-95 transition-transform"
+        className="h-12 w-12 rounded-full border-2 border-[#51456F] bg-[#241D3A] shadow-lg flex items-center justify-center relative cursor-ns-resize active:scale-95 transition-transform"
       >
         <div
           style={{ transform: `rotate(${angle}deg)` }}
@@ -163,8 +163,8 @@ export function TrackControlsPanel({
             onClick={handleToggleCompare}
             className={`px-2.5 py-0.5 rounded text-[10px] font-bold border transition ${
               activeSnapshot === "B"
-                ? "bg-[#1DB954]/20 border-[#1DB954]/60 text-[#5ee38f]"
-                : "bg-black/20 border-zinc-700 text-zinc-300 hover:bg-zinc-700/50"
+                ? "bg-[#B89CFF]/20 border-[#B89CFF]/60 text-[#D0BCFF]"
+                : "bg-black/20 border-[#51456F] text-zinc-300 hover:bg-zinc-700/50"
             }`}
           >
             {t("track.compare", { snapshot: activeSnapshot })}
@@ -226,7 +226,7 @@ export function TrackControlsPanel({
                 step={0.05}
                 value={currentSettings.inputGain}
                 onChange={(e) => updateProp("inputGain", Number(e.target.value))}
-                className="w-full accent-[#3572b0] h-1 bg-zinc-800 rounded cursor-pointer"
+                className="w-full accent-[#3572b0] h-1 bg-[#322849] rounded cursor-pointer"
               />
             </div>
 
@@ -236,7 +236,7 @@ export function TrackControlsPanel({
               <select
                 value={activeDeviceId}
                 onChange={(e) => onSelectDevice(e.target.value)}
-                className="w-full bg-[#18191f] border border-zinc-700 text-[11px] text-white rounded p-1 focus:outline-none"
+                className="w-full bg-[#241D3A] border border-[#51456F] text-[11px] text-white rounded p-1 focus:outline-none"
               >
                 <option value="default">{t("track.defaultInput")}</option>
                 {devices.map((d) => (
@@ -251,7 +251,7 @@ export function TrackControlsPanel({
               <button
                 onClick={onToggleMonitoring}
                 className={`px-3 py-1 rounded text-xs font-bold transition ${
-                  isMonitoring ? "bg-sky-500 text-black shadow-sky-500/50" : "bg-zinc-800 text-zinc-400"
+                  isMonitoring ? "bg-sky-500 text-[#19152B] shadow-sky-500/50" : "bg-[#322849] text-zinc-400"
                 }`}
               >
                 {isMonitoring ? t("track.on") : t("track.off")}
@@ -259,7 +259,7 @@ export function TrackControlsPanel({
             </div>
 
             {/* Noise Gate section */}
-            <div className="pt-2 border-t border-zinc-800">
+            <div className="pt-2 border-t border-[#3B3155]">
               <label className="mb-2 flex items-center gap-1.5 text-[10px] text-zinc-300">
                 <input
                   type="checkbox"
@@ -288,10 +288,10 @@ export function TrackControlsPanel({
                 value={currentSettings.gateThreshold}
                 onChange={(e) => updateProp("gateThreshold", Number(e.target.value))}
                 disabled={!currentSettings.gateEnabled}
-                className="w-full accent-[#3572b0] h-1 bg-zinc-800 rounded cursor-pointer disabled:opacity-40"
+                className="w-full accent-[#3572b0] h-1 bg-[#322849] rounded cursor-pointer disabled:opacity-40"
               />
             </div>
-            <div className="border-t border-zinc-800 pt-2">
+            <div className="border-t border-[#3B3155] pt-2">
               <label className="mb-2 flex items-center gap-1.5 text-[10px] text-zinc-300">
                 <input
                   type="checkbox"
@@ -320,11 +320,11 @@ export function TrackControlsPanel({
         </div>
 
         {/* CENTER & RIGHT: Blue Hardware Console with Rotating Circular Dials */}
-        <div className="min-w-0 flex-1 bg-gradient-to-b from-[#244b78] via-[#1d3d63] to-[#142d4a] p-2 flex items-center justify-around border-l border-sky-950 shadow-inner overflow-x-auto">
+        <div className="min-w-0 flex-1 bg-gradient-to-b from-[#493578] via-[#342653] to-[#231a3a] p-2 flex items-center justify-around border-l border-[#1B1430] shadow-inner overflow-x-auto">
           
           {/* COMPRESSOR */}
           <div className="flex flex-col items-center border-r border-sky-400/20 pr-6 flex-none">
-            <span className="text-[10px] font-black tracking-wider text-sky-200 mb-1.5">{t("track.compressor")}</span>
+            <span className="text-[10px] font-black tracking-wider text-[#B6EEFF] mb-1.5">{t("track.compressor")}</span>
             <div className="flex items-center gap-3">
               <RotaryKnob
                 label={t("track.amount")}
@@ -333,7 +333,7 @@ export function TrackControlsPanel({
                 max={100}
                 step={1}
                 onChange={(val) => updateProp("compAmount", val / 100)}
-                color="text-sky-200"
+                color="text-[#B6EEFF]"
                 indicatorColor="bg-cyan-400"
               />
 
@@ -344,8 +344,8 @@ export function TrackControlsPanel({
                     key={i}
                     className={`h-1.5 w-1.5 rounded-full ${
                       currentSettings.compEnabled && currentSettings.compAmount * 6 >= i
-                        ? i > 4 ? "bg-[#3ddc78] shadow-sm" : "bg-emerald-400"
-                        : "bg-zinc-800"
+                        ? i > 4 ? "bg-[#D0BCFF] shadow-sm" : "bg-[#4FE3C1]"
+                        : "bg-[#322849]"
                     }`}
                   />
                 ))}
@@ -355,7 +355,7 @@ export function TrackControlsPanel({
 
           {/* EQUALIZER (True Rotating Dials) */}
           <div className="flex flex-col items-center border-r border-sky-400/20 px-6 flex-none">
-            <span className="text-[10px] font-black tracking-wider text-sky-200 mb-1.5">{t("track.equalizer")}</span>
+            <span className="text-[10px] font-black tracking-wider text-[#B6EEFF] mb-1.5">{t("track.equalizer")}</span>
             <div className="flex items-center gap-4">
               <RotaryKnob
                 label={t("track.low")}
@@ -364,7 +364,7 @@ export function TrackControlsPanel({
                 max={12}
                 step={0.5}
                 onChange={(val) => updateProp("lowGain", val)}
-                color="text-sky-200"
+                color="text-[#B6EEFF]"
               />
               <RotaryKnob
                 label={t("track.mid")}
@@ -373,7 +373,7 @@ export function TrackControlsPanel({
                 max={12}
                 step={0.5}
                 onChange={(val) => updateProp("midGain", val)}
-                color="text-sky-200"
+                color="text-[#B6EEFF]"
                 indicatorColor="bg-cyan-400"
               />
               <RotaryKnob
@@ -383,7 +383,7 @@ export function TrackControlsPanel({
                 max={12}
                 step={0.5}
                 onChange={(val) => updateProp("highGain", val)}
-                color="text-sky-200"
+                color="text-[#B6EEFF]"
               />
 
               {/* Low Cut Switch */}
@@ -391,20 +391,20 @@ export function TrackControlsPanel({
                 <button
                   onClick={() => updateProp("lowCut", !currentSettings.lowCut)}
                   className={`h-7 w-7 rounded-full border border-sky-400/40 text-[9px] font-bold transition flex items-center justify-center ${
-                    currentSettings.lowCut ? "bg-sky-400 text-black shadow-sm" : "bg-black/40 text-zinc-400"
+                    currentSettings.lowCut ? "bg-sky-400 text-[#19152B] shadow-sm" : "bg-black/40 text-zinc-400"
                   }`}
                   title="80Hz HPF"
                 >
                   HPF
                 </button>
-                <span className="text-[7px] text-sky-200 mt-1 font-bold">{t("track.lowCut")}</span>
+                <span className="text-[7px] text-[#B6EEFF] mt-1 font-bold">{t("track.lowCut")}</span>
               </div>
             </div>
           </div>
 
           {/* SENDS (Rotating Circular Dials) */}
           <div className="flex flex-col items-center pl-6 flex-none">
-            <span className="text-[10px] font-black tracking-wider text-sky-200 mb-1.5">{t("track.sends")}</span>
+            <span className="text-[10px] font-black tracking-wider text-[#B6EEFF] mb-1.5">{t("track.sends")}</span>
             <div className="flex items-center gap-4">
               <RotaryKnob
                 label={t("track.ambience")}
@@ -413,7 +413,7 @@ export function TrackControlsPanel({
                 max={100}
                 step={1}
                 onChange={(val) => updateProp("ambienceSend", val / 100)}
-                color="text-sky-200"
+                color="text-[#B6EEFF]"
               />
               <RotaryKnob
                 label={t("track.reverb")}
@@ -422,7 +422,7 @@ export function TrackControlsPanel({
                 max={100}
                 step={1}
                 onChange={(val) => updateProp("reverbSend", val / 100)}
-                color="text-sky-200"
+                color="text-[#B6EEFF]"
                 indicatorColor="bg-cyan-400"
               />
             </div>

@@ -4,10 +4,10 @@ import { useRouter } from "next/navigation";
 import { INSTRUMENTS } from "@/lib/lessons";
 import { useLanguage } from "@/components/LanguageProvider";
 type Init = { displayName: string; instrument: string; bpm: number; goal: number; reminders: boolean; news: boolean; isDemo: boolean };
-const card = "rounded-2xl border border-zinc-800 bg-zinc-900 p-6";
-const input = "mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 font-normal";
-const btn = "rounded-lg border border-zinc-700 px-4 py-2.5 font-bold hover:border-[#1DB954] disabled:opacity-60";
-const pri = "rounded-lg bg-[#1DB954] text-black hover:bg-[#3ddc78] px-4 py-2.5 font-bold disabled:opacity-60";
+const card = "rounded-2xl border border-[#3B3155] bg-[#241D3A] p-6";
+const input = "mt-1 w-full rounded-lg border border-[#51456F] bg-[#171328] px-3 py-2.5 font-normal";
+const btn = "rounded-lg border border-[#51456F] px-4 py-2.5 font-bold hover:border-[#B89CFF] disabled:opacity-60";
+const pri = "rounded-lg bg-[#B89CFF] text-[#19152B] hover:bg-[#D0BCFF] px-4 py-2.5 font-bold disabled:opacity-60";
 async function post(url: string, body: unknown) {
   const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({}));
@@ -48,7 +48,7 @@ export default function SettingsPanels({ init, billing }: { init: Init; billing:
       <label className="mt-2 flex items-center gap-2"><input type="checkbox" checked={f.reminders} onChange={(e) => setF({ ...f, reminders: e.target.checked })} />{t("settings.reminders")}</label>
       <label className="mt-2 flex items-center gap-2"><input type="checkbox" checked={f.news} onChange={(e) => setF({ ...f, news: e.target.checked })} />{t("settings.updates")}</label>
       <p className="mt-2 text-sm text-zinc-500">{t("settings.emailNote")}</p>
-      <div className="mt-5 flex items-center gap-4"><button className={pri}>{t("settings.saveChanges")}</button><span role="status" className="text-sm text-emerald-400">{msg}</span></div>
+      <div className="mt-5 flex items-center gap-4"><button className={pri}>{t("settings.saveChanges")}</button><span role="status" className="text-sm text-[#4FE3C1]">{msg}</span></div>
     </form>
     {billing}
     <form onSubmit={pw} className={card}>
@@ -56,7 +56,7 @@ export default function SettingsPanels({ init, billing }: { init: Init; billing:
       {init.isDemo ? <p className="mt-2 text-zinc-400">{t("settings.demoPassword")}</p> : (<>
         <label className="mt-4 block text-sm font-bold">{t("settings.currentPassword")}<input className={input} type="password" autoComplete="current-password" value={cur} onChange={(e) => setCur(e.target.value)} required /></label>
         <label className="mt-4 block text-sm font-bold">{t("settings.newPassword")}<input className={input} type="password" autoComplete="new-password" minLength={8} value={nxt} onChange={(e) => setNxt(e.target.value)} required /></label>
-        <div className="mt-5 flex items-center gap-4"><button className={btn}>{t("settings.changePassword")}</button><span role="status" className="text-sm text-emerald-400">{pmsg}</span></div>
+        <div className="mt-5 flex items-center gap-4"><button className={btn}>{t("settings.changePassword")}</button><span role="status" className="text-sm text-[#4FE3C1]">{pmsg}</span></div>
       </>)}
     </form>
     <form onSubmit={del} className={card + " border-red-900"}>
@@ -64,7 +64,7 @@ export default function SettingsPanels({ init, billing }: { init: Init; billing:
       {init.isDemo ? <p className="mt-2 text-zinc-400">{t("settings.demoDelete")}</p> : (<>
         <p className="mt-2 text-zinc-400">{t("settings.deleteWarning")}</p>
         <label className="mt-4 block text-sm font-bold">{t("settings.typeDelete")}<input className={input} value={conf} onChange={(e) => setConf(e.target.value)} /></label>
-        <div className="mt-5 flex items-center gap-4"><button className={btn + " border-red-700 text-red-300"} disabled={conf !== "DELETE"}>{t("settings.deleteButton")}</button><span role="alert" className="text-sm text-[#5ee38f]">{dmsg}</span></div>
+        <div className="mt-5 flex items-center gap-4"><button className={btn + " border-red-700 text-red-300"} disabled={conf !== "DELETE"}>{t("settings.deleteButton")}</button><span role="alert" className="text-sm text-[#D0BCFF]">{dmsg}</span></div>
       </>)}
     </form>
   </div>);

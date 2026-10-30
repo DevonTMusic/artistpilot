@@ -63,7 +63,7 @@ export function DraggableWindow({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className="flex h-10 flex-none items-center justify-between border-b border-zinc-800 bg-[#1c1e26] px-4 cursor-grab active:cursor-grabbing hover:bg-[#22242e] transition"
+        className="flex h-10 flex-none items-center justify-between border-b border-[#3B3155] bg-[#1c1e26] px-4 cursor-grab active:cursor-grabbing hover:bg-[#22242e] transition"
       >
         <span className="text-xs font-bold text-white flex items-center gap-2">
           {icon && <span className="flex items-center">{icon}</span>} {title}

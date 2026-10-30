@@ -106,9 +106,9 @@ export function ChannelEqModal({ isOpen, onClose, trackName, settings, onSetting
     <div className="absolute top-28 left-1/3 z-50 w-[540px] rounded-2xl border-2 border-[#20232c] bg-[#12141a] shadow-[0_25px_60px_rgba(0,0,0,0.9)] overflow-hidden font-sans select-none">
       
       {/* Title Bar */}
-      <div className="flex h-10 items-center justify-between border-b border-zinc-800 bg-[#1a1c24] px-4">
+      <div className="flex h-10 items-center justify-between border-b border-[#3B3155] bg-[#1a1c24] px-4">
         <span className="text-xs font-bold text-white flex items-center gap-1.5">
-          {t("eq.title")} <span className="text-sky-400 font-semibold">({trackName})</span>
+          {t("eq.title")} <span className="text-[#75DEFF] font-semibold">({trackName})</span>
         </span>
         <label className="mr-auto ml-4 flex items-center gap-1.5 text-[10px] text-zinc-300">
           <input
@@ -124,13 +124,13 @@ export function ChannelEqModal({ isOpen, onClose, trackName, settings, onSetting
 
       {/* Visual EQ Screen */}
       <div className="p-4 bg-[#0a0b0e]">
-        <div className="h-36 w-full rounded-lg border border-zinc-800 bg-[#07080a] relative overflow-hidden">
+        <div className="h-36 w-full rounded-lg border border-[#3B3155] bg-[#07080a] relative overflow-hidden">
           <canvas ref={canvasRef} width={508} height={144} className="h-full w-full" />
           <div className="absolute top-1.5 right-2 text-[9px] font-mono text-zinc-500">20Hz - 20kHz</div>
         </div>
 
         {/* Hardware EQ Knobs */}
-        <div className="grid grid-cols-4 gap-3 pt-4 border-t border-zinc-800/80 mt-3 text-center">
+        <div className="grid grid-cols-4 gap-3 pt-4 border-t border-[#3B3155]/80 mt-3 text-center">
           
           {/* Low Cut / Bass */}
           <div className="flex flex-col items-center">
@@ -141,12 +141,12 @@ export function ChannelEqModal({ isOpen, onClose, trackName, settings, onSetting
               max={12}
               value={settings.lowGain}
               onChange={(e) => onSettingsChange({ ...settings, lowGain: Number(e.target.value) })}
-              className="w-20 accent-sky-400 h-1 bg-zinc-800 rounded cursor-pointer"
+              className="w-20 accent-[#75DEFF] h-1 bg-[#322849] rounded cursor-pointer"
             />
             <span className="text-[10px] font-mono text-white mt-1">{settings.lowGain > 0 ? `+${settings.lowGain}` : settings.lowGain} dB</span>
             <button
               onClick={() => onSettingsChange({ ...settings, lowCut: !settings.lowCut })}
-              className={`mt-1.5 px-2 py-0.5 rounded text-[8px] font-bold ${settings.lowCut ? "bg-sky-500 text-black" : "bg-zinc-800 text-zinc-500"}`}
+              className={`mt-1.5 px-2 py-0.5 rounded text-[8px] font-bold ${settings.lowCut ? "bg-sky-500 text-[#19152B]" : "bg-[#322849] text-zinc-500"}`}
             >
               80Hz HPF
             </button>
@@ -162,7 +162,7 @@ export function ChannelEqModal({ isOpen, onClose, trackName, settings, onSetting
               step={50}
               value={settings.midFreq}
               onChange={(e) => onSettingsChange({ ...settings, midFreq: Number(e.target.value) })}
-              className="w-20 accent-sky-400 h-1 bg-zinc-800 rounded cursor-pointer"
+              className="w-20 accent-[#75DEFF] h-1 bg-[#322849] rounded cursor-pointer"
             />
             <span className="text-[10px] font-mono text-white mt-1">{settings.midFreq} Hz</span>
           </div>
@@ -176,7 +176,7 @@ export function ChannelEqModal({ isOpen, onClose, trackName, settings, onSetting
               max={12}
               value={settings.midGain}
               onChange={(e) => onSettingsChange({ ...settings, midGain: Number(e.target.value) })}
-              className="w-20 accent-sky-400 h-1 bg-zinc-800 rounded cursor-pointer"
+              className="w-20 accent-[#75DEFF] h-1 bg-[#322849] rounded cursor-pointer"
             />
             <span className="text-[10px] font-mono text-white mt-1">{settings.midGain > 0 ? `+${settings.midGain}` : settings.midGain} dB</span>
           </div>
@@ -190,7 +190,7 @@ export function ChannelEqModal({ isOpen, onClose, trackName, settings, onSetting
               max={12}
               value={settings.highGain}
               onChange={(e) => onSettingsChange({ ...settings, highGain: Number(e.target.value) })}
-              className="w-20 accent-sky-400 h-1 bg-zinc-800 rounded cursor-pointer"
+              className="w-20 accent-[#75DEFF] h-1 bg-[#322849] rounded cursor-pointer"
             />
             <span className="text-[10px] font-mono text-white mt-1">{settings.highGain > 0 ? `+${settings.highGain}` : settings.highGain} dB</span>
           </div>

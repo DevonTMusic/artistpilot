@@ -19,10 +19,10 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
       <Nav signedIn />
       <main className="mx-auto max-w-2xl px-5 py-12">
         <Link href="/academy" className="text-sm text-zinc-300 hover:text-white">{t("lesson.backAcademy")}</Link>
-        <div className="mt-6 rounded-2xl border border-[#1DB954] bg-zinc-900 p-8">
+        <div className="mt-6 rounded-2xl border border-[#B89CFF] bg-[#241D3A] p-8">
           <h1 className="text-2xl font-extrabold">{t("academy.lockedTitle")}</h1>
           <p className="mt-2 text-zinc-300">{t("academy.lockedText")}</p>
-          <Link href="/dashboard" className="mt-5 inline-block rounded-lg bg-[#1DB954] text-black hover:bg-[#3ddc78] px-4 py-2 font-bold">{t("home.seePlan")}</Link>
+          <Link href="/dashboard" className="mt-5 inline-block rounded-lg bg-[#B89CFF] text-[#19152B] hover:bg-[#D0BCFF] px-4 py-2 font-bold">{t("home.seePlan")}</Link>
         </div>
       </main>
     </>);

@@ -146,7 +146,7 @@ export function ClipRegion({
                 onCopy(region);
               }}
               title={t("clip.copy")}
-              className="hover:text-[#5ee38f] transition text-[10px]"
+              className="hover:text-[#D0BCFF] transition text-[10px]"
             >
               📋
             </button>
@@ -158,7 +158,7 @@ export function ClipRegion({
                 onLoop();
               }}
               title={t("clip.repeat")}
-              className="hover:text-[#5ee38f] transition text-[10px]"
+              className="hover:text-[#D0BCFF] transition text-[10px]"
             >
               ↻
             </button>
@@ -170,7 +170,7 @@ export function ClipRegion({
                 onReverse();
               }}
               title={t("clip.reverse")}
-              className="hover:text-[#5ee38f] transition text-[10px]"
+              className="hover:text-[#D0BCFF] transition text-[10px]"
             >
               ⇄
             </button>
@@ -181,7 +181,7 @@ export function ClipRegion({
               onSplit(region.startTime + region.duration / 2);
             }}
             title={t("clip.split")}
-            className="hover:text-[#5ee38f] transition text-[10px]"
+            className="hover:text-[#D0BCFF] transition text-[10px]"
           >
             ✂
           </button>

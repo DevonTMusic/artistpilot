@@ -13,7 +13,7 @@ interface GuitarAmpModalProps {
   onToggleEnabled: () => void;
 }
 
-const rangeClass = "w-full accent-[#3ddc78]";
+const rangeClass = "w-full accent-[#D0BCFF]";
 const labelClass = "mb-1 block text-[10px] font-semibold tracking-wide text-zinc-400";
 
 export function GuitarAmpModal({
@@ -38,13 +38,13 @@ export function GuitarAmpModal({
     amountKey: "drive" | "delay" | "reverb" | null,
     color: string
   ) => (
-    <section className="rounded-xl border border-zinc-700 bg-zinc-900/80 p-4">
+    <section className="rounded-xl border border-[#51456F] bg-[#241D3A]/80 p-4">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-xs font-bold tracking-wide text-white">{title}</h3>
         <button
           onClick={() => update(key, !settings[key])}
           aria-pressed={settings[key]}
-          className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${settings[key] ? `${color} text-black` : "bg-zinc-800 text-zinc-400"}`}
+          className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${settings[key] ? `${color} text-[#19152B]` : "bg-[#322849] text-zinc-400"}`}
         >
           {settings[key] ? t("track.on") : t("amp.bypass")}
         </button>
@@ -60,14 +60,14 @@ export function GuitarAmpModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4">
-      <section role="dialog" aria-modal="true" aria-label={t("amp.effectsLabel", { track: trackName })} className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-zinc-700 bg-[#17191f] text-white shadow-2xl">
-        <header className="flex items-center justify-between border-b border-zinc-800 bg-[#22242c] px-5 py-3">
+      <section role="dialog" aria-modal="true" aria-label={t("amp.effectsLabel", { track: trackName })} className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-[#51456F] bg-[#17191f] text-white shadow-2xl">
+        <header className="flex items-center justify-between border-b border-[#3B3155] bg-[#22242c] px-5 py-3">
           <div>
-            <h2 className="text-sm font-bold text-[#5ee38f]">{t("amp.title")}</h2>
+            <h2 className="text-sm font-bold text-[#D0BCFF]">{t("amp.title")}</h2>
             <p className="text-xs text-zinc-400">{t("amp.playbackNote", { track: trackName })}</p>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={onToggleEnabled} aria-pressed={enabled} className={`rounded-full px-3 py-1.5 text-xs font-bold ${enabled ? "bg-emerald-400 text-black" : "bg-zinc-700 text-zinc-200"}`}>
+            <button onClick={onToggleEnabled} aria-pressed={enabled} className={`rounded-full px-3 py-1.5 text-xs font-bold ${enabled ? "bg-[#4FE3C1] text-[#19152B]" : "bg-zinc-700 text-zinc-200"}`}>
               {t("amp.amp")} {enabled ? t("amp.on") : t("amp.off")}
             </button>
             <button onClick={onClose} aria-label={t("amp.close")} className="rounded px-2 py-1 text-zinc-400 hover:bg-zinc-700 hover:text-white">✕</button>
@@ -89,13 +89,13 @@ export function GuitarAmpModal({
             ))}
           </div>
           <label className="flex items-center gap-2 text-xs text-zinc-300">
-            <input type="checkbox" checked={settings.cabSim} onChange={(event) => update("cabSim", event.target.checked)} className="accent-[#3ddc78]" />
+            <input type="checkbox" checked={settings.cabSim} onChange={(event) => update("cabSim", event.target.checked)} className="accent-[#D0BCFF]" />
             {t("amp.cabSim")}
           </label>
           <div className="grid gap-3 sm:grid-cols-2">
-            {pedal(t("amp.overdrive"), "driveEnabled", settings.drive, "drive", "bg-emerald-300")}
+            {pedal(t("amp.overdrive"), "driveEnabled", settings.drive, "drive", "bg-[#75EBD0]")}
             {pedal(t("amp.delay"), "delayEnabled", settings.delay, "delay", "bg-sky-300")}
-            {pedal(t("amp.chorus"), "chorusEnabled", 0, null, "bg-[#5ee38f]")}
+            {pedal(t("amp.chorus"), "chorusEnabled", 0, null, "bg-[#D0BCFF]")}
             {pedal(t("amp.reverb"), "reverbEnabled", settings.reverb, "reverb", "bg-rose-300")}
           </div>
         </div>

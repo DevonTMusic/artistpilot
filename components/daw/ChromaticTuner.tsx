@@ -165,7 +165,7 @@ export function ChromaticTuner({ isOpen, onClose, instrumentName }: ChromaticTun
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4">
-      <section role="dialog" aria-modal="true" aria-label={t("tuner.title")} className="w-full max-w-md rounded-2xl border border-zinc-700 bg-[#15171d] p-5 text-zinc-200 shadow-2xl">
+      <section role="dialog" aria-modal="true" aria-label={t("tuner.title")} className="w-full max-w-md rounded-2xl border border-[#51456F] bg-[#15171d] p-5 text-zinc-200 shadow-2xl">
         <header className="mb-5 flex items-center justify-between">
           <div>
             <h2 className="text-base font-bold text-white">{t("tuner.title")}</h2>
@@ -173,7 +173,7 @@ export function ChromaticTuner({ isOpen, onClose, instrumentName }: ChromaticTun
               {instrumentName ? `${instrumentName} · ` : ""}{t("tuner.browserNote")}
             </p>
           </div>
-          <button onClick={onClose} aria-label={t("tuner.close")} className="rounded px-2 py-1 text-zinc-400 hover:bg-zinc-800 hover:text-white">✕</button>
+          <button onClick={onClose} aria-label={t("tuner.close")} className="rounded px-2 py-1 text-zinc-400 hover:bg-[#322849] hover:text-white">✕</button>
         </header>
         <label className="mb-5 block text-xs text-zinc-400">
           {t("tuner.microphone")}
@@ -182,7 +182,7 @@ export function ChromaticTuner({ isOpen, onClose, instrumentName }: ChromaticTun
             onFocus={() => void refreshDevices()}
             onChange={(event) => setDeviceId(event.target.value)}
             disabled={isListening}
-            className="mt-1 block w-full rounded-lg border border-zinc-700 bg-[#0d0f13] px-3 py-2 text-sm text-white disabled:opacity-60"
+            className="mt-1 block w-full rounded-lg border border-[#51456F] bg-[#0d0f13] px-3 py-2 text-sm text-white disabled:opacity-60"
           >
             <option value="default">{t("tuner.systemDefault")}</option>
             {devices.map((device) => (
@@ -190,14 +190,14 @@ export function ChromaticTuner({ isOpen, onClose, instrumentName }: ChromaticTun
             ))}
           </select>
         </label>
-        <div className="rounded-xl border border-zinc-800 bg-[#0c0e12] px-4 py-6 text-center">
+        <div className="rounded-xl border border-[#3B3155] bg-[#0c0e12] px-4 py-6 text-center">
           <div className="relative mx-auto mb-5 h-20 max-w-xs">
             <div className="absolute inset-x-0 top-10 h-px bg-zinc-700" />
             {[-50, -25, 0, 25, 50].map((value) => (
               <div key={value} className="absolute top-8 h-5 w-px bg-zinc-500" style={{ left: `${50 + value}%` }} />
             ))}
             <div
-              className={`absolute left-1/2 top-1 h-10 w-1 origin-bottom rounded-full transition-transform duration-100 ${Math.abs(cents) <= 5 && frequency !== null ? "bg-emerald-400" : "bg-[#3ddc78]"}`}
+              className={`absolute left-1/2 top-1 h-10 w-1 origin-bottom rounded-full transition-transform duration-100 ${Math.abs(cents) <= 5 && frequency !== null ? "bg-[#4FE3C1]" : "bg-[#D0BCFF]"}`}
               style={{ transform: `translateX(-50%) rotate(${needle * 0.8}deg)` }}
             />
             <span className="absolute bottom-0 left-0 text-[10px] text-zinc-500">♭</span>
@@ -207,7 +207,7 @@ export function ChromaticTuner({ isOpen, onClose, instrumentName }: ChromaticTun
           <div className="text-5xl font-black tracking-tight text-white">
             {noteName}<span className="ml-1 text-2xl text-zinc-400">{octave}</span>
           </div>
-          <div className={`mt-2 text-sm font-semibold ${frequency === null ? "text-zinc-500" : Math.abs(cents) <= 5 ? "text-emerald-400" : "text-[#5ee38f]"}`}>
+          <div className={`mt-2 text-sm font-semibold ${frequency === null ? "text-zinc-500" : Math.abs(cents) <= 5 ? "text-[#4FE3C1]" : "text-[#D0BCFF]"}`}>
             {frequency === null ? (isListening ? t("tuner.listening") : t("tuner.startListening")) : `${cents > 0 ? "+" : ""}${cents} cents`}
           </div>
           <div className="mt-1 font-mono text-xs text-zinc-500">
@@ -218,7 +218,7 @@ export function ChromaticTuner({ isOpen, onClose, instrumentName }: ChromaticTun
         {!permissionRequested && <p className="mt-3 text-[11px] text-zinc-500">{t("tuner.permission")}</p>}
         <footer className="mt-4 flex justify-end gap-2">
           {isListening && (
-            <button onClick={stopListening} className="rounded-lg border border-zinc-700 px-4 py-2 text-xs font-semibold text-zinc-300 hover:bg-zinc-800">
+            <button onClick={stopListening} className="rounded-lg border border-[#51456F] px-4 py-2 text-xs font-semibold text-zinc-300 hover:bg-[#322849]">
               {t("tuner.stop")}
             </button>
           )}

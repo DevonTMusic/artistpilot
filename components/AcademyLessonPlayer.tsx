@@ -208,18 +208,18 @@ export function AcademyLessonPlayer({
 
   return (
     <div>
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 sm:p-7">
+      <section className="rounded-2xl border border-[#3B3155] bg-[#241D3A] p-5 sm:p-7">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold text-[#5ee38f]">{localizedLesson.instrument} · {t("lesson.guided")}</p>
+            <p className="text-xs font-semibold text-[#D0BCFF]">{localizedLesson.instrument} · {t("lesson.guided")}</p>
             <h2 className="mt-1 text-lg font-bold text-white">{steps[currentStep].title}</h2>
           </div>
-          <span className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-400">{t("lesson.step", { current: currentStep + 1, total: steps.length })}</span>
+          <span className="rounded-full border border-[#51456F] px-3 py-1 text-xs text-zinc-400">{t("lesson.step", { current: currentStep + 1, total: steps.length })}</span>
         </div>
 
         <div className="mb-5 flex gap-1.5" role="progressbar" aria-label={t("lesson.progress")} aria-valuemin={1} aria-valuemax={steps.length} aria-valuenow={currentStep + 1}>
           {steps.map((step, index) => (
-            <div key={step.title} className={`h-1.5 flex-1 rounded-full ${index <= currentStep ? "bg-[#3ddc78]" : "bg-zinc-700"}`} />
+            <div key={step.title} className={`h-1.5 flex-1 rounded-full ${index <= currentStep ? "bg-[#D0BCFF]" : "bg-zinc-700"}`} />
           ))}
         </div>
 
@@ -234,7 +234,7 @@ export function AcademyLessonPlayer({
                   type="button"
                   onClick={() => setSelectedVisualChord(chord)}
                   aria-pressed={selectedVisualChord === chord}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${selectedVisualChord === chord ? "border-sky-500 bg-sky-950/40 text-sky-200" : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"}`}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${selectedVisualChord === chord ? "border-[#75DEFF] bg-[#1D2D4A]/40 text-[#B6EEFF]" : "border-[#51456F] text-zinc-300 hover:bg-[#322849]"}`}
                 >
                   {t("lesson.view", { chord })}
                 </button>
@@ -248,12 +248,12 @@ export function AcademyLessonPlayer({
           <button
             type="button"
             onClick={audioPlaying ? stopAudio : () => void playAudioExample()}
-            className="rounded-lg border border-sky-700/70 bg-sky-950/30 px-3 py-2 text-xs font-semibold text-sky-200 hover:bg-sky-900/50"
+            className="rounded-lg border border-[#4B7198]/70 bg-[#1D2D4A]/30 px-3 py-2 text-xs font-semibold text-[#B6EEFF] hover:bg-[#283D61]/50"
           >
             {audioPlaying ? t("lesson.stopAudio") : t("lesson.playAudio", { instrument: localizedLesson.instrument.toLowerCase() })}
           </button>
           {canTune && (
-            <button type="button" onClick={() => setTunerOpen(true)} className="rounded-lg border border-zinc-700 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-800">
+            <button type="button" onClick={() => setTunerOpen(true)} className="rounded-lg border border-[#51456F] px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-[#322849]">
               {t("lesson.openTuner")}
             </button>
           )}
@@ -262,7 +262,7 @@ export function AcademyLessonPlayer({
               type="button"
               onClick={() => setStepTried((tried) => !tried)}
               aria-pressed={stepTried}
-              className={`rounded-lg border px-3 py-2 text-xs font-semibold ${stepTried ? "border-emerald-700 bg-emerald-950/40 text-emerald-200" : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"}`}
+              className={`rounded-lg border px-3 py-2 text-xs font-semibold ${stepTried ? "border-[#238C72] bg-[#1C3A45]/40 text-[#B6F4E4]" : "border-[#51456F] text-zinc-300 hover:bg-[#322849]"}`}
             >
               {stepTried ? t("lesson.practiceChecked") : t("lesson.tryPractice")}
             </button>
@@ -271,25 +271,25 @@ export function AcademyLessonPlayer({
 
         <p className="mt-3 text-[11px] text-zinc-400">{t("lesson.audioNote")}</p>
 
-        <div className="mt-6 flex items-center justify-between gap-3 border-t border-zinc-800 pt-4">
-          <button type="button" onClick={goBack} disabled={currentStep === 0} className="rounded-lg px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-800 disabled:opacity-40">{t("lesson.previousStep")}</button>
+        <div className="mt-6 flex items-center justify-between gap-3 border-t border-[#3B3155] pt-4">
+          <button type="button" onClick={goBack} disabled={currentStep === 0} className="rounded-lg px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-[#322849] disabled:opacity-40">{t("lesson.previousStep")}</button>
           {currentStep < steps.length - 1 ? (
-            <button type="button" onClick={advance} className="rounded-lg bg-[#17a34a] px-4 py-2 text-xs font-bold text-white hover:bg-[#1DB954]">{t("lesson.nextStep")}</button>
+            <button type="button" onClick={advance} className="rounded-lg bg-[#986FEF] px-4 py-2 text-xs font-bold text-white hover:bg-[#B89CFF]">{t("lesson.nextStep")}</button>
           ) : (
-            <span role="status" className="text-xs font-semibold text-emerald-200">{t("lesson.practiceReached")}</span>
+            <span role="status" className="text-xs font-semibold text-[#B6F4E4]">{t("lesson.practiceReached")}</span>
           )}
         </div>
       </section>
 
       {currentStep === steps.length - 1 && (
-        <section className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#1DB954]/50 bg-[#073d1b]/20 p-5">
+        <section className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#B89CFF]/50 bg-[#34204D]/20 p-5">
           <div>
             <h2 className="font-bold text-white">{t("lesson.saveProgress")}</h2>
             <p className="mt-1 text-xs text-zinc-300">{t("lesson.finishHint")}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <CompleteButton lessonId={lesson.id} done={done} />
-            {nextId && <Link href={`/academy/${nextId}`} className="rounded-lg border border-zinc-700 px-4 py-3 text-xs font-bold text-white hover:bg-zinc-800">{t("lesson.nextLesson")}</Link>}
+            {nextId && <Link href={`/academy/${nextId}`} className="rounded-lg border border-[#51456F] px-4 py-3 text-xs font-bold text-white hover:bg-[#322849]">{t("lesson.nextLesson")}</Link>}
           </div>
         </section>
       )}

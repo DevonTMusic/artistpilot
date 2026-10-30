@@ -115,30 +115,30 @@ export function AiCoachModal({
   }, [handleSendMessage, initialQuestion, initialTab, isOpen]);
 
   return (
-    <div className="absolute top-20 right-12 z-50 w-[580px] h-[480px] rounded-2xl border-2 border-[#0c6b30]/60 bg-[#17181f] shadow-[0_20px_60px_rgba(0,0,0,0.85)] flex flex-col font-sans select-none overflow-hidden">
+    <div className="absolute top-20 right-12 z-50 w-[580px] h-[480px] rounded-2xl border-2 border-[#493578]/60 bg-[#17181f] shadow-[0_20px_60px_rgba(0,0,0,0.85)] flex flex-col font-sans select-none overflow-hidden">
       
       {/* 1. Header & Navigation Tabs */}
-      <div className="flex h-11 items-center justify-between border-b border-zinc-800 bg-[#21232d] px-4">
+      <div className="flex h-11 items-center justify-between border-b border-[#3B3155] bg-[#21232d] px-4">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-[#3ddc78] flex items-center gap-1.5">
+          <span className="text-sm font-bold text-[#D0BCFF] flex items-center gap-1.5">
             {t("coach.title")}
           </span>
           <div className="flex rounded bg-black/40 p-0.5 text-[10px]">
             <button
               onClick={() => setTab("coach")}
-              className={`px-2.5 py-1 rounded ${tab === "coach" ? "bg-[#17a34a] text-white font-bold" : "text-zinc-400 hover:text-white"}`}
+              className={`px-2.5 py-1 rounded ${tab === "coach" ? "bg-[#986FEF] text-white font-bold" : "text-zinc-400 hover:text-white"}`}
             >
               {t("coach.assistant")}
             </button>
             <button
               onClick={() => setTab("theory")}
-              className={`px-2.5 py-1 rounded ${tab === "theory" ? "bg-[#17a34a] text-white font-bold" : "text-zinc-400 hover:text-white"}`}
+              className={`px-2.5 py-1 rounded ${tab === "theory" ? "bg-[#986FEF] text-white font-bold" : "text-zinc-400 hover:text-white"}`}
             >
               {t("coach.chordsTab")}
             </button>
             <button
               onClick={() => setTab("guitar")}
-              className={`px-2.5 py-1 rounded ${tab === "guitar" ? "bg-[#17a34a] text-white font-bold" : "text-zinc-400 hover:text-white"}`}
+              className={`px-2.5 py-1 rounded ${tab === "guitar" ? "bg-[#986FEF] text-white font-bold" : "text-zinc-400 hover:text-white"}`}
             >
               {t("coach.guitarTab")}
             </button>
@@ -162,32 +162,32 @@ export function AiCoachModal({
                 key={i}
                 className={`p-3 rounded-xl text-xs leading-relaxed max-w-[85%] ${
                   m.role === "ai"
-                    ? "bg-[#21232e] text-zinc-200 border border-[#0c6b30]/40"
-                    : "bg-[#17a34a] text-white ml-auto"
+                    ? "bg-[#21232e] text-zinc-200 border border-[#493578]/40"
+                    : "bg-[#986FEF] text-white ml-auto"
                 }`}
               >
                 {m.text}
               </div>
             ))}
             {loading && (
-              <div className="text-[11px] text-[#3ddc78] italic">{t("coach.analyzing")}</div>
+              <div className="text-[11px] text-[#D0BCFF] italic">{t("coach.analyzing")}</div>
             )}
             <AICreditPacks usage={usage} />
             {error && <div role="alert" className="rounded-lg border border-red-900 bg-red-950/50 p-2 text-[11px] text-red-200">{error}</div>}
           </div>
 
-          <div className="flex gap-2 pt-2 border-t border-zinc-800">
+          <div className="flex gap-2 pt-2 border-t border-[#3B3155]">
             <input
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && void handleSendMessage()}
               placeholder={t("coach.placeholder")}
               maxLength={1000}
-              className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#1DB954]"
+              className="flex-1 bg-[#241D3A] border border-[#51456F] rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#B89CFF]"
             />
             <button
               onClick={() => void handleSendMessage()}
-              className="bg-[#17a34a] hover:bg-[#1DB954] text-white px-4 py-2 rounded-lg text-xs font-bold"
+              className="bg-[#986FEF] hover:bg-[#B89CFF] text-white px-4 py-2 rounded-lg text-xs font-bold"
             >
               {loading ? t("coach.thinking") : t("coach.ask")}
             </button>
@@ -198,22 +198,22 @@ export function AiCoachModal({
       {/* 3. Tab 2: Theory & Recommended Progressions */}
       {tab === "theory" && (
         <div className="flex-1 p-4 bg-[#13141a] overflow-y-auto space-y-4">
-          <div className="bg-[#073d1b]/40 border border-[#0c6b30]/60 rounded-xl p-3.5">
-            <span className="text-xs font-bold tracking-wider text-[#3ddc78]">{t("coach.recommended", { key: currentKey })}</span>
+          <div className="bg-[#34204D]/40 border border-[#493578]/60 rounded-xl p-3.5">
+            <span className="text-xs font-bold tracking-wider text-[#D0BCFF]">{t("coach.recommended", { key: currentKey })}</span>
             <div className="flex items-center gap-3 my-2">
               {currentChords.chords.map((chord, i) => (
-                <div key={i} className="h-14 w-14 rounded-lg bg-[#17a34a]/30 border border-[#1DB954] flex flex-col items-center justify-center">
+                <div key={i} className="h-14 w-14 rounded-lg bg-[#986FEF]/30 border border-[#B89CFF] flex flex-col items-center justify-center">
                   <span className="text-base font-black text-white">{chord}</span>
                   <span className="text-[8px] text-zinc-400">{t("coach.chord", { number: i + 1 })}</span>
                 </div>
               ))}
             </div>
-            <p className="text-[11px] text-zinc-400 mt-1">{t("coach.formula")} <span className="text-[#5ee38f] font-mono">{currentChords.formula}</span> • {t("coach.feel")} <span className="text-zinc-300">{t(`coach.mood.${currentKey in CHORD_LIBRARY ? currentKey : "C"}`)}</span></p>
+            <p className="text-[11px] text-zinc-400 mt-1">{t("coach.formula")} <span className="text-[#D0BCFF] font-mono">{currentChords.formula}</span> • {t("coach.feel")} <span className="text-zinc-300">{t(`coach.mood.${currentKey in CHORD_LIBRARY ? currentKey : "C"}`)}</span></p>
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-xs">
             {Object.entries(CHORD_LIBRARY).map(([k, val]) => (
-              <div key={k} className="p-2.5 rounded-lg border border-zinc-800 bg-zinc-900/50">
+              <div key={k} className="p-2.5 rounded-lg border border-[#3B3155] bg-[#241D3A]/50">
                 <span className="font-bold text-white">{t("coach.recommended", { key: k })}</span>
                 <p className="text-zinc-400 text-[10px] mt-0.5">{val.chords.join(" - ")}</p>
               </div>
@@ -228,9 +228,9 @@ export function AiCoachModal({
           <p className="text-xs text-zinc-400">{t("coach.guitarIntro")}</p>
           <div className="grid grid-cols-2 gap-3">
             {GUITAR_CHORDS.map((c) => (
-              <div key={c.name} className="p-3 rounded-xl border border-zinc-800 bg-[#1b1c24] flex items-center justify-between">
+              <div key={c.name} className="p-3 rounded-xl border border-[#3B3155] bg-[#1b1c24] flex items-center justify-between">
                 <div>
-                  <h4 className="text-sm font-bold text-[#3ddc78]">{t(`coach.guitarChord.${GUITAR_CHORDS.indexOf(c)}`)}</h4>
+                  <h4 className="text-sm font-bold text-[#D0BCFF]">{t(`coach.guitarChord.${GUITAR_CHORDS.indexOf(c)}`)}</h4>
                   <p className="text-[10px] text-zinc-400 mt-0.5">{t("coach.notes")} {c.notes}</p>
                 </div>
                 <div className="text-right">

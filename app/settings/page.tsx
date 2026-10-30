@@ -30,7 +30,7 @@ export default async function Settings() {
     } catch { /* show no card rather than failing the page */ }
   }
   const billing = (
-    <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+    <section className="rounded-2xl border border-[#3B3155] bg-[#241D3A] p-6">
       <h2 className="text-xl font-bold">{t("settings.billingTitle")}</h2>
       <dl className="mt-4 space-y-3">
         <div><dt className="text-sm text-zinc-400">{t("settings.plan")}</dt><dd className="font-bold">{p?.is_paid ? t("settings.activePlan") : t("settings.noPlan")}</dd></div>
@@ -39,9 +39,9 @@ export default async function Settings() {
       </dl>
       <div className="mt-5 flex flex-wrap gap-3">
         {p?.stripe_customer_id && (
-          <form action="/api/portal" method="post"><button className="rounded-lg border border-zinc-700 px-4 py-2.5 font-bold hover:border-[#1DB954]">{t("settings.billingAction")}</button></form>
+          <form action="/api/portal" method="post"><button className="rounded-lg border border-[#51456F] px-4 py-2.5 font-bold hover:border-[#B89CFF]">{t("settings.billingAction")}</button></form>
         )}
-        {!p?.is_paid && <Link href="/dashboard" className="rounded-lg bg-[#1DB954] text-black hover:bg-[#3ddc78] px-4 py-2.5 font-bold">{t("settings.getPlan")}</Link>}
+        {!p?.is_paid && <Link href="/dashboard" className="rounded-lg bg-[#B89CFF] text-[#19152B] hover:bg-[#D0BCFF] px-4 py-2.5 font-bold">{t("settings.getPlan")}</Link>}
       </div>
       <p className="mt-3 text-sm text-zinc-500">{t("settings.stripeNote")}</p>
     </section>

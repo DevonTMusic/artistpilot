@@ -29,18 +29,18 @@ export default async function Academy() {
           const accessible = ls.filter((lesson) => isPro || isFreeLesson(lesson.id));
           const nextLesson = accessible.find((lesson) => !done.has(lesson.id)) ?? accessible[0];
           const shownInstrument = locale === "es" ? instrumentNamesEs[inst] : instrumentNames[inst];
-          return (<section key={inst} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+          return (<section key={inst} className="rounded-2xl border border-[#3B3155] bg-[#241D3A] p-6">
             <div className="flex items-baseline justify-between gap-2"><h2 className="text-xl font-bold">{shownInstrument}</h2><span className="text-sm text-zinc-400">{t("academy.completed", { done: n, total: ls.length })}</span></div>
-            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-800" aria-label={`${inst} course progress`}>
-              <div className="h-full rounded-full bg-[#1DB954]" style={{ width: `${ls.length ? (n / ls.length) * 100 : 0}%` }} />
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#322849]" aria-label={`${inst} course progress`}>
+              <div className="h-full rounded-full bg-[#B89CFF]" style={{ width: `${ls.length ? (n / ls.length) * 100 : 0}%` }} />
             </div>
             {nextLesson && (
-              <Link href={`/academy/${nextLesson.id}`} className="mt-4 inline-flex rounded-lg bg-[#17a34a] px-3 py-2 text-xs font-bold text-white hover:bg-[#1DB954]">
+              <Link href={`/academy/${nextLesson.id}`} className="mt-4 inline-flex rounded-lg bg-[#986FEF] px-3 py-2 text-xs font-bold text-white hover:bg-[#B89CFF]">
                 {n === ls.length ? t("academy.review") : n > 0 ? t("academy.continue") : t("academy.start")}
               </Link>
             )}
             <ul className="mt-4 space-y-2">
-              {ls.map((l) => (<li key={l.id}><Link href={isPro || isFreeLesson(l.id) ? `/academy/${l.id}` : "/dashboard"} className="flex items-center justify-between rounded-lg border border-zinc-800 px-4 py-3 hover:border-[#1DB954]"><span>{locale === "es" ? spanishLessons[l.id]?.title ?? l.title : l.title}</span><span className="text-sm text-emerald-400">{done.has(l.id) ? t("academy.done") : !isPro && !isFreeLesson(l.id) ? <span className="rounded bg-[#1DB954]/20 px-2 py-0.5 text-xs text-[#5ee38f]">Pro</span> : ""}</span></Link></li>))}
+              {ls.map((l) => (<li key={l.id}><Link href={isPro || isFreeLesson(l.id) ? `/academy/${l.id}` : "/dashboard"} className="flex items-center justify-between rounded-lg border border-[#3B3155] px-4 py-3 hover:border-[#B89CFF]"><span>{locale === "es" ? spanishLessons[l.id]?.title ?? l.title : l.title}</span><span className="text-sm text-[#4FE3C1]">{done.has(l.id) ? t("academy.done") : !isPro && !isFreeLesson(l.id) ? <span className="rounded bg-[#B89CFF]/20 px-2 py-0.5 text-xs text-[#D0BCFF]">Pro</span> : ""}</span></Link></li>))}
             </ul>
           </section>);
         })}
