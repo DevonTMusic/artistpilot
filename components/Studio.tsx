@@ -236,7 +236,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
   const nextTrackId = useRef(1);
   const recChunks = useRef<Record<number, Blob[]>>({});
   const recStartTime = useRef(0);
-  const activeMidiInputNotes = useRef<Record<number, { id: string; startStep: number }>>({});
+  const activeMidiInputNotes = useRef<Record<number, { id: string; startStep: number; trackId: number }[]>>({});
   const liveCanvasRefs = useRef(new Map<number, HTMLCanvasElement>());
   const liveAnalyserRef = useRef<AnalyserNode | null>(null);
   const liveWaveformHistoryRef = useRef(new Map<number, number[]>());
@@ -635,13 +635,33 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
     }
   };
 
+  const finishMidiRecording = () => {
+    const activeNotes = Object.values(activeMidiInputNotes.current).flat();
+    if (activeNotes.length === 0) return;
+    activeMidiInputNotes.current = {};
+    const endStep = Math.max(0, Math.round(playheadSec / (60 / Math.max(1, bpm) / 4)));
+    activeNotes.forEach((active) => {
+      const length = Math.max(1, endStep - active.startStep);
+      setTrackNotes((current) => ({
+        ...current,
+        [active.trackId]: (current[active.trackId] ?? [])
+          .map((note) => note.id === active.id ? { ...note, length } : note),
+      }));
+      setTracks((current) => current.map((track) => track.id === active.trackId
+        ? { ...track, midiNotes: (track.midiNotes ?? []).map((note) => note.id === active.id ? { ...note, length } : note) }
+        : track));
+    });
+  };
+
   const handleStop = () => {
-    const shouldResumeMonitoring = isRecording && monitoringEnabled;
+    const shouldResumeMonitoring = isRecording && monitoringEnabled && deviceManager.current.isMonitoring;
     countInCancelled.current = true;
     engine.current.stopPlayback();
     if (animFrame.current) cancelAnimationFrame(animFrame.current);
     animFrame.current = null;
     if (isRecording) {
+      finishMidiRecording();
+      if (activeMediaRecorders.current.length === 0) setStatusMsg(t("studio.statusMidiRecordingStopped"));
       activeMediaRecorders.current.forEach((mr) => {
         if (mr.state === "inactive") return;
         try { mr.stop(); } catch (error) { console.error("Could not stop audio recorder:", error); }
@@ -846,7 +866,8 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
     }
 
     const armedAudioTracks = tracks.filter((t) => t.armed && t.category === "audio");
-    if (armedAudioTracks.length === 0) {
+    const selectedMidiTrack = selectedTrack?.category === "midi" ? selectedTrack : null;
+    if (armedAudioTracks.length === 0 && !selectedMidiTrack) {
       setStatusMsg(t("studio.statusArmAudio"));
       return;
     }
@@ -855,31 +876,29 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       const ctx = engine.current.init();
       if (ctx.state === "suspended") await ctx.resume();
 
+      let recordingStream: MediaStream | null = null;
+      if (armedAudioTracks.length > 0) {
         const currentTrack = armedAudioTracks.find((track) => track.id === selectedTrackId) ?? armedAudioTracks[0];
-      const { stream, analyser } = await deviceManager.current.setupInputStream(
-        ctx,
+        const input = await deviceManager.current.setupInputStream(
+          ctx,
           currentTrack.inputDevice || activeInputId,
-          currentTrack.monitoring ?? monitoringEnabled,
+          monitoringEnabled,
           currentTrack.settings,
           currentTrack.ampSettings,
           currentTrack.ampEnabled
-      );
-      liveAnalyserRef.current = analyser;
+        );
+        recordingStream = input.stream;
+        liveAnalyserRef.current = input.analyser;
+      }
 
-        if (isPlaying) {
-          engine.current.stopPlayback();
-          if (animFrame.current) cancelAnimationFrame(animFrame.current);
-          animFrame.current = null;
-          setIsPlaying(false);
-        }
-        countInCancelled.current = false;
-        if (countInActive) {
+      countInCancelled.current = false;
+      if (countInActive && !isPlaying) {
           const [countInBeats, countInDenominator] = timeSignature.split("/").map(Number);
           const beatMs = (60 / Math.max(1, bpm)) * (4 / countInDenominator) * 1000;
           for (let i = 0; i < countInBeats; i++) {
             if (countInCancelled.current) {
               liveAnalyserRef.current = null;
-              deviceManager.current.cleanupStream();
+              if (recordingStream) deviceManager.current.cleanupStream();
               return;
             }
             setStatusMsg(t("studio.statusCountIn", { current: i + 1, total: countInBeats }));
@@ -888,10 +907,10 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
           }
           if (countInCancelled.current) {
             liveAnalyserRef.current = null;
-            deviceManager.current.cleanupStream();
+            if (recordingStream) deviceManager.current.cleanupStream();
             return;
           }
-        }
+      }
 
       recChunks.current = {};
       recStartTime.current = playheadSec;
@@ -899,9 +918,10 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       activeMediaRecorders.current = [];
 
       armedAudioTracks.forEach((track) => {
+        if (!recordingStream) return;
         recChunks.current[track.id] = [];
         if (typeof MediaRecorder === "undefined") throw new Error("Audio recording is not supported by this browser.");
-        const mr = new MediaRecorder(stream);
+        const mr = new MediaRecorder(recordingStream);
 
         mr.ondataavailable = (e) => {
           if (e.data.size > 0) recChunks.current[track.id].push(e.data);
@@ -938,7 +958,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
 
       setIsRecording(true);
       if (!isPlaying) handlePlay();
-      setStatusMsg(t("studio.statusRecordingLive"));
+      setStatusMsg(t(armedAudioTracks.length > 0 ? "studio.statusRecordingLive" : "studio.statusMidiRecording"));
     } catch (error) {
       activeMediaRecorders.current.forEach((recorder) => {
         if (recorder.state !== "inactive") {
@@ -1732,25 +1752,38 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
   };
 
   const handlePianoMidiNote = (pitch: number, velocity: number, isNoteOn: boolean) => {
-    if (selectedTrack?.category !== "midi") return;
+    if (isNoteOn) {
+      if (!isRecording || selectedTrack?.category !== "midi") return;
+    }
     const step = Math.max(0, Math.round(playheadSec / (60 / Math.max(1, bpm) / 4)));
     if (isNoteOn) {
       const id = `keyboard-${Date.now()}-${pitch}-${Math.random().toString(36).slice(2, 7)}`;
-      activeMidiInputNotes.current[pitch] = { id, startStep: step };
+      if (!selectedTrack || selectedTrack.category !== "midi") return;
+      const activeNotes = activeMidiInputNotes.current[pitch] ?? [];
+      activeNotes.push({ id, startStep: step, trackId: selectedTrack.id });
+      activeMidiInputNotes.current[pitch] = activeNotes;
       const note: MidiNote = { id, pitch, startStep: step, length: 1, velocity };
-      const next = [...(trackNotes[selectedTrack.id] ?? []), note];
-      setTrackNotes((prev) => ({ ...prev, [selectedTrack.id]: next }));
-      setTracks((prev) => prev.map((track) => track.id === selectedTrack.id ? { ...track, midiNotes: next } : track));
+      setTrackNotes((prev) => ({
+        ...prev,
+        [selectedTrack.id]: [...(prev[selectedTrack.id] ?? selectedTrack.midiNotes ?? []), note],
+      }));
+      setTracks((prev) => prev.map((track) => track.id === selectedTrack.id
+        ? { ...track, midiNotes: [...(track.midiNotes ?? []), note] }
+        : track));
     } else {
-      const active = activeMidiInputNotes.current[pitch];
-      if (!active) return;
-      delete activeMidiInputNotes.current[pitch];
+      const activeNotes = activeMidiInputNotes.current[pitch];
+      const active = activeNotes?.shift();
+      if (!active || !activeNotes) return;
+      if (activeNotes.length === 0) delete activeMidiInputNotes.current[pitch];
       const duration = Math.max(1, step - active.startStep);
-      const next = (trackNotes[selectedTrack.id] ?? []).map((note) =>
-        note.id === active.id ? { ...note, length: duration } : note
-      );
-      setTrackNotes((prev) => ({ ...prev, [selectedTrack.id]: next }));
-      setTracks((prev) => prev.map((track) => track.id === selectedTrack.id ? { ...track, midiNotes: next } : track));
+      setTrackNotes((prev) => ({
+        ...prev,
+        [active.trackId]: (prev[active.trackId] ?? [])
+          .map((note) => note.id === active.id ? { ...note, length: duration } : note),
+      }));
+      setTracks((prev) => prev.map((track) => track.id === active.trackId
+        ? { ...track, midiNotes: (track.midiNotes ?? []).map((note) => note.id === active.id ? { ...note, length: duration } : note) }
+        : track));
     }
   };
 
@@ -2537,8 +2570,34 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                   </div>
                 )}
 
-                {/* Empty Track Prompt (Screenshot 1: Drop a loop or an audio/MIDI file) */}
-                {track.regions.length === 0 && (!isRecording || !track.armed) && (
+                {track.category === "midi" && (trackNotes[track.id] ?? track.midiNotes ?? []).length > 0 && (
+                  <div
+                    className="pointer-events-none absolute inset-0 z-10"
+                    role="img"
+                    aria-label={t("studio.midiNotesOnTimeline", { count: (trackNotes[track.id] ?? track.midiNotes ?? []).length })}
+                  >
+                    {(trackNotes[track.id] ?? track.midiNotes ?? []).map((note) => {
+                      const stepDuration = 60 / Math.max(1, bpm) / 4;
+                      const noteY = 58 - ((note.pitch - 21) / 87) * 52;
+                      return (
+                        <span
+                          key={note.id}
+                          style={{
+                            left: `${note.startStep * stepDuration * pixelsPerSecond}px`,
+                            top: `${Math.max(3, Math.min(58, noteY))}px`,
+                            width: `${Math.max(3, note.length * stepDuration * pixelsPerSecond)}px`,
+                          }}
+                          className="absolute h-[4px] min-w-[3px] rounded-sm bg-[#75EBD0] shadow-[0_0_4px_#75EBD0]"
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Empty Track Prompt */}
+                {track.regions.length === 0
+                  && (trackNotes[track.id] ?? track.midiNotes ?? []).length === 0
+                  && (!isRecording || !track.armed) && (
                   <div className="w-full text-center text-xs text-zinc-600 italic select-none pointer-events-none">
                     Drop a loop or an audio/MIDI file
                   </div>
@@ -2897,6 +2956,9 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
         projectKey={projectKey}
         scale={projectScale}
         trackName={selectedTrack?.name ?? t("studio.defaultPiano")}
+        isRecording={isRecording}
+        recordedNoteCount={selectedTrack ? (trackNotes[selectedTrack.id] ?? selectedTrack.midiNotes ?? []).length : 0}
+        onToggleRecording={() => void handleRecord()}
         onRecordMidiNote={handlePianoMidiNote}
       />
 
