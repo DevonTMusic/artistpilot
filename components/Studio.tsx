@@ -37,7 +37,7 @@ import {
   sourceBlobs,
 } from "@/lib/daw/sessionFile";
 import { PianoStudioModal } from "@/components/daw/PianoStudioModal";
-import { PianoEngine } from "@/lib/daw/PianoEngine";
+import { PianoEngine, type PianoPresetType } from "@/lib/daw/PianoEngine";
 import { DiscoverTrackModal } from "@/components/daw/DiscoverTrackModal";
 import { DrumPatternEditor } from "@/components/daw/DrumPatternEditor";
 import { SoundLibraryModal } from "@/components/daw/SoundLibraryModal";
@@ -181,6 +181,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
   const [monitoringEnabled, setMonitoringEnabled] = useState(false);
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [copiedClip, setCopiedClip] = useState<AudioRegion | null>(null);
+  const [copiedMidi, setCopiedMidi] = useState<{ notes: MidiNote[]; pianoPreset?: PianoPresetType } | null>(null);
   const [pianoRollOpen, setPianoRollOpen] = useState(false);
   const [drumEditorOpen, setDrumEditorOpen] = useState(false);
   const [tunerOpen, setTunerOpen] = useState(false);
@@ -750,6 +751,10 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       }
       if ((e.metaKey || e.ctrlKey) && (e.key === "c" || e.key === "C")) {
         const currTrack = tracks.find((t) => t.id === selectedTrackId);
+        if (currTrack?.category === "midi") {
+          copyMidiClip(currTrack.id);
+          return;
+        }
         const clip = currTrack?.regions.find(
           (r) => playheadSec >= r.startTime && playheadSec <= r.startTime + r.duration
         );
@@ -760,6 +765,11 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
         return;
       }
       if ((e.metaKey || e.ctrlKey) && (e.key === "v" || e.key === "V")) {
+        const pasteTarget = tracks.find((t) => t.id === selectedTrackId);
+        if (copiedMidi && pasteTarget?.category === "midi") {
+          pasteMidiClip(pasteTarget.id, Math.max(0, Math.round(playheadSec / (60 / Math.max(1, bpm) / 4))));
+          return;
+        }
         if (copiedClip) {
           const newRegion: AudioRegion = {
             ...copiedClip,
@@ -777,6 +787,10 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       if ((e.metaKey || e.ctrlKey) && (e.key === "t" || e.key === "T")) {
         e.preventDefault();
         const currTrack = tracks.find((t) => t.id === selectedTrackId);
+        if (currTrack?.category === "midi") {
+          splitMidiClip(currTrack.id, Math.round(playheadSec / (60 / Math.max(1, bpm) / 4)));
+          return;
+        }
         const clip = currTrack?.regions.find(
           (r) => playheadSec > r.startTime && playheadSec < r.startTime + r.duration
         );
@@ -807,7 +821,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaying, windowState.piano.open, pianoRollOpen, drumEditorOpen, selectedTrackId, playheadSec, copiedClip, tracks]);
+  }, [isPlaying, windowState.piano.open, pianoRollOpen, drumEditorOpen, selectedTrackId, playheadSec, copiedClip, copiedMidi, tracks]);
 
   // Live Oscilloscope Waveform while Recording
   const startLiveWaveform = (analyser: AnalyserNode) => {
@@ -1761,6 +1775,69 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       : track));
   };
 
+  const copyMidiClip = (trackId: number) => {
+    const notes = trackNotesRef.current[trackId] ?? tracksRef.current.find((track) => track.id === trackId)?.midiNotes ?? [];
+    if (notes.length === 0) return;
+    const first = Math.min(...notes.map((note) => note.startStep));
+    setCopiedMidi({
+      notes: notes.map((note) => ({ ...note, startStep: note.startStep - first })),
+      pianoPreset: tracksRef.current.find((track) => track.id === trackId)?.pianoPreset,
+    });
+    setStatusMsg("Copied piano clip. Press Cmd/Ctrl+V to paste at the playhead.");
+  };
+
+  const pasteMidiClip = (trackId: number, atStep: number, source = copiedMidi) => {
+    if (!source) return;
+    const stamp = Date.now();
+    const pasted = source.notes.map((note, index) => ({ ...note, id: `paste-${stamp}-${index}-${Math.random().toString(36).slice(2, 6)}`, startStep: note.startStep + atStep }));
+    editTrackNotes(trackId, (notes) => [...notes, ...pasted]);
+    setStatusMsg("Pasted piano clip.");
+  };
+
+  const trimMidiClip = (trackId: number, fromStep: number, toStep: number) => {
+    editTrackNotes(trackId, (notes) => notes
+      .filter((note) => note.startStep + note.length > fromStep && note.startStep < toStep)
+      .map((note) => {
+        const start = Math.max(note.startStep, fromStep);
+        const end = Math.min(note.startStep + note.length, toStep);
+        return { ...note, startStep: start, length: Math.max(1, end - start) };
+      }));
+  };
+
+  const splitMidiClip = (trackId: number, atStep: number) => {
+    const source = tracksRef.current.find((track) => track.id === trackId);
+    const notes = trackNotesRef.current[trackId] ?? source?.midiNotes ?? [];
+    if (!source || !notes.some((note) => note.startStep < atStep && note.startStep + note.length > atStep || note.startStep >= atStep) || !notes.some((note) => note.startStep < atStep)) {
+      setStatusMsg("Move the playhead inside the piano clip to split it.");
+      return;
+    }
+    const stamp = Date.now();
+    const left: MidiNote[] = [];
+    const right: MidiNote[] = [];
+    notes.forEach((note) => {
+      const end = note.startStep + note.length;
+      if (end <= atStep) left.push(note);
+      else if (note.startStep >= atStep) right.push({ ...note, id: `split-${stamp}-${note.id}` });
+      else {
+        left.push({ ...note, length: atStep - note.startStep });
+        right.push({ ...note, id: `split-${stamp}-${note.id}`, startStep: atStep, length: end - atStep });
+      }
+    });
+    if (right.length === 0) {
+      setStatusMsg("Move the playhead inside the piano clip to split it.");
+      return;
+    }
+    const newId = nextTrackId.current++;
+    setTracks((prev) => {
+      const index = prev.findIndex((track) => track.id === trackId);
+      const next = prev.map((track) => track.id === trackId ? { ...track, midiNotes: left } : track);
+      next.splice(index + 1, 0, { ...source, id: newId, name: `${source.name} (Part 2)`, armed: false, solo: false, regions: [], midiNotes: right });
+      return next;
+    });
+    setTrackNotes((prev) => ({ ...prev, [trackId]: left, [newId]: right }));
+    setStatusMsg("Split piano clip. The second part is on a new track.");
+  };
+
   const addMidiNote = (note: MidiNote) => editTrackNotes(selectedTrackId, (notes) => [...notes, note]);
 
   const deleteMidiNote = (noteId: string) => {
@@ -2617,6 +2694,67 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                         aria-label={t("studio.midiNotesOnTimeline", { count: clipNotes.length })}
                       >
                         <span className="pointer-events-none absolute left-1 top-0 text-[9px] font-bold text-[#75EBD0]">{track.name}</span>
+                        <button
+                          type="button"
+                          aria-label="Split recording at playhead"
+                          title="Split at playhead (Cmd/Ctrl+T)"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            splitMidiClip(track.id, Math.round(playheadSec / stepDuration));
+                          }}
+                          className="absolute right-[5.5rem] top-0.5 z-20 rounded bg-black/60 px-1 text-[10px] font-bold text-white hover:bg-[#75EBD0] hover:text-black"
+                        >
+                          ✂
+                        </button>
+                        <div
+                          title="Drag to trim the start"
+                          onPointerDown={(event) => {
+                            event.stopPropagation();
+                            const startX = event.clientX;
+                            const onUp = (up: PointerEvent) => {
+                              window.removeEventListener("pointerup", onUp);
+                              const delta = Math.round((up.clientX - startX) / pixelsPerSecond / stepDuration);
+                              if (delta > 0) trimMidiClip(track.id, clipStart + delta, clipEnd);
+                            };
+                            window.addEventListener("pointerup", onUp);
+                          }}
+                          className="absolute inset-y-0 left-0 z-20 w-1.5 cursor-ew-resize bg-[#75EBD0]/70"
+                        />
+                        <div
+                          title="Drag to shorten the end"
+                          onPointerDown={(event) => {
+                            event.stopPropagation();
+                            const startX = event.clientX;
+                            const onUp = (up: PointerEvent) => {
+                              window.removeEventListener("pointerup", onUp);
+                              const delta = Math.round((up.clientX - startX) / pixelsPerSecond / stepDuration);
+                              if (delta < 0) trimMidiClip(track.id, clipStart, clipEnd + delta);
+                            };
+                            window.addEventListener("pointerup", onUp);
+                          }}
+                          className="absolute inset-y-0 right-0 z-20 w-1.5 cursor-ew-resize bg-[#75EBD0]/70"
+                        />
+                        <button
+                          type="button"
+                          aria-label="Copy recording"
+                          title="Copy (then Cmd/Ctrl+V to paste at playhead)"
+                          onClick={(event) => { event.stopPropagation(); copyMidiClip(track.id); }}
+                          className="absolute right-12 top-0.5 z-20 rounded bg-black/60 px-1 text-[10px] font-bold text-white hover:bg-[#75EBD0] hover:text-black"
+                        >
+                          Copy
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Duplicate recording"
+                          title="Duplicate right after this clip"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            pasteMidiClip(track.id, clipEnd, { notes: clipNotes.map((note) => ({ ...note, startStep: note.startStep - clipStart })) });
+                          }}
+                          className="absolute right-5 top-0.5 z-20 rounded bg-black/60 px-1 text-[10px] font-bold text-white hover:bg-[#75EBD0] hover:text-black"
+                        >
+                          ⧉
+                        </button>
                         <button
                           type="button"
                           aria-label="Delete recording"
