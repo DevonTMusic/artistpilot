@@ -2251,7 +2251,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                     setWindowState((prev) => ({ ...prev, amp: { ...prev.amp, open: true } }));
                   }
                 }}
-                className={`h-16 p-1.5 flex flex-col justify-between transition ${
+                className={`h-24 p-1.5 flex flex-col justify-between transition ${
                   selectedTrackId === track.id && !isMasterMode ? "bg-[#2B2240]" : "bg-[#211A35] hover:bg-[#181920]"
                 }`}
               >
@@ -2501,7 +2501,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                 onClick={() => setSelectedTrackId(track.id)}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => handleLaneDrop(event, track.id)}
-                className={`h-16 relative flex items-center transition ${
+                className={`h-24 relative flex items-center transition ${
                   selectedTrackId === track.id ? "bg-[#14151c]" : "bg-[#0c0d0f]"
                 }`}
               >
@@ -2578,13 +2578,13 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                   >
                     {(trackNotes[track.id] ?? track.midiNotes ?? []).map((note) => {
                       const stepDuration = 60 / Math.max(1, bpm) / 4;
-                      const noteY = 58 - ((note.pitch - 21) / 87) * 52;
+                      const noteY = 94 - (Math.max(21, Math.min(108, note.pitch)) - 21) / 87 * 88;
                       return (
                         <span
                           key={note.id}
                           style={{
                             left: `${note.startStep * stepDuration * pixelsPerSecond}px`,
-                            top: `${Math.max(3, Math.min(58, noteY))}px`,
+                            top: `${noteY}%`,
                             width: `${Math.max(3, note.length * stepDuration * pixelsPerSecond)}px`,
                           }}
                           className="absolute h-[4px] min-w-[3px] rounded-sm bg-[#75EBD0] shadow-[0_0_4px_#75EBD0]"
