@@ -282,7 +282,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       t("studio.sectionBridge"),
       t("studio.sectionOutro"),
     ];
-    const colors = ["bg-emerald-700", "bg-sky-700", "bg-[#118a3e]", "bg-[#118a3e]", "bg-rose-700"];
+    const colors = ["bg-[#238C72]", "bg-sky-700", "bg-[#7751D0]", "bg-[#7751D0]", "bg-rose-700"];
     const index = sections.length;
     setSections((current) => [...current, {
       id: `section-${Date.now()}`,
@@ -373,7 +373,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       if (track.category === "midi" && track.midiNotes?.length) midiNotesByTrack[track.id] = track.midiNotes;
       if (track.category === "drum" && track.drumPattern) drumPatternsByTrack[track.id] = track.drumPattern;
     });
-    const colors = ["bg-cyan-700", "bg-[#118a3e]", "bg-emerald-700", "bg-orange-700"];
+    const colors = ["bg-cyan-700", "bg-[#7751D0]", "bg-[#238C72]", "bg-[#C94F8A]"];
     setScenes((current) => [...current, {
       id: `scene-${Date.now()}`,
       name: `Scene ${current.length + 1}`,
@@ -1865,7 +1865,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       <header
         tabIndex={0}
         aria-label={t("studio.transportAria")}
-        className="flex h-11 flex-none items-center gap-4 overflow-x-auto overscroll-x-contain border-b border-[#1c1d22] bg-[#121316] px-2 shadow-md z-30 focus-visible:outline focus-visible:outline-1 focus-visible:outline-sky-500"
+        className="flex h-11 flex-none items-center gap-4 overflow-x-auto overscroll-x-contain border-b border-[#33294A] bg-[#211A35] px-2 shadow-md z-30 focus-visible:outline focus-visible:outline-1 focus-visible:outline-sky-500"
       >
         
         {/* Left: Brand / Project Name & Metronome */}
@@ -1888,7 +1888,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
           </div>
           <button
             onClick={() => setDiscoverModalOpen(true)}
-            className="flex h-7 items-center gap-1 rounded-lg bg-[#24262e] border border-zinc-700/80 px-2 text-[11px] font-bold text-white hover:border-red-500 hover:text-white transition shadow-sm"
+            className="flex h-7 items-center gap-1 rounded-lg bg-[#24262e] border border-[#51456F]/80 px-2 text-[11px] font-bold text-white hover:border-red-500 hover:text-white transition shadow-sm"
           >
             <span>+</span> {t("studio.addTrack")}
           </button>
@@ -1907,10 +1907,10 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
             className="w-36 bg-transparent text-xs font-bold text-white focus:outline-none rounded px-1.5 py-0.5 truncate"
           />
 
-          <div className="h-4 w-[1px] bg-zinc-800" />
+          <div className="h-4 w-[1px] bg-[#322849]" />
           <button onClick={() => void saveProject()} className="rounded bg-[#20222a] px-2 py-1 text-[10px] font-semibold text-zinc-200 hover:bg-zinc-700">{t("studio.save")}</button>
           <button onClick={() => fileInputRef.current?.click()} className="rounded bg-[#20222a] px-2 py-1 text-[10px] font-semibold text-zinc-200 hover:bg-zinc-700">{t("studio.open")}</button>
-          <button onClick={() => (isPro ? setCollaborationOpen(true) : setUpgradeFeature(t("studio.upgradeCollab")))} className="rounded bg-[#0c6b30]/60 px-2 py-1 text-[10px] font-semibold text-[#b9f6d0] hover:bg-[#0c6b30]">{t("studio.collaborate")}</button>
+          <button onClick={() => (isPro ? setCollaborationOpen(true) : setUpgradeFeature(t("studio.upgradeCollab")))} className="rounded bg-[#493578]/60 px-2 py-1 text-[10px] font-semibold text-[#b9f6d0] hover:bg-[#493578]">{t("studio.collaborate")}</button>
           <button onClick={() => setBusPanelOpen(true)} className="rounded bg-[#20222a] px-2 py-1 text-[10px] font-semibold text-zinc-200 hover:bg-zinc-700">{t("studio.buses")}</button>
 
           {/* Metronome & Count-In Pill */}
@@ -1918,7 +1918,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
             <button
               onClick={() => setMetronomeActive(!metronomeActive)}
               className={`h-7 px-2.5 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
-                metronomeActive ? "bg-[#1DB954]/20 text-[#5ee38f] border border-[#1DB954]/60" : "bg-[#1c1d24] text-zinc-400 hover:text-white"
+                metronomeActive ? "bg-[#B89CFF]/20 text-[#D0BCFF] border border-[#B89CFF]/60" : "bg-[#1c1d24] text-zinc-400 hover:text-white"
               }`}
               title={t("studio.metronome")}
             >
@@ -1927,7 +1927,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
             <button
               onClick={() => setCountInActive(!countInActive)}
               className={`h-7 px-2.5 rounded-lg text-[11px] font-bold transition ${
-                countInActive ? "bg-[#17a34a] text-white shadow" : "bg-[#1c1d24] text-zinc-500"
+                countInActive ? "bg-[#986FEF] text-white shadow" : "bg-[#1c1d24] text-zinc-500"
               }`}
               title={t("studio.countIn", { beats: meterNumerator })}
             >
@@ -1939,7 +1939,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
         {/* Center: BandLab Tempo, Time Signature, Key, Transport, Timecode */}
         <div className="flex flex-none items-center gap-2 whitespace-nowrap">
           {/* BPM Box */}
-          <div className="flex items-center gap-1 rounded-lg border border-zinc-800 bg-[#1a1b22] px-1.5 py-0.5 text-[11px]">
+          <div className="flex items-center gap-1 rounded-lg border border-[#3B3155] bg-[#1a1b22] px-1.5 py-0.5 text-[11px]">
             <input
               type="number"
               aria-label={t("studio.tempoAria")}
@@ -1953,7 +1953,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
           </div>
           <button
             onClick={tapTempo}
-            className="rounded-lg border border-zinc-800 bg-[#1a1b22] px-2 py-1 text-[10px] font-bold text-zinc-300 hover:bg-zinc-700 hover:text-white"
+            className="rounded-lg border border-[#3B3155] bg-[#1a1b22] px-2 py-1 text-[10px] font-bold text-zinc-300 hover:bg-zinc-700 hover:text-white"
             title={t("studio.tapTempoHelp")}
           >
             {t("studio.tap")}
@@ -1964,7 +1964,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
             aria-label={t("studio.timeSignature")}
             value={timeSignature}
             onChange={(event) => setTimeSignature(event.target.value as typeof timeSignature)}
-            className="bg-[#1a1b22] px-2 py-1 rounded-lg border border-zinc-800 text-xs font-bold text-zinc-300"
+            className="bg-[#1a1b22] px-2 py-1 rounded-lg border border-[#3B3155] text-xs font-bold text-zinc-300"
           >
             <option value="3/4">3 / 4</option>
             <option value="4/4">4 / 4</option>
@@ -1972,14 +1972,14 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
           </select>
 
           {/* Key Pill (e.g. D♭ maj) */}
-          <div className="flex items-center gap-1 rounded-lg border border-zinc-800 bg-[#1a1b22] px-1.5 py-0.5 text-[11px]">
+          <div className="flex items-center gap-1 rounded-lg border border-[#3B3155] bg-[#1a1b22] px-1.5 py-0.5 text-[11px]">
             <select
               value={projectKey}
               onChange={(e) => setProjectKey(e.target.value)}
               className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer"
             >
               {KEYS.map((k) => (
-                <option key={k} value={k} className="bg-zinc-900 text-white">{k}</option>
+                <option key={k} value={k} className="bg-[#241D3A] text-white">{k}</option>
               ))}
             </select>
             <button
@@ -1995,7 +1995,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
             <button
               onClick={() => handlePlay()}
               className={`h-8 w-10 rounded-lg font-bold flex items-center justify-center transition shadow ${
-                isPlaying ? "bg-[#1DB954] text-black" : "bg-[#24262e] text-white hover:bg-zinc-700"
+                isPlaying ? "bg-[#B89CFF] text-[#19152B]" : "bg-[#24262e] text-white hover:bg-zinc-700"
               }`}
               title={t("studio.playPause")}
             >
@@ -2023,7 +2023,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
             <button
               onClick={() => setIsLooping(!isLooping)}
               className={`h-8 w-8 rounded-lg flex items-center justify-center ml-1 transition ${
-                isLooping ? "bg-[#1DB954]/25 text-[#5ee38f] border border-[#1DB954]/60" : "bg-[#1a1b22] text-zinc-400 hover:text-white"
+                isLooping ? "bg-[#B89CFF]/25 text-[#D0BCFF] border border-[#B89CFF]/60" : "bg-[#1a1b22] text-zinc-400 hover:text-white"
               }`}
               title={t("studio.toggleLoop")}
             >
@@ -2032,7 +2032,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
           </div>
 
           {/* Timecode Clock (e.g. 00:00.0) */}
-          <div className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-[#1a1b22] px-2 py-1 text-[11px] font-mono font-bold text-zinc-200">
+          <div className="flex items-center gap-2 rounded-lg border border-[#3B3155] bg-[#1a1b22] px-2 py-1 text-[11px] font-mono font-bold text-zinc-200">
             <span>{formatTimecode(playheadSec)}</span>
             <span className="text-[9px] text-zinc-500">{t("studio.barBeat", { bar: currentBar, beat: currentBeat })}</span>
           </div>
@@ -2049,7 +2049,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
               step={0.05}
               value={masterVolume}
               onChange={(e) => setMasterVolume(Number(e.target.value))}
-              className="w-20 accent-sky-400 h-1 bg-zinc-800 rounded cursor-pointer"
+              className="w-20 accent-[#75DEFF] h-1 bg-[#322849] rounded cursor-pointer"
             />
             <span className="w-10 text-[10px] font-mono text-zinc-400">{masterDb} dB</span>
           </div>
@@ -2066,7 +2066,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                 applyMasterPreset(preset);
               }
             }}
-            className="h-8 rounded-lg border border-zinc-700 bg-[#20222a] px-2 text-[10px] font-semibold text-zinc-200"
+            className="h-8 rounded-lg border border-[#51456F] bg-[#20222a] px-2 text-[10px] font-semibold text-zinc-200"
           >
             <option value="custom">{t("studio.mastering")}</option>
             <option value="warm">{t("studio.warm")}</option>
@@ -2078,14 +2078,14 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
             <button
               onClick={() => void exportProject()}
               disabled={isExporting || isExportingStems}
-              className="h-7 rounded-lg bg-zinc-900 px-2.5 text-[11px] font-bold text-white shadow  active:scale-95 transition disabled:cursor-wait disabled:opacity-60"
+              className="h-7 rounded-lg bg-[#241D3A] px-2.5 text-[11px] font-bold text-white shadow  active:scale-95 transition disabled:cursor-wait disabled:opacity-60"
             >
               {isExporting ? t("studio.rendering") : t("studio.exportMix")}
             </button>
             <button
               onClick={() => void exportStems()}
               disabled={isExporting || isExportingStems}
-              className="h-7 rounded-lg border border-zinc-700 bg-[#20222a] px-2 text-[9px] font-semibold text-zinc-200 hover:bg-zinc-700 disabled:cursor-wait disabled:opacity-60"
+              className="h-7 rounded-lg border border-[#51456F] bg-[#20222a] px-2 text-[9px] font-semibold text-zinc-200 hover:bg-zinc-700 disabled:cursor-wait disabled:opacity-60"
             >
               {isExportingStems ? `${t("studio.stems")}…` : t("studio.stems")}
             </button>
@@ -2094,7 +2094,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       </header>
 
       {statusMsg && (
-        <div className="flex-none bg-[#161820] py-1 text-center text-[11px] text-sky-400 border-b border-zinc-800">
+        <div className="flex-none bg-[#2B2240] py-1 text-center text-[11px] text-[#75DEFF] border-b border-[#3B3155]">
           {statusMsg}
         </div>
       )}
@@ -2103,7 +2103,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       <div className="flex-1 flex min-h-0 overflow-hidden">
         
         {/* Track Headers (Left Column) */}
-        <div className="w-56 flex-none border-r border-[#1a1b20] bg-[#121316] flex flex-col z-10 shadow-lg">
+        <div className="w-56 flex-none border-r border-[#1a1b20] bg-[#211A35] flex flex-col z-10 shadow-lg">
           <div
             tabIndex={0}
             aria-label={t("studio.tracksAria")}
@@ -2114,7 +2114,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
             <div className="flex flex-none items-center gap-1 font-normal">
               <button
                 onClick={applyAutoMix}
-                className="rounded bg-sky-900/40 px-1.5 py-0.5 text-[9px] text-sky-300 hover:bg-sky-800/60"
+                className="rounded bg-[#283D61]/40 px-1.5 py-0.5 text-[9px] text-[#75DEFF] hover:bg-sky-800/60"
                 title={t("studio.titleAutoMix")}
               >
                 {t("studio.autoMix")}
@@ -2123,7 +2123,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                 onClick={() => setIsSnapEnabled((enabled) => !enabled)}
                 aria-pressed={isSnapEnabled}
                 title={t("studio.titleSnap")}
-                className={`rounded px-1.5 py-0.5 text-[9px] ${isSnapEnabled ? "bg-[#1DB954]/20 text-[#5ee38f]" : "text-zinc-500 hover:text-white"}`}
+                className={`rounded px-1.5 py-0.5 text-[9px] ${isSnapEnabled ? "bg-[#B89CFF]/20 text-[#D0BCFF]" : "text-zinc-500 hover:text-white"}`}
               >
                 {t("studio.snap")} {isSnapEnabled ? t("studio.on") : t("studio.off")}
               </button>
@@ -2131,7 +2131,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                 aria-label={t("studio.quantizeGrid")}
                 value={quantizeGridSteps}
                 onChange={(event) => setQuantizeGridSteps(Number(event.target.value))}
-                className="rounded border border-zinc-700 bg-[#17181f] px-1 py-0.5 text-[9px] text-zinc-300"
+                className="rounded border border-[#51456F] bg-[#17181f] px-1 py-0.5 text-[9px] text-zinc-300"
               >
                 <option value={1}>1/16</option>
                 <option value={2}>1/8</option>
@@ -2139,7 +2139,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
               <button
                 onClick={() => quantizeTrackRegions(selectedTrackId)}
                 disabled={!selectedTrack?.regions.length}
-                className="rounded bg-[#0c6b30]/40 px-1.5 py-0.5 text-[9px] text-[#5ee38f] hover:bg-[#0c6b30]/60 disabled:opacity-30"
+                className="rounded bg-[#493578]/40 px-1.5 py-0.5 text-[9px] text-[#D0BCFF] hover:bg-[#493578]/60 disabled:opacity-30"
                 title={t("studio.titleAlign")}
               >
                 {t("studio.align")}
@@ -2147,7 +2147,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
               <button
                 onClick={() => joinAdjacentRegions(selectedTrackId)}
                 disabled={!selectedTrack?.regions || selectedTrack.regions.length < 2}
-                className="rounded bg-emerald-900/40 px-1.5 py-0.5 text-[9px] text-emerald-300 hover:bg-emerald-800/60 disabled:opacity-30"
+                className="rounded bg-[#254D53]/40 px-1.5 py-0.5 text-[9px] text-[#75EBD0] hover:bg-[#27756D]/60 disabled:opacity-30"
                 title={t("studio.titleJoin")}
               >
                 {t("studio.join")}
@@ -2164,16 +2164,16 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                   aria-label={t("studio.automationParameter")}
                   value={automationParameter}
                   onChange={(event) => setAutomationParameter(event.target.value as typeof automationParameter)}
-                  className="rounded border border-zinc-700 bg-[#17181f] px-1 py-0.5 text-[9px] text-zinc-300"
+                  className="rounded border border-[#51456F] bg-[#17181f] px-1 py-0.5 text-[9px] text-zinc-300"
                 >
                   <option value="volume">{t("studio.volume")}</option>
                   <option value="pan">{t("studio.pan")}</option>
                   <option value="reverbSend">{t("studio.reverb")}</option>
                 </select>
               )}
-              <button onClick={() => setPixelsPerSecond((value) => Math.max(25, value - 5))} aria-label={t("studio.zoomOut")} className="rounded px-1 text-sm hover:bg-zinc-800">−</button>
+              <button onClick={() => setPixelsPerSecond((value) => Math.max(25, value - 5))} aria-label={t("studio.zoomOut")} className="rounded px-1 text-sm hover:bg-[#322849]">−</button>
               <span>{pixelsPerSecond}px/s</span>
-              <button onClick={() => setPixelsPerSecond((value) => Math.min(100, value + 5))} aria-label={t("studio.zoomIn")} className="rounded px-1 text-sm hover:bg-zinc-800">+</button>
+              <button onClick={() => setPixelsPerSecond((value) => Math.min(100, value + 5))} aria-label={t("studio.zoomIn")} className="rounded px-1 text-sm hover:bg-[#322849]">+</button>
             </div>
             </div>
           </div>
@@ -2182,7 +2182,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
             <span className="text-[9px] font-bold tracking-wide text-zinc-500">{t("studio.arranger")}</span>
             <button
               onClick={addArrangerSection}
-              className="rounded bg-zinc-800 px-2 py-1 text-[9px] font-semibold text-zinc-200 hover:bg-zinc-700"
+              className="rounded bg-[#322849] px-2 py-1 text-[9px] font-semibold text-zinc-200 hover:bg-zinc-700"
               title={t("studio.sectionTitle")}
             >
               {t("studio.addSection")}
@@ -2219,7 +2219,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                   }
                 }}
                 className={`h-16 p-1.5 flex flex-col justify-between transition ${
-                  selectedTrackId === track.id && !isMasterMode ? "bg-[#1c1e26]" : "bg-[#121316] hover:bg-[#181920]"
+                  selectedTrackId === track.id && !isMasterMode ? "bg-[#2B2240]" : "bg-[#211A35] hover:bg-[#181920]"
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -2246,7 +2246,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                     onChange={(event) => setTracks((current) => current.map((item) => item.id === track.id
                       ? { ...item, busId: event.target.value || undefined }
                       : item))}
-                    className="w-14 truncate rounded border border-zinc-700 bg-[#17181f] px-1 py-0.5 text-[8px] text-zinc-300"
+                    className="w-14 truncate rounded border border-[#51456F] bg-[#17181f] px-1 py-0.5 text-[8px] text-zinc-300"
                   >
                     <option value="">{t("studio.main")}</option>
                     {buses.map((bus) => <option key={bus.id} value={bus.id}>{bus.name}</option>)}
@@ -2282,7 +2282,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                         e.stopPropagation();
                         setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, mute: !t.mute } : t));
                       }}
-                      className={`px-1.5 py-0.5 rounded ${track.mute ? "bg-blue-500 text-white" : "bg-[#1c1e26] text-zinc-400"}`}
+                      className={`px-1.5 py-0.5 rounded ${track.mute ? "bg-blue-500 text-white" : "bg-[#2B2240] text-zinc-400"}`}
                     >
                       M
                     </button>
@@ -2291,7 +2291,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                         e.stopPropagation();
                         setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, solo: !t.solo } : t));
                       }}
-                      className={`px-1.5 py-0.5 rounded ${track.solo ? "bg-[#1DB954] text-black" : "bg-[#1c1e26] text-zinc-400"}`}
+                      className={`px-1.5 py-0.5 rounded ${track.solo ? "bg-[#B89CFF] text-[#19152B]" : "bg-[#2B2240] text-zinc-400"}`}
                       title={t("studio.solo")}
                     >
                       S
@@ -2304,7 +2304,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                     step={0.05}
                     value={track.volume}
                     onChange={(e) => setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, volume: Number(e.target.value) } : t))}
-                    className="w-20 accent-sky-400 h-1 bg-zinc-800 rounded"
+                    className="w-20 accent-[#75DEFF] h-1 bg-[#322849] rounded"
                   />
                 </div>
                 <input
@@ -2315,16 +2315,16 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                   value={track.pan}
                   aria-label={t("studio.trackPanAria", { track: track.name })}
                   onChange={(e) => setTracks((ts) => ts.map((t) => t.id === track.id ? { ...t, pan: Number(e.target.value) } : t))}
-                  className="h-1 w-full accent-[#3ddc78]"
+                  className="h-1 w-full accent-[#D0BCFF]"
                 />
               </div>
             ))}
             <div
               onClick={() => setIsMasterMode(true)}
-              className={`flex h-14 flex-none items-center justify-between border-t border-emerald-900/60 px-2 ${isMasterMode ? "bg-emerald-950/50" : "bg-[#111319]"}`}
+              className={`flex h-14 flex-none items-center justify-between border-t border-[#254D53]/60 px-2 ${isMasterMode ? "bg-[#1C3A45]/50" : "bg-[#201933]"}`}
             >
               <div>
-                <p className="text-[10px] font-bold tracking-wide text-emerald-300">{t("studio.master")}</p>
+                <p className="text-[10px] font-bold tracking-wide text-[#75EBD0]">{t("studio.master")}</p>
                 <p className="text-[8px] text-zinc-500">{t("studio.masterSafety")}</p>
               </div>
               <button
@@ -2332,7 +2332,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                   event.stopPropagation();
                   createMasterFadeOut();
                 }}
-                className="rounded bg-emerald-900/60 px-1.5 py-1 text-[8px] text-emerald-200 hover:bg-emerald-800"
+                className="rounded bg-[#254D53]/60 px-1.5 py-1 text-[8px] text-[#B6F4E4] hover:bg-[#27756D]"
               >
                 Fade out
               </button>
@@ -2359,7 +2359,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
               scrubPosition.current = newSec;
             }}
             style={{ width: `${timelineWidth}px` }}
-            className="h-7 border-b border-[#1b1c22] bg-[#121316] relative cursor-ew-resize flex-none"
+            className="h-7 border-b border-[#1b1c22] bg-[#211A35] relative cursor-ew-resize flex-none"
           >
             {/* Draggable Loop Range with Drag Brackets */}
             {isLooping && (
@@ -2395,7 +2395,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
             {Array.from({ length: barCount }, (_, i) => (
               <div key={i} style={{ left: `${i * barWidth}px` }} className="absolute flex items-center gap-2 text-zinc-500 top-1 text-[9px] font-mono pointer-events-none">
                 <span>{i + 1}</span>
-                <div className="h-3 w-[1px] bg-zinc-800" />
+                <div className="h-3 w-[1px] bg-[#322849]" />
               </div>
             ))}
           </div>
@@ -2434,9 +2434,9 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                 }
               }}
               style={{ left: `${playheadSec * pixelsPerSecond}px` }}
-              className="absolute top-0 bottom-0 w-[2px] bg-[#d4af37] z-40 cursor-ew-resize shadow-[0_0_8px_#d4af37]"
+              className="absolute top-0 bottom-0 w-[2px] bg-[#FF72B6] z-40 cursor-ew-resize shadow-[0_0_8px_#FF72B6]"
             >
-              <div className="h-4 w-4 -ml-[7px] bg-[#d4af37] rotate-45 shadow-lg" />
+              <div className="h-4 w-4 -ml-[7px] bg-[#FF72B6] rotate-45 shadow-lg" />
             </div>
 
             {tracks.map((track) => (
@@ -2541,7 +2541,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                 ))}
               </div>
             ))}
-            <div className="relative h-14 border-t border-emerald-900/60 bg-[#101217]">
+            <div className="relative h-14 border-t border-[#254D53]/60 bg-[#201933]">
               <svg
                   viewBox={`0 0 ${timelineWidth} 56`}
                   preserveAspectRatio="none"
@@ -2584,29 +2584,29 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
 
       {busPanelOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4">
-          <section className="max-h-[80vh] w-full max-w-xl overflow-y-auto rounded-xl border border-zinc-700 bg-[#17191f] p-4 shadow-2xl">
+          <section className="max-h-[80vh] w-full max-w-xl overflow-y-auto rounded-xl border border-[#51456F] bg-[#17191f] p-4 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-bold text-white">{t("studio.subgroupBuses")}</h2>
                 <p className="mt-1 text-[10px] text-zinc-400">{t("studio.subgroupHelp")}</p>
               </div>
-              <button onClick={() => setBusPanelOpen(false)} className="rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-200 hover:bg-zinc-700">{t("studio.close")}</button>
+              <button onClick={() => setBusPanelOpen(false)} className="rounded bg-[#322849] px-2 py-1 text-xs text-zinc-200 hover:bg-zinc-700">{t("studio.close")}</button>
             </div>
             <button onClick={addMixerBus} className="mb-3 rounded bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-600">{t("studio.addBus")}</button>
             <div className="space-y-3">
               {buses.map((bus) => (
-                <div key={bus.id} className="grid grid-cols-[minmax(5rem,1fr)_1fr_1fr_1fr_auto] items-center gap-3 rounded-lg border border-zinc-800 bg-[#101116] p-3">
+                <div key={bus.id} className="grid grid-cols-[minmax(5rem,1fr)_1fr_1fr_1fr_auto] items-center gap-3 rounded-lg border border-[#3B3155] bg-[#101116] p-3">
                   <input
                     aria-label={t("studio.busName")}
                     value={bus.name}
                     onChange={(event) => setBuses((current) => current.map((item) => item.id === bus.id ? { ...item, name: event.target.value.slice(0, 60) } : item))}
-                    className="min-w-0 rounded bg-zinc-900 px-2 py-1 text-xs text-white"
+                    className="min-w-0 rounded bg-[#241D3A] px-2 py-1 text-xs text-white"
                   />
                   <label className="text-[9px] text-zinc-400">Level
-                    <input type="range" min={0} max={1} step={0.01} value={bus.volume} onChange={(event) => setBuses((current) => current.map((item) => item.id === bus.id ? { ...item, volume: Number(event.target.value) } : item))} className="block w-full accent-sky-400" />
+                    <input type="range" min={0} max={1} step={0.01} value={bus.volume} onChange={(event) => setBuses((current) => current.map((item) => item.id === bus.id ? { ...item, volume: Number(event.target.value) } : item))} className="block w-full accent-[#75DEFF]" />
                   </label>
                   <label className="text-[9px] text-zinc-400">Pan
-                    <input type="range" min={-1} max={1} step={0.01} value={bus.pan} onChange={(event) => setBuses((current) => current.map((item) => item.id === bus.id ? { ...item, pan: Number(event.target.value) } : item))} className="block w-full accent-[#3ddc78]" />
+                    <input type="range" min={-1} max={1} step={0.01} value={bus.pan} onChange={(event) => setBuses((current) => current.map((item) => item.id === bus.id ? { ...item, pan: Number(event.target.value) } : item))} className="block w-full accent-[#D0BCFF]" />
                   </label>
                   <label className="text-[9px] text-zinc-400">Reverb
                     <input type="range" min={0} max={1} step={0.01} value={bus.reverbSend} onChange={(event) => setBuses((current) => current.map((item) => item.id === bus.id ? { ...item, reverbSend: Number(event.target.value) } : item))} className="block w-full accent-fuchsia-400" />
@@ -2616,14 +2616,14 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                       setBuses((current) => current.filter((item) => item.id !== bus.id));
                       setTracks((current) => current.map((track) => track.busId === bus.id ? { ...track, busId: undefined } : track));
                     }}
-                    className="rounded bg-zinc-800 px-2 py-1 text-[10px] text-zinc-300 hover:bg-rose-900"
+                    className="rounded bg-[#322849] px-2 py-1 text-[10px] text-zinc-300 hover:bg-rose-900"
                     aria-label={t("studio.removeBusAria", { bus: bus.name })}
                   >
                     Remove
                   </button>
                 </div>
               ))}
-              {buses.length === 0 && <p className="rounded-lg border border-dashed border-zinc-700 p-5 text-center text-xs text-zinc-500">{t("studio.noBuses")}</p>}
+              {buses.length === 0 && <p className="rounded-lg border border-dashed border-[#51456F] p-5 text-center text-xs text-zinc-500">{t("studio.noBuses")}</p>}
             </div>
           </section>
         </div>
@@ -2633,13 +2633,13 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       <footer
         tabIndex={0}
         aria-label={t("studio.toolsAria")}
-        className="flex h-9 flex-none items-center justify-start gap-3 overflow-x-auto overscroll-x-contain border-t border-[#1c1d22] bg-[#121316] px-2 z-20 focus-visible:outline focus-visible:outline-1 focus-visible:outline-sky-500"
+        className="flex h-9 flex-none items-center justify-start gap-3 overflow-x-auto overscroll-x-contain border-t border-[#33294A] bg-[#211A35] px-2 z-20 focus-visible:outline focus-visible:outline-1 focus-visible:outline-sky-500"
       >
         <div className="flex w-max flex-none items-center gap-1.5">
           <button
             onClick={() => setSmartControlsOpen(!smartControlsOpen)}
             className={`inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold transition ${
-              smartControlsOpen ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-white"
+              smartControlsOpen ? "bg-[#322849] text-white" : "text-zinc-500 hover:text-white"
             }`}
           >
             {t("studio.controls")}
@@ -2647,7 +2647,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
 
           <button
             onClick={() => toggleModal("piano")}
-            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
+            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white hover:bg-[#322849]/80 transition"
           >
             <PianoIcon className="h-4 w-4" /> {t("studio.piano")}
           </button>
@@ -2660,7 +2660,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
               }
               setPianoRollOpen(true);
             }}
-            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
+            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white hover:bg-[#322849]/80 transition"
           >
             {t("studio.pianoRoll")}
           </button>
@@ -2673,7 +2673,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
               }
               setDrumEditorOpen(true);
             }}
-            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
+            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white hover:bg-[#322849]/80 transition"
           >
             {t("studio.drumPattern")}
           </button>
@@ -2685,13 +2685,13 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
               }
               setSamplerTrackId(selectedTrack.id);
             }}
-            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:bg-zinc-800/80 hover:text-white"
+            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:bg-[#322849]/80 hover:text-white"
           >
             {t("studio.sampler")}
           </button>
           <button
             onClick={() => setSceneLauncherOpen(true)}
-            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-900/40"
+            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-[#75EBD0] hover:bg-[#254D53]/40"
           >
             {t("studio.liveScenes")}
           </button>
@@ -2705,7 +2705,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
               toggleModal("amp");
             }}
             disabled={selectedTrack?.trackType !== "guitar-bass"}
-            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white hover:bg-[#322849]/80 transition disabled:cursor-not-allowed disabled:opacity-40"
           >
             <GuitarIcon className="h-4 w-4" /> {t("studio.guitarRig")}
           </button>
@@ -2719,50 +2719,50 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
               setAiFeature("coach");
               toggleModal("ai");
             }}
-            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition"
+            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white hover:bg-[#322849]/80 transition"
           >
             {t("studio.aiAssistant")}
           </button>
 
           <button
             onClick={() => setAudioSettingsOpen(true)}
-            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-sky-400 hover:bg-zinc-800/80 transition"
+            className="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-[#75DEFF] hover:bg-[#322849]/80 transition"
           >
             <MicIcon className="h-4 w-4" /> {t("studio.audioInputs", { device: activeInputLabel })}
           </button>
           <button
             onClick={() => setActiveUtility("notes")}
-            className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
+            className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-[#322849]/80 hover:text-white"
           >
             {t("studio.lyricsNotes")}
           </button>
           <button
             onClick={() => setSoundLibraryOpen(true)}
-            className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
+            className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-[#322849]/80 hover:text-white"
           >
             {t("studio.soundBrowser")}
           </button>
           <button
             onClick={() => soundInputRef.current?.click()}
-            className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
+            className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-[#322849]/80 hover:text-white"
           >
             {t("studio.importAudio")}
           </button>
           <button
             onClick={openBeats}
-            className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
+            className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-[#322849]/80 hover:text-white"
           >
             {t("studio.beats")}
           </button>
           <button
             onClick={() => setTunerOpen(true)}
-            className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
+            className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-[#322849]/80 hover:text-white"
           >
             {t("studio.tuner")}
           </button>
           <button
             onClick={() => setActiveUtility("shortcuts")}
-            className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-zinc-800/80 hover:text-white"
+            className="flex-none whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold text-zinc-400 transition hover:bg-[#322849]/80 hover:text-white"
           >
             {t("studio.shortcutsButton")}
           </button>
@@ -2779,7 +2779,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
             role="dialog"
             aria-modal="true"
             aria-label={activeUtility === "notes" ? t("studio.lyricsNotes") : t("studio.shortcuts")}
-            className="w-full max-w-xl rounded-xl border border-zinc-700 bg-[#17191f] p-5 shadow-2xl"
+            className="w-full max-w-xl rounded-xl border border-[#51456F] bg-[#17191f] p-5 shadow-2xl"
           >
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-sm font-bold text-white">
@@ -2792,17 +2792,17 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                 value={lyricsNotes}
                 onChange={(event) => setLyricsNotes(event.target.value)}
                 placeholder={t("studio.lyricsPlaceholder")}
-                className="h-64 w-full resize-y rounded-lg border border-zinc-700 bg-[#0c0d0f] p-3 text-sm text-zinc-200 outline-none focus:border-sky-500"
+                className="h-64 w-full resize-y rounded-lg border border-[#51456F] bg-[#0c0d0f] p-3 text-sm text-zinc-200 outline-none focus:border-[#75DEFF]"
               />
             ) : (
               <dl className="grid grid-cols-[1fr_auto] gap-x-8 gap-y-2 text-sm">
-                <dt>{t("studio.playPause")}</dt><dd className="font-mono text-sky-300">Space</dd>
-                <dt>{t("studio.record")}</dt><dd className="font-mono text-sky-300">R</dd>
-                <dt>{t("studio.toggleLoop")}</dt><dd className="font-mono text-sky-300">C</dd>
-                <dt>{t("studio.returnStart")}</dt><dd className="font-mono text-sky-300">Enter</dd>
-                <dt>{t("studio.copyPaste")}</dt><dd className="font-mono text-sky-300">⌘/Ctrl+C, ⌘/Ctrl+V</dd>
-                <dt>{t("studio.splitClip")}</dt><dd className="font-mono text-sky-300">⌘/Ctrl+T</dd>
-                <dt>{t("studio.deleteClip")}</dt><dd className="font-mono text-sky-300">Delete</dd>
+                <dt>{t("studio.playPause")}</dt><dd className="font-mono text-[#75DEFF]">Space</dd>
+                <dt>{t("studio.record")}</dt><dd className="font-mono text-[#75DEFF]">R</dd>
+                <dt>{t("studio.toggleLoop")}</dt><dd className="font-mono text-[#75DEFF]">C</dd>
+                <dt>{t("studio.returnStart")}</dt><dd className="font-mono text-[#75DEFF]">Enter</dd>
+                <dt>{t("studio.copyPaste")}</dt><dd className="font-mono text-[#75DEFF]">⌘/Ctrl+C, ⌘/Ctrl+V</dd>
+                <dt>{t("studio.splitClip")}</dt><dd className="font-mono text-[#75DEFF]">⌘/Ctrl+T</dd>
+                <dt>{t("studio.deleteClip")}</dt><dd className="font-mono text-[#75DEFF]">Delete</dd>
               </dl>
             )}
             <div className="mt-4 flex justify-end">
@@ -2878,7 +2878,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       />
 
       {pianoRollOpen && selectedTrack && (
-        <div className="fixed inset-8 z-50 overflow-hidden rounded-xl border border-zinc-700 bg-[#14151a] shadow-2xl">
+        <div className="fixed inset-8 z-50 overflow-hidden rounded-xl border border-[#51456F] bg-[#14151a] shadow-2xl">
           <PianoRoll
             notes={trackNotes[selectedTrack.id] ?? selectedTrack.midiNotes ?? []}
             instrumentName={selectedTrack.name}
@@ -2952,14 +2952,14 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
 
       {sharedProjectId && !hasEditLease && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
-          <section className="max-w-md rounded-xl border border-zinc-700 bg-[#15171d] p-5 text-center shadow-2xl">
+          <section className="max-w-md rounded-xl border border-[#51456F] bg-[#241D3A] p-5 text-center shadow-2xl">
             <h2 className="text-sm font-bold text-white">{t("studio.readOnlyTitle")}</h2>
             <p className="mt-2 text-xs text-zinc-400">
               {editLockOwnerId && editLockExpiresAt && new Date(editLockExpiresAt).getTime() > Date.now()
                 ? t("studio.lockExpires", { time: new Date(editLockExpiresAt).toLocaleTimeString(locale) })
                 : t("studio.takeEditLock")}
             </p>
-            <button onClick={() => setCollaborationOpen(true)} className="mt-4 rounded bg-[#118a3e] px-4 py-2 text-xs font-semibold text-white hover:bg-[#17a34a]">
+            <button onClick={() => setCollaborationOpen(true)} className="mt-4 rounded bg-[#7751D0] px-4 py-2 text-xs font-semibold text-white hover:bg-[#986FEF]">
               {t("studio.openCollaboration")}
             </button>
           </section>
@@ -3038,12 +3038,12 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
 
       {upgradeFeature && (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-[80] grid place-items-center bg-black/60 p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-[#1DB954] bg-[#18191d] p-6 text-white shadow-2xl">
+          <div className="w-full max-w-sm rounded-2xl border border-[#B89CFF] bg-[#18191d] p-6 text-white shadow-2xl">
             <h2 className="text-lg font-extrabold">{t("studio.upgradeTitle")}</h2>
             <p className="mt-2 text-sm text-zinc-300">{upgradeFeature}</p>
             <div className="mt-5 flex gap-2">
-              <a href="/dashboard" className="flex-1 rounded-lg bg-[#1DB954] text-black hover:bg-[#3ddc78] px-4 py-2 text-center text-sm font-bold">{t("studio.upgradeCta")}</a>
-              <button onClick={() => setUpgradeFeature(null)} className="rounded-lg bg-zinc-800 px-4 py-2 text-sm font-semibold hover:bg-zinc-700">{t("studio.upgradeLater")}</button>
+              <a href="/dashboard" className="flex-1 rounded-lg bg-[#B89CFF] text-[#19152B] hover:bg-[#D0BCFF] px-4 py-2 text-center text-sm font-bold">{t("studio.upgradeCta")}</a>
+              <button onClick={() => setUpgradeFeature(null)} className="rounded-lg bg-[#322849] px-4 py-2 text-sm font-semibold hover:bg-zinc-700">{t("studio.upgradeLater")}</button>
             </div>
           </div>
         </div>

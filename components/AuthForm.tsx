@@ -29,10 +29,10 @@ export default function AuthForm({ mode }: { mode: "in" | "up" }) {
       setBusy(false);
     }
   }
-  const input = "mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-3 font-normal";
+  const input = "mt-1 w-full rounded-lg border border-[#51456F] bg-[#171328] px-3 py-3 font-normal";
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
-      <section className="hidden flex-col justify-between border-r border-zinc-800 bg-zinc-900 p-12 lg:flex">
+      <section className="hidden flex-col justify-between border-r border-[#3B3155] bg-[#241D3A] p-12 lg:flex">
         <Link href="/" className="text-xl font-extrabold">ArtistPilot</Link>
         <div>
           <h2 className="text-4xl font-extrabold leading-tight">{t("auth.sideTitle")}</h2>
@@ -50,8 +50,8 @@ export default function AuthForm({ mode }: { mode: "in" | "up" }) {
           <form onSubmit={submit} className="space-y-4">
             <label className="block text-sm font-bold">{t("auth.email")}<input className={input} type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
             <label className="block text-sm font-bold">{t("auth.password")}<input className={input} type="password" required minLength={8} autoComplete={mode === "in" ? "current-password" : "new-password"} value={password} onChange={(e) => setPassword(e.target.value)} /></label>
-            <button disabled={busy} className="w-full rounded-lg bg-[#1DB954] text-black hover:bg-[#3ddc78] py-3 font-bold disabled:opacity-60">{mode === "in" ? t("auth.loginButton") : t("auth.signupButton")}</button>
-            {msg && <p role="alert" className="text-sm text-[#5ee38f]">{msg}</p>}
+            <button disabled={busy} className="w-full rounded-lg bg-[#B89CFF] text-[#19152B] hover:bg-[#D0BCFF] py-3 font-bold disabled:opacity-60">{mode === "in" ? t("auth.loginButton") : t("auth.signupButton")}</button>
+            {msg && <p role="alert" className="text-sm text-[#D0BCFF]">{msg}</p>}
           </form>
           <p className="mt-6 text-sm text-zinc-400">
             {mode === "in" ? <>{t("auth.newHere")} <Link className="underline" href="/signup">{t("auth.createAccount")}</Link></> : <>{t("auth.already")} <Link className="underline" href="/login">{t("auth.loginLink")}</Link></>}

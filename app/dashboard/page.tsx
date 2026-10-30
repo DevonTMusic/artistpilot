@@ -16,14 +16,14 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     <main className="mx-auto max-w-5xl px-5 py-12">
       <h1 className="text-3xl font-extrabold">{t("ideas.title")}</h1>
       <p className="mb-8 mt-2 max-w-xl text-zinc-300">{t("ideas.intro")}</p>
-      {sp.credits === "success" && <p role="status" className="mb-5 max-w-2xl rounded-lg border border-emerald-900 bg-emerald-950/30 p-3 text-sm text-emerald-100">{t("dashboard.paymentSuccess")}</p>}
-      {sp.credits === "cancelled" && <p role="status" className="mb-5 max-w-2xl rounded-lg border border-zinc-800 bg-zinc-900 p-3 text-sm text-zinc-200">{t("dashboard.paymentCancelled")}</p>}
+      {sp.credits === "success" && <p role="status" className="mb-5 max-w-2xl rounded-lg border border-[#254D53] bg-[#1C3A45]/30 p-3 text-sm text-[#DAFFF5]">{t("dashboard.paymentSuccess")}</p>}
+      {sp.credits === "cancelled" && <p role="status" className="mb-5 max-w-2xl rounded-lg border border-[#3B3155] bg-[#241D3A] p-3 text-sm text-zinc-200">{t("dashboard.paymentCancelled")}</p>}
       {p?.is_paid ? <IdeaLab /> : (
-        <div className="max-w-md rounded-2xl border border-[#1DB954] bg-zinc-900 p-8">
+        <div className="max-w-md rounded-2xl border border-[#B89CFF] bg-[#241D3A] p-8">
           {sp.paid ? <p className="mb-4 text-[#b9f6d0]">{t("dashboard.subscriptionPending")}</p> : null}
           <h2 className="text-2xl font-bold">{t("dashboard.pro")}</h2>
           <p className="mt-2 text-zinc-300">{t("dashboard.subscribeText")}</p>
-          <form action="/api/checkout" method="post"><button className="mt-6 w-full rounded-xl bg-[#1DB954] text-black hover:bg-[#3ddc78] py-3 font-bold">{t("dashboard.getStarted")}</button></form>
+          <form action="/api/checkout" method="post"><button className="mt-6 w-full rounded-xl bg-[#B89CFF] text-[#19152B] hover:bg-[#D0BCFF] py-3 font-bold">{t("dashboard.getStarted")}</button></form>
         </div>
       )}
     </main>

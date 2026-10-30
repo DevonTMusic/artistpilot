@@ -154,7 +154,7 @@ export function ChordVisualizer({ instrument, chord }: { instrument: string; cho
   const { t } = useLanguage();
   const parsed = parseChord(chord);
   if (!parsed) {
-    return <p className="text-xs text-[#5ee38f]">{t("chord.invalid")}</p>;
+    return <p className="text-xs text-[#D0BCFF]">{t("chord.invalid")}</p>;
   }
   const chordName = `${parsed.rootName}${parsed.quality}`;
   const noteNames = parsed.intervals.map((interval) => NOTE_NAMES[(parsed.root + interval) % 12]);
@@ -162,7 +162,7 @@ export function ChordVisualizer({ instrument, chord }: { instrument: string; cho
   const translatedInstrument = t(displayInstrument === "Bass" ? "instrument.bass" : displayInstrument === "Ukulele" ? "instrument.ukulele" : displayInstrument === "Piano" ? "instrument.piano" : "instrument.guitar");
 
   return (
-    <section className="mt-4 rounded-xl border border-zinc-700 bg-[#101116] p-4">
+    <section className="mt-4 rounded-xl border border-[#51456F] bg-[#101116] p-4">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <div>
           <h3 className="text-sm font-bold text-white">{t("chord.onInstrument", { chord: chordName, instrument: translatedInstrument })}</h3>

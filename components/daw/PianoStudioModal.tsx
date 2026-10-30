@@ -206,16 +206,16 @@ export function PianoStudioModal({
       <div className="w-full max-w-4xl rounded-2xl border-2 border-[#20222a] bg-[#14151b] shadow-2xl overflow-hidden flex flex-col text-zinc-300">
         
         {/* TOP HEADER */}
-        <div className="flex h-11 items-center justify-between border-b border-zinc-800 bg-[#1c1e26] px-4">
+        <div className="flex h-11 items-center justify-between border-b border-[#3B3155] bg-[#1c1e26] px-4">
           <div className="flex items-center gap-3">
             <span className="text-sm font-bold text-white flex items-center gap-1.5">
-              {t("pianoStudio.title")} <span className="text-[#d4af37]">{trackName}</span>
+              {t("pianoStudio.title")} <span className="text-[#FF72B6]">{trackName}</span>
             </span>
 
             <select
               value={selectedPreset}
               onChange={(e) => setSelectedPreset(e.target.value as PianoPresetType)}
-              className="bg-[#0e0f14] border border-zinc-700 text-xs font-semibold text-white rounded px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-[#d4af37]"
+              className="bg-[#0e0f14] border border-[#51456F] text-xs font-semibold text-white rounded px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-[#FF72B6]"
             >
               {PIANO_PRESETS.map((p) => (
                 <option key={p.name} value={p.name}>
@@ -231,20 +231,20 @@ export function PianoStudioModal({
         </div>
 
         {/* MUSICAL TYPING COMPUTER KEYBOARD */}
-        <div className="p-4 bg-[#0d0e12] border-b border-zinc-800/80 flex flex-col items-center">
+        <div className="p-4 bg-[#0d0e12] border-b border-[#3B3155]/80 flex flex-col items-center">
           <div className="flex justify-between w-full max-w-2xl mb-2 text-xs">
             <div className="flex items-center gap-2">
               <span className="text-zinc-400">{t("pianoStudio.octave")}</span>
               <button
                 onClick={() => setCurrentOctave((o) => Math.max(1, o - 1))}
-                className="px-2 py-0.5 rounded bg-zinc-800 font-bold hover:bg-zinc-700 text-white"
+                className="px-2 py-0.5 rounded bg-[#322849] font-bold hover:bg-zinc-700 text-white"
               >
                 Z (-)
               </button>
-              <span className="font-mono font-bold text-[#d4af37] px-1">C{currentOctave}</span>
+              <span className="font-mono font-bold text-[#FF72B6] px-1">C{currentOctave}</span>
               <button
                 onClick={() => setCurrentOctave((o) => Math.min(6, o + 1))}
-                className="px-2 py-0.5 rounded bg-zinc-800 font-bold hover:bg-zinc-700 text-white"
+                className="px-2 py-0.5 rounded bg-[#322849] font-bold hover:bg-zinc-700 text-white"
               >
                 X (+)
               </button>
@@ -258,7 +258,7 @@ export function PianoStudioModal({
                   engine.current.setSustainPedal(ctx, next);
                 }}
                 className={`px-3 py-0.5 rounded text-[11px] font-bold border transition ${
-                  sustainOn ? "border-[#3ddc78] bg-[#3ddc78]/20 text-[#5ee38f] shadow-[0_0_8px_#f59e0b]" : "border-zinc-700 bg-zinc-800 text-zinc-400"
+                  sustainOn ? "border-[#D0BCFF] bg-[#D0BCFF]/20 text-[#D0BCFF] shadow-[0_0_8px_#f59e0b]" : "border-[#51456F] bg-[#322849] text-zinc-400"
                 }`}
               >
                 {t("pianoStudio.sustain")} {sustainOn ? t("track.on") : t("track.off")}
@@ -272,7 +272,7 @@ export function PianoStudioModal({
                   max={127}
                   value={velocity}
                   onChange={(e) => setVelocity(Number(e.target.value))}
-                  className="w-16 accent-[#d4af37] h-1 bg-zinc-800 rounded"
+                  className="w-16 accent-[#FF72B6] h-1 bg-[#322849] rounded"
                 />
               </div>
             </div>
@@ -282,7 +282,7 @@ export function PianoStudioModal({
             <button
               onClick={() => setScaleLock((enabled) => !enabled)}
               aria-pressed={scaleLock}
-              className={`rounded px-2 py-1 text-[10px] font-semibold ${scaleLock ? "bg-emerald-700 text-white" : "bg-zinc-800 text-zinc-300"}`}
+              className={`rounded px-2 py-1 text-[10px] font-semibold ${scaleLock ? "bg-[#238C72] text-white" : "bg-[#322849] text-zinc-300"}`}
               title={t("pianoStudio.scaleHelp", { key: projectKey, scale: t(scale === "maj" ? "music.major" : "music.minor") })}
             >
               {t("pianoStudio.scaleLock")} {scaleLock ? t("pianoRoll.on") : t("pianoRoll.off")}
@@ -290,22 +290,22 @@ export function PianoStudioModal({
             <button
               onClick={() => setChordMode((enabled) => !enabled)}
               aria-pressed={chordMode}
-              className={`rounded px-2 py-1 text-[10px] font-semibold ${chordMode ? "bg-[#118a3e] text-white" : "bg-zinc-800 text-zinc-300"}`}
+              className={`rounded px-2 py-1 text-[10px] font-semibold ${chordMode ? "bg-[#7751D0] text-white" : "bg-[#322849] text-zinc-300"}`}
             >
               {t("pianoStudio.chordMode")} {chordMode ? t("pianoRoll.on") : t("pianoRoll.off")}
             </button>
             <label className="flex items-center gap-1 text-[10px] text-zinc-400">
               {t("pianoStudio.chordSize")}
-              <select value={chordQuality} onChange={(event) => setChordQuality(event.target.value as typeof chordQuality)} className="rounded bg-zinc-900 px-1.5 py-1 text-zinc-200">
+              <select value={chordQuality} onChange={(event) => setChordQuality(event.target.value as typeof chordQuality)} className="rounded bg-[#241D3A] px-1.5 py-1 text-zinc-200">
                 <option value="triad">{t("pianoStudio.triad")}</option>
                 <option value="7th">{t("pianoStudio.seventh")}</option>
                 <option value="9th">{t("pianoStudio.ninth")}</option>
               </select>
             </label>
-            <span className="text-[10px] text-emerald-300 capitalize">{projectKey} {t(scale === "maj" ? "music.major" : "music.minor")}</span>
+            <span className="text-[10px] text-[#75EBD0] capitalize">{projectKey} {t(scale === "maj" ? "music.major" : "music.minor")}</span>
           </div>
 
-          <div className="p-2.5 rounded-xl border border-zinc-800 bg-[#14151c] flex flex-col gap-1 shadow-inner">
+          <div className="p-2.5 rounded-xl border border-[#3B3155] bg-[#14151c] flex flex-col gap-1 shadow-inner">
             <div className="flex justify-center gap-1 pl-4">
               {["w", "e", null, "t", "y", "u", null, "o", "p"].map((k, idx) =>
                 k ? (
@@ -313,8 +313,8 @@ export function PianoStudioModal({
                     key={idx}
                     className={`h-8 w-8 rounded flex flex-col items-center justify-center font-mono font-bold text-[10px] border shadow transition ${
                       activePitches.has((KEYBOARD_MAP[k] || 0) + (currentOctave - 3) * 12)
-                        ? "bg-[#d4af37] text-black border-[#d4af37]"
-                        : "bg-black text-zinc-400 border-zinc-700"
+                        ? "bg-[#FF72B6] text-[#19152B] border-[#FF72B6]"
+                        : "bg-black text-zinc-400 border-[#51456F]"
                     }`}
                   >
                     <span className="uppercase">{k}</span>
@@ -331,7 +331,7 @@ export function PianoStudioModal({
                   key={k}
                   className={`h-10 w-8 rounded flex flex-col items-center justify-end pb-1 font-mono font-bold text-[10px] border shadow transition ${
                     activePitches.has((KEYBOARD_MAP[k] || 0) + (currentOctave - 3) * 12)
-                      ? "bg-[#d4af37] text-black border-[#d4af37]"
+                      ? "bg-[#FF72B6] text-[#19152B] border-[#FF72B6]"
                       : "bg-zinc-200 text-zinc-800 border-zinc-400"
                   }`}
                 >
@@ -348,7 +348,7 @@ export function PianoStudioModal({
             <p className="text-[10px] text-zinc-500">{t("pianoStudio.pianoRange")}</p>
             <p className="text-[10px] text-zinc-600">{t("pianoStudio.clickPlay")}</p>
           </div>
-          <div className="overflow-x-auto rounded-b border border-zinc-700 bg-[#050505] p-1 shadow-2xl">
+          <div className="overflow-x-auto rounded-b border border-[#51456F] bg-[#050505] p-1 shadow-2xl">
             <div className="relative flex h-40 w-max touch-none">
               {pianoKeys.filter((key) => !key.isBlack).map((key) => {
                 const isPressed = activePitches.has(key.pitch);
@@ -366,12 +366,12 @@ export function PianoStudioModal({
                     onLostPointerCapture={() => triggerNoteOff(key.pitch)}
                     className={`relative h-full w-8 flex-none rounded-b border border-x-zinc-400 border-b-zinc-500 transition ${
                       isPressed
-                        ? "bg-[#5ee38f]"
+                        ? "bg-[#D0BCFF]"
                         : scaleLock && !scalePitchClasses.has(key.pitch % 12)
                           ? "bg-zinc-400 opacity-30"
                           : scalePitchClasses.has(key.pitch % 12)
-                            ? "bg-zinc-900"
-                            : "bg-zinc-900 hover:from-white hover:to-white"
+                            ? "bg-[#241D3A]"
+                            : "bg-[#241D3A] hover:from-white hover:to-white"
                     }`}
                   >
                     {key.pitch % 12 === 0 && (
@@ -400,12 +400,12 @@ export function PianoStudioModal({
                     style={{ left: `${precedingWhiteKeys * 32 - 11}px` }}
                     className={`absolute top-0 z-10 h-[62%] w-[22px] rounded-b border border-black shadow-[0_3px_5px_rgba(0,0,0,0.55)] ${
                       isPressed
-                        ? "bg-[#3ddc78]"
+                        ? "bg-[#D0BCFF]"
                         : scaleLock && !scalePitchClasses.has(key.pitch % 12)
                           ? "bg-black opacity-25"
                           : scalePitchClasses.has(key.pitch % 12)
-                            ? "bg-zinc-900"
-                            : "bg-zinc-900 hover:from-zinc-600"
+                            ? "bg-[#241D3A]"
+                            : "bg-[#241D3A] hover:from-zinc-600"
                     }`}
                   />
                 );
@@ -415,14 +415,14 @@ export function PianoStudioModal({
         </div>
 
         {/* CHORD ASSIST */}
-        <div className="p-3 border-t border-zinc-800 bg-[#161720] flex items-center justify-between text-xs">
+        <div className="p-3 border-t border-[#3B3155] bg-[#161720] flex items-center justify-between text-xs">
           <span className="text-[10px] font-bold tracking-wider text-zinc-400">{t("pianoStudio.chordPads")}</span>
           <div className="flex gap-2 overflow-x-auto">
             {scaleIntervals.slice(0, 5).map((interval, degree) => (
               <button
                 key={degree}
                 onClick={() => playChord(degree)}
-                className="px-2.5 py-1 rounded bg-[#22242e] border border-zinc-700 hover:border-[#d4af37] text-white text-[11px] font-semibold shadow-sm active:scale-95 transition"
+                className="px-2.5 py-1 rounded bg-[#22242e] border border-[#51456F] hover:border-[#FF72B6] text-white text-[11px] font-semibold shadow-sm active:scale-95 transition"
               >
                 {["I", "II", "III", "IV", "V"][degree]} · {NOTE_NAMES[(rootPitchClass + interval) % 12]}
               </button>

@@ -29,8 +29,8 @@ export function SceneLauncherModal({
   const { t } = useLanguage();
   return (
     <div className="fixed inset-0 z-[72] flex items-center justify-center bg-black/80 p-4">
-      <section className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-xl border border-zinc-700 bg-[#15171d] shadow-2xl">
-        <header className="flex items-center justify-between gap-3 border-b border-zinc-800 p-4">
+      <section className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-xl border border-[#51456F] bg-[#15171d] shadow-2xl">
+        <header className="flex items-center justify-between gap-3 border-b border-[#3B3155] p-4">
           <div>
             <h2 className="text-sm font-bold text-white">{t("scene.title")}</h2>
             <p className="mt-1 text-[10px] text-zinc-400">{t("scene.help")}</p>
@@ -38,25 +38,25 @@ export function SceneLauncherModal({
           <div className="flex gap-2">
             <button onClick={onCreate} className="rounded bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-600">{t("scene.capture")}</button>
             <button onClick={onStop} disabled={!isPlaying} className="rounded bg-rose-900/70 px-3 py-1.5 text-xs text-rose-100 hover:bg-rose-800 disabled:opacity-40">{t("scene.stop")}</button>
-            <button onClick={onClose} className="rounded bg-zinc-800 px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-700">{t("scene.close")}</button>
+            <button onClick={onClose} className="rounded bg-[#322849] px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-700">{t("scene.close")}</button>
           </div>
         </header>
         <div className="max-h-[75vh] overflow-auto p-4">
           {scenes.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-zinc-700 p-10 text-center text-xs text-zinc-500">{t("scene.empty")}</div>
+            <div className="rounded-lg border border-dashed border-[#51456F] p-10 text-center text-xs text-zinc-500">{t("scene.empty")}</div>
           ) : (
             <div className="space-y-3">
               {scenes.map((scene) => (
-                <div key={scene.id} className="rounded-lg border border-zinc-800 bg-[#101116] p-3">
+                <div key={scene.id} className="rounded-lg border border-[#3B3155] bg-[#101116] p-3">
                   <div className="mb-3 flex items-center gap-2">
                     <input
                       aria-label={t("scene.name")}
                       value={scene.name}
                       onChange={(event) => onChange({ ...scene, name: event.target.value.slice(0, 40) })}
-                      className="min-w-0 flex-1 rounded bg-zinc-900 px-2 py-1 text-xs font-semibold text-white"
+                      className="min-w-0 flex-1 rounded bg-[#241D3A] px-2 py-1 text-xs font-semibold text-white"
                     />
-                    <button onClick={() => onLaunch(scene)} className="rounded bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-600">{t("scene.launch")}</button>
-                    <button onClick={() => onDelete(scene.id)} className="rounded bg-zinc-800 px-2 py-1.5 text-[10px] text-zinc-300 hover:bg-rose-900">{t("scene.delete")}</button>
+                    <button onClick={() => onLaunch(scene)} className="rounded bg-[#238C72] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#23AD8D]">{t("scene.launch")}</button>
+                    <button onClick={() => onDelete(scene.id)} className="rounded bg-[#322849] px-2 py-1.5 text-[10px] text-zinc-300 hover:bg-rose-900">{t("scene.delete")}</button>
                   </div>
                   {tracks.length === 0 ? (
                     <p className="text-[10px] text-zinc-500">{t("scene.noTracks")}</p>
@@ -66,7 +66,7 @@ export function SceneLauncherModal({
                         if (track.category === "audio") {
                           const selectedRegionId = scene.regionIdsByTrack[track.id]?.[0] ?? "";
                           return (
-                            <label key={track.id} className="w-40 flex-none rounded border border-zinc-800 bg-zinc-900/70 p-2 text-[9px] text-zinc-400">
+                            <label key={track.id} className="w-40 flex-none rounded border border-[#3B3155] bg-[#241D3A]/70 p-2 text-[9px] text-zinc-400">
                               <span className="mb-1 block truncate font-bold text-zinc-200">{track.name}</span>
                               <select
                                 aria-label={`${track.name} scene clip`}
@@ -89,7 +89,7 @@ export function SceneLauncherModal({
                           const notes = scene.midiNotesByTrack?.[track.id];
                           const enabled = Boolean(notes?.length);
                           return (
-                            <label key={track.id} className="flex w-40 flex-none items-center gap-2 rounded border border-zinc-800 bg-zinc-900/70 p-2 text-[9px] text-zinc-300">
+                            <label key={track.id} className="flex w-40 flex-none items-center gap-2 rounded border border-[#3B3155] bg-[#241D3A]/70 p-2 text-[9px] text-zinc-300">
                               <input
                                 type="checkbox"
                                 checked={enabled}
@@ -107,7 +107,7 @@ export function SceneLauncherModal({
                         }
                         const enabled = Boolean(scene.drumPatternsByTrack?.[track.id]);
                         return (
-                          <label key={track.id} className="flex w-40 flex-none items-center gap-2 rounded border border-zinc-800 bg-zinc-900/70 p-2 text-[9px] text-zinc-300">
+                          <label key={track.id} className="flex w-40 flex-none items-center gap-2 rounded border border-[#3B3155] bg-[#241D3A]/70 p-2 text-[9px] text-zinc-300">
                             <input
                               type="checkbox"
                               checked={enabled}

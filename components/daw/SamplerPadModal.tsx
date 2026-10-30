@@ -120,7 +120,7 @@ export function SamplerPadModal({ isOpen, track, audioContext, onChange, onClose
           setDragging(false);
           void loadSample(event.dataTransfer.files[0]);
         }}
-        className={`max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl border bg-[#15171d] p-4 shadow-2xl ${dragging ? "border-sky-400" : "border-zinc-700"}`}
+        className={`max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl border bg-[#241D3A] p-4 shadow-2xl ${dragging ? "border-sky-400" : "border-[#51456F]"}`}
       >
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
@@ -130,7 +130,7 @@ export function SamplerPadModal({ isOpen, track, audioContext, onChange, onClose
           <div className="flex gap-2">
             <input ref={fileRef} type="file" accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm" className="hidden" onChange={(event) => { void loadSample(event.target.files?.[0]); event.currentTarget.value = ""; }} />
             <button onClick={() => fileRef.current?.click()} className="rounded bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-600">{t("sampler.load")}</button>
-            <button onClick={onClose} className="rounded bg-zinc-800 px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-700">{t("sampler.close")}</button>
+            <button onClick={onClose} className="rounded bg-[#322849] px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-700">{t("sampler.close")}</button>
           </div>
         </div>
         {sampler ? (
@@ -138,23 +138,23 @@ export function SamplerPadModal({ isOpen, track, audioContext, onChange, onClose
             <p className="mb-3 truncate text-[10px] text-zinc-400">{sampler.sampleName} · {sampler.sample.duration.toFixed(2)} {t("sampler.seconds")} · {t("sampler.onsetHelp")}</p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {sampler.pads.map((pad) => (
-                <div key={pad.id} className="rounded-lg border border-zinc-800 bg-[#0f1015] p-2">
-                  <button onClick={() => AudioEngine.getInstance().playSamplerPad(track, pad)} className="mb-2 flex w-full items-center justify-between rounded bg-zinc-800 px-2 py-2 text-left text-xs font-bold text-white hover:bg-sky-800">
-                    <span>{pad.name}</span><kbd className="rounded bg-black px-1.5 py-0.5 text-[10px] text-sky-300">{pad.key.toUpperCase()}</kbd>
+                <div key={pad.id} className="rounded-lg border border-[#3B3155] bg-[#0f1015] p-2">
+                  <button onClick={() => AudioEngine.getInstance().playSamplerPad(track, pad)} className="mb-2 flex w-full items-center justify-between rounded bg-[#322849] px-2 py-2 text-left text-xs font-bold text-white hover:bg-sky-800">
+                    <span>{pad.name}</span><kbd className="rounded bg-black px-1.5 py-0.5 text-[10px] text-[#75DEFF]">{pad.key.toUpperCase()}</kbd>
                   </button>
-                  <input aria-label={`${pad.name} name`} value={pad.name} onChange={(event) => updatePad(pad.id, { name: event.target.value.slice(0, 32) })} className="mb-2 w-full rounded bg-zinc-900 px-2 py-1 text-[10px] text-white" />
+                  <input aria-label={`${pad.name} name`} value={pad.name} onChange={(event) => updatePad(pad.id, { name: event.target.value.slice(0, 32) })} className="mb-2 w-full rounded bg-[#241D3A] px-2 py-1 text-[10px] text-white" />
                   <label className="block text-[9px] text-zinc-500">{t("sampler.start")} {pad.startTime.toFixed(2)}s
-                    <input type="range" min={0} max={Math.max(0.01, pad.endTime - 0.01)} step={0.01} value={pad.startTime} onChange={(event) => updatePad(pad.id, { startTime: Number(event.target.value) })} className="block w-full accent-sky-400" />
+                    <input type="range" min={0} max={Math.max(0.01, pad.endTime - 0.01)} step={0.01} value={pad.startTime} onChange={(event) => updatePad(pad.id, { startTime: Number(event.target.value) })} className="block w-full accent-[#75DEFF]" />
                   </label>
                   <label className="block text-[9px] text-zinc-500">{t("sampler.end")} {pad.endTime.toFixed(2)}s
-                    <input type="range" min={Math.min(sampler.sample.duration, pad.startTime + 0.01)} max={sampler.sample.duration} step={0.01} value={pad.endTime} onChange={(event) => updatePad(pad.id, { endTime: Number(event.target.value) })} className="block w-full accent-[#3ddc78]" />
+                    <input type="range" min={Math.min(sampler.sample.duration, pad.startTime + 0.01)} max={sampler.sample.duration} step={0.01} value={pad.endTime} onChange={(event) => updatePad(pad.id, { endTime: Number(event.target.value) })} className="block w-full accent-[#D0BCFF]" />
                   </label>
                 </div>
               ))}
             </div>
           </>
         ) : (
-          <div className="rounded-lg border border-dashed border-zinc-700 p-10 text-center text-xs text-zinc-500">{t("sampler.dropHint")}</div>
+          <div className="rounded-lg border border-dashed border-[#51456F] p-10 text-center text-xs text-zinc-500">{t("sampler.dropHint")}</div>
         )}
         {error && <p role="alert" className="mt-3 rounded bg-rose-950/60 p-2 text-xs text-rose-300">{error}</p>}
       </section>

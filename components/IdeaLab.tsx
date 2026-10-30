@@ -40,7 +40,7 @@ export default function IdeaLab() {
       setBusy(false);
     }
   }
-  const field = "w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5";
+  const field = "w-full rounded-lg border border-[#51456F] bg-[#171328] px-3 py-2.5";
   return (
     <div className="max-w-2xl">
       <form onSubmit={ask} className="space-y-4">
@@ -55,14 +55,14 @@ export default function IdeaLab() {
           </select></label>
         <label className="block text-sm font-bold">{t("ideas.prompt")}
           <textarea className={field + " mt-1 font-normal"} rows={4} maxLength={1000} required value={message} onChange={(e) => setMessage(e.target.value)} placeholder={t("ideas.placeholder")} /></label>
-        <button disabled={busy} className="rounded-lg bg-[#1DB954] text-black hover:bg-[#3ddc78] px-5 py-3 font-bold disabled:opacity-60">{busy ? t("ideas.thinking") : t("ideas.ask")}</button>
+        <button disabled={busy} className="rounded-lg bg-[#B89CFF] text-[#19152B] hover:bg-[#D0BCFF] px-5 py-3 font-bold disabled:opacity-60">{busy ? t("ideas.thinking") : t("ideas.ask")}</button>
       </form>
       <AICreditPacks usage={usage} />
       {error && <p className="mt-4 rounded-lg border border-rose-900 bg-rose-950/30 p-3 text-sm text-rose-300" role="alert">{error}</p>}
       {answer && (
         <>
-          <div className="mt-6 whitespace-pre-wrap rounded-2xl border border-zinc-800 bg-zinc-900 p-5 leading-relaxed" aria-live="polite">{answer}</div>
-          <div className="mt-5 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+          <div className="mt-6 whitespace-pre-wrap rounded-2xl border border-[#3B3155] bg-[#241D3A] p-5 leading-relaxed" aria-live="polite">{answer}</div>
+          <div className="mt-5 rounded-2xl border border-[#3B3155] bg-[#241D3A] p-4">
             <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
               <label className="block text-sm font-bold">{t("ideas.visualChord")}
                 <input
