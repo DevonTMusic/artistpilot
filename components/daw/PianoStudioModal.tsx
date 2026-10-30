@@ -14,6 +14,9 @@ interface PianoStudioModalProps {
   synthSettings?: SynthSettings;
   projectKey?: string;
   scale?: "maj" | "min";
+  isRecording: boolean;
+  recordedNoteCount: number;
+  onToggleRecording: () => void;
   onRecordMidiNote?: (pitch: number, velocity: number, isNoteOn: boolean) => void;
 }
 
@@ -42,6 +45,9 @@ export function PianoStudioModal({
   synthSettings,
   projectKey = "C",
   scale = "maj",
+  isRecording,
+  recordedNoteCount,
+  onToggleRecording,
   onRecordMidiNote,
 }: PianoStudioModalProps) {
   const { t } = useLanguage();
@@ -225,9 +231,29 @@ export function PianoStudioModal({
             </select>
           </div>
 
-          <button onClick={onClose} className="h-6 w-6 rounded hover:bg-red-500 text-zinc-400 hover:text-white flex items-center justify-center font-bold text-xs">
-            ✕
-          </button>
+          <div className="flex items-center gap-2">
+            <span className="whitespace-nowrap text-[10px] font-semibold text-zinc-400" aria-live="polite">
+              {isRecording && <span className="mr-2 text-red-400">{t("pianoStudio.recording")}</span>}
+              {t("pianoStudio.noteCount", { count: recordedNoteCount })}
+            </span>
+            <button
+              type="button"
+              onClick={onToggleRecording}
+              aria-pressed={isRecording}
+              className={`whitespace-nowrap rounded px-2.5 py-1 text-[10px] font-bold text-white ${
+                isRecording ? "bg-red-700 hover:bg-red-600" : "bg-[#7751D0] hover:bg-[#6842C4]"
+              }`}
+            >
+              {isRecording ? t("pianoStudio.stopRecording") : t("pianoStudio.recordMidi")}
+            </button>
+            <button
+              onClick={onClose}
+              aria-label={t("studio.close")}
+              className="h-6 w-6 rounded hover:bg-red-500 text-zinc-400 hover:text-white flex items-center justify-center font-bold text-xs"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* MUSICAL TYPING COMPUTER KEYBOARD */}
