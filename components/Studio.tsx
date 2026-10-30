@@ -876,6 +876,26 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       return;
     }
 
+    if (selectedMidiTrack && (trackNotes[selectedMidiTrack.id] ?? selectedMidiTrack.midiNotes ?? []).length > 0) {
+      const takeId = nextTrackId.current++;
+      const takeCount = tracks.filter((track) => track.category === "midi").length + 1;
+      setTracks((prev) => [
+        ...prev,
+        {
+          ...selectedMidiTrack,
+          id: takeId,
+          name: `${selectedMidiTrack.name.replace(/ Take \d+$/, "")} Take ${takeCount}`,
+          armed: false,
+          solo: false,
+          regions: [],
+          midiNotes: [],
+          pan: 0,
+        },
+      ]);
+      setTrackNotes((prev) => ({ ...prev, [takeId]: [] }));
+      setSelectedTrackId(takeId);
+    }
+
     try {
       const ctx = engine.current.init();
       if (ctx.state === "suspended") await ctx.resume();
