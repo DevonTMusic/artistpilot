@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Nav from "@/components/Nav";
 import IdeaLab from "@/components/IdeaLab";
+import PromoTools from "@/components/PromoTools";
 import { getCurrentSession } from "@/lib/auth/session";
 import { query } from "@/lib/db";
 import { getLocale, translate } from "@/lib/i18n/server";
@@ -18,7 +19,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <p className="mb-8 mt-2 max-w-xl text-zinc-300">{t("ideas.intro")}</p>
       {sp.credits === "success" && <p role="status" className="mb-5 max-w-2xl rounded-lg border border-[#254D53] bg-[#1C3A45]/30 p-3 text-sm text-[#DAFFF5]">{t("dashboard.paymentSuccess")}</p>}
       {sp.credits === "cancelled" && <p role="status" className="mb-5 max-w-2xl rounded-lg border border-[#3B3155] bg-[#241D3A] p-3 text-sm text-zinc-200">{t("dashboard.paymentCancelled")}</p>}
-      {p?.is_paid ? <IdeaLab /> : (
+      {p?.is_paid ? <><IdeaLab /><PromoTools /></> : (
         <div className="max-w-md rounded-2xl border border-[#B89CFF] bg-[#241D3A] p-8">
           {sp.paid ? <p className="mb-4 text-[#b9f6d0]">{t("dashboard.subscriptionPending")}</p> : null}
           <h2 className="text-2xl font-bold">{t("dashboard.pro")}</h2>
