@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import Nav from "@/components/Nav";
+import FeedbackForm from "@/components/FeedbackForm";
+import { isAdminEmail } from "@/lib/feedback";
 import { IdeaArt, MicArt, PianoArt, StudioArt } from "@/components/Art";
 import { getCurrentSession } from "@/lib/auth/session";
 import { query } from "@/lib/db";
@@ -50,6 +52,8 @@ export default async function HomeHub() {
         <div><h2 className="text-xl font-bold">{t("home.marketingTitle")}</h2><p className="mt-1 text-zinc-400">{t("home.marketingText")}</p></div>
         <StudioArt className="hidden h-24 w-full md:block" />
       </div>
+      <FeedbackForm />
+      {isAdminEmail(user.email) && <Link href="/admin/feedback" className="mt-4 inline-block font-bold text-[#D0BCFF] hover:underline">View submitted feedback</Link>}
     </main>
   </>);
 }
