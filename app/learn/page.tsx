@@ -53,6 +53,11 @@ export default function LearnPage() {
         </div>
 
         <div className="mt-8 grid gap-5 md:grid-cols-2">
+          <Link href="/learn/theory" className="rounded-2xl border border-[#B89CFF] bg-gradient-to-r from-[#3B2A6B] to-[#241D3A] p-6 hover:border-[#4FE3C1] md:col-span-2">
+            <h2 className="text-2xl font-extrabold">{t("theory.cardTitle")}</h2>
+            <p className="mt-1 max-w-2xl text-zinc-300">{t("theory.cardText")}</p>
+            <span className="mt-4 inline-block rounded-lg bg-[#986FEF] px-4 py-2 font-bold text-white">{t("theory.cardCta")}</span>
+          </Link>
           {STUDIO_LESSONS.map((lesson, index) => {
             const isDone = isComplete(lesson.id);
             const detected = auto.includes(lesson.id);
