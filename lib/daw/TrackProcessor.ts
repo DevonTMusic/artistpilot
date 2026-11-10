@@ -40,6 +40,25 @@ export const DEFAULT_TRACK_SETTINGS: ProcessingSettings = {
   deEsserAmount: 0,
 };
 
+export const VOCAL_POLISH_SETTINGS: ProcessingSettings = {
+  ...DEFAULT_TRACK_SETTINGS,
+  gateEnabled: true,
+  gateThreshold: -50,
+  compEnabled: true,
+  compAmount: 0.45,
+  compAttack: 0.012,
+  compRelease: 0.16,
+  eqEnabled: true,
+  lowGain: -2,
+  midGain: 1.5,
+  midFreq: 3000,
+  highGain: 2.5,
+  lowCut: true,
+  deEsserEnabled: true,
+  deEsserAmount: 0.4,
+  reverbSend: 0.12,
+};
+
 export class TrackAudioNodeChain {
   public inputNode: GainNode;
   public outputNode: GainNode;

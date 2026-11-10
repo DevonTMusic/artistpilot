@@ -1,7 +1,7 @@
 // components/daw/TrackControlsPanel.tsx
 "use client";
 import React, { useState, useRef, useEffect } from "react";
-import { ProcessingSettings } from "@/lib/daw/TrackProcessor";
+import { ProcessingSettings, VOCAL_POLISH_SETTINGS } from "@/lib/daw/TrackProcessor";
 import { DeviceInfo } from "@/lib/daw/AudioDeviceManager";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -187,6 +187,20 @@ export function TrackControlsPanel({
             </button>
           </div>
 
+          {!isMasterMode && (
+            <button
+              onClick={() => {
+                const polished = { ...VOCAL_POLISH_SETTINGS, inputGain: currentSettings.inputGain };
+                onUpdateSettings(polished);
+                if (activeSnapshot === "A") setSnapshotA(polished);
+                else setSnapshotB(polished);
+              }}
+              title={t("track.vocalPolishHint")}
+              className="px-2.5 py-0.5 rounded text-[10px] font-bold border bg-sky-500/15 border-sky-400/50 text-sky-200 hover:bg-sky-500/30 transition"
+            >
+              {t("track.vocalPolish")}
+            </button>
+          )}
           <button
             onClick={handleToggleCompare}
             className={`px-2.5 py-0.5 rounded text-[10px] font-bold border transition ${
