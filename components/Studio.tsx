@@ -111,6 +111,9 @@ const DEFAULT_AMP_SETTINGS: GuitarAmpSettings = {
 
 const FREE_TRACK_LIMIT = 3;
 
+// Audio is scheduled 50 ms ahead of the clock; the playhead waits the same amount.
+const AUDIO_START_LATENCY_MS = 50;
+
 export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?: number; isPro?: boolean }) {
   const { t, locale } = useLanguage();
   const engine = useRef<AudioEngine>(AudioEngine.getInstance());
@@ -396,7 +399,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
   const launchScene = (scene: StudioScene) => {
     const remainder = playheadSec % secondsPerBar;
     const delay = isPlaying && remainder > 0.02 ? secondsPerBar - remainder : 0;
-    engine.current.launchScene(getProjectTracks(), scene, bpm, timeSignature, delay, buses);
+    engine.current.launchScene(getProjectTracks(), scene, bpm, timeSignature, delay, buses, masterVolume, masterSettings);
     setActiveSceneId(scene.id);
     setStatusMsg(t(delay > 0 ? "studio.statusSceneQueued" : "studio.statusSceneLaunched", { name: scene.name }));
   };
@@ -489,8 +492,8 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
     lastGraphSignature.current = graphSignature;
     const state = playbackState.current;
     if (!state.isPlaying || state.isRecording) return;
-    const currentSec = playheadAnchor.current + (performance.now() - playStartTime.current) / 1000;
-    playStartTime.current = performance.now();
+    const currentSec = playheadAnchor.current + Math.max(0, performance.now() - playStartTime.current) / 1000;
+    playStartTime.current = performance.now() + AUDIO_START_LATENCY_MS;
     playheadAnchor.current = currentSec;
     engine.current.schedulePlayback(
       state.tracks,
@@ -515,7 +518,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       if (isScrubbing) {
         setPlayheadSec(currentMouseSec);
         playheadAnchor.current = currentMouseSec;
-        playStartTime.current = performance.now();
+        playStartTime.current = performance.now() + AUDIO_START_LATENCY_MS;
         scrubPosition.current = currentMouseSec;
       } else if (draggingLoopEdge === "start") {
         setLoopStartSec(Math.min(currentMouseSec, loopEndSec - 0.5));
@@ -528,7 +531,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       if (isScrubbing && playbackState.current.isPlaying) {
         const state = playbackState.current;
         playheadAnchor.current = scrubPosition.current;
-        playStartTime.current = performance.now();
+        playStartTime.current = performance.now() + AUDIO_START_LATENCY_MS;
         engine.current.schedulePlayback(
           state.tracks,
           scrubPosition.current,
@@ -556,14 +559,14 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
 
   // Master Clock & Loop Watcher
   const updatePlaybackPosition = () => {
-    const elapsed = (performance.now() - playStartTime.current) / 1000;
+    const elapsed = Math.max(0, performance.now() - playStartTime.current) / 1000;
     let currentSec = playheadAnchor.current + elapsed;
 
     const state = playbackState.current;
     if (state.isLooping && currentSec >= state.loopEndSec) {
       const loopLength = Math.max(0.1, state.loopEndSec - state.loopStartSec);
       currentSec = state.loopStartSec + ((currentSec - state.loopEndSec) % loopLength);
-      playStartTime.current = performance.now();
+      playStartTime.current = performance.now() + AUDIO_START_LATENCY_MS;
       playheadAnchor.current = currentSec;
       engine.current.schedulePlayback(
         state.tracks,
@@ -608,7 +611,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       setIsPlaying(false);
     } else {
       const pos = startAt !== undefined ? startAt : (isLooping && playheadSec >= loopEndSec ? loopStartSec : playheadSec);
-      playStartTime.current = performance.now();
+      playStartTime.current = performance.now() + AUDIO_START_LATENCY_MS;
       playheadAnchor.current = pos;
       lastMetronomeBeat.current = -1;
       engine.current.schedulePlayback(
@@ -916,7 +919,11 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       return;
     }
 
-    const armedAudioTracks = tracks.filter((t) => t.armed && t.category === "audio");
+    const allArmedAudioTracks = tracks.filter((t) => t.armed && t.category === "audio");
+    // One input stream can only feed one track, so multi-armed sessions record to the selected track.
+    const armedAudioTracks = allArmedAudioTracks.length > 1
+      ? [allArmedAudioTracks.find((track) => track.id === selectedTrackId) ?? allArmedAudioTracks[0]]
+      : allArmedAudioTracks;
     const selectedMidiTrack = selectedTrack?.category === "midi" ? selectedTrack : null;
     if (armedAudioTracks.length === 0 && !selectedMidiTrack) {
       setStatusMsg(t("studio.statusArmAudio"));
@@ -1031,7 +1038,9 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
 
       setIsRecording(true);
       if (!isPlaying) handlePlay();
-      setStatusMsg(t(armedAudioTracks.length > 0 ? "studio.statusRecordingLive" : "studio.statusMidiRecording"));
+      setStatusMsg(allArmedAudioTracks.length > 1
+        ? t("studio.statusRecordingOneTrack", { track: armedAudioTracks[0].name })
+        : t(armedAudioTracks.length > 0 ? "studio.statusRecordingLive" : "studio.statusMidiRecording"));
     } catch (error) {
       activeMediaRecorders.current.forEach((recorder) => {
         if (recorder.state !== "inactive") {

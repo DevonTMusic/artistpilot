@@ -284,10 +284,19 @@ export class AudioEngine {
     bpm: number,
     timeSignature: string,
     delaySeconds = 0,
-    buses: MixerBus[] = []
+    buses: MixerBus[] = [],
+    masterVolume = 1,
+    masterSettings?: TrackProcessingSettings
   ): void {
     const ctx = this.init();
     this.stopScene();
+    if (this.activeTrackMix.size === 0 && tracks.length > 0) {
+      // Build the full channel strips (EQ, dynamics, amp, sends, buses) with nothing scheduled.
+      this.schedulePlayback(
+        tracks.map((track) => ({ ...track, regions: [], midiNotes: [], automation: undefined })),
+        0, bpm, masterVolume, masterSettings, 0, buses, []
+      );
+    }
     const hasSolo = tracks.some((track) => track.solo);
     const startTime = ctx.currentTime + Math.max(0.05, delaySeconds);
     const beatDuration = 60 / Math.max(1, bpm);
