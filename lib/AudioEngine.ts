@@ -1,5 +1,6 @@
 // lib/daw/AudioEngine.ts
 import { PianoEngine, type PianoPresetType } from "@/lib/daw/PianoEngine";
+import { TrackDynamics, compressorParams, loadDynamicsWorklet } from "@/lib/daw/dynamics";
 
 export interface AudioRegion {
   id: string;
@@ -166,9 +167,8 @@ interface TrackMixNodes {
   routingNode: GainNode;
   routedBusId?: string;
   filters: BiquadFilterNode[];
-  compressor: DynamicsCompressorNode;
+  dynamics: TrackDynamics;
   ampDrive: WaveShaperNode;
-  deEsser: BiquadFilterNode;
   ampFilters: BiquadFilterNode[];
   chorusDelay: DelayNode;
   chorusWet: GainNode;
@@ -197,6 +197,7 @@ export class AudioEngine {
   private sceneNodes: AudioNode[] = [];
   private sceneTimers: number[] = [];
   private masterNodes: AudioNode[] = [];
+  private workletReady = false;
   private activeTrackMix = new Map<number, TrackMixNodes>();
   private activeBusMix = new Map<string, BusMixNodes>();
 
@@ -216,6 +217,7 @@ export class AudioEngine {
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
       this.masterGain.connect(this.ctx.destination);
+      void loadDynamicsWorklet(this.ctx).then((ready) => { this.workletReady = ready; });
     }
     if (this.ctx.state === "suspended") {
       this.ctx.resume();
@@ -457,14 +459,12 @@ export class AudioEngine {
     mid.gain.setTargetAtTime(settings.eqEnabled ? settings.midGain : 0, this.ctx.currentTime, 0.02);
     high.frequency.value = 8000;
     high.gain.setTargetAtTime(settings.eqEnabled ? settings.highGain : 0, this.ctx.currentTime, 0.02);
-    if (settings.compEnabled || settings.gateEnabled) {
-      compressor.threshold.setTargetAtTime(settings.gateEnabled ? settings.gateThreshold : -40 * settings.compAmount, this.ctx.currentTime, 0.02);
-      compressor.ratio.setTargetAtTime(settings.compEnabled ? 1 + settings.compAmount * 8 : 20, this.ctx.currentTime, 0.02);
-      compressor.attack.value = settings.compAttack;
-      compressor.release.value = settings.compRelease;
-    } else {
-      compressor.ratio.setTargetAtTime(1, this.ctx.currentTime, 0.02);
-    }
+    const masterComp = compressorParams(settings);
+    compressor.threshold.setTargetAtTime(masterComp.threshold, this.ctx.currentTime, 0.02);
+    compressor.ratio.setTargetAtTime(masterComp.ratio, this.ctx.currentTime, 0.02);
+    compressor.knee.setTargetAtTime(masterComp.knee, this.ctx.currentTime, 0.02);
+    compressor.attack.value = masterComp.attack;
+    compressor.release.value = masterComp.release;
   }
 
   private updateTrackMix(track: TrackData, nodes: TrackMixNodes, hasSolo: boolean): void {
@@ -485,23 +485,7 @@ export class AudioEngine {
     nodes.filters[2].frequency.setTargetAtTime(settings?.midFreq ?? 1200, time, 0.02);
     nodes.filters[2].gain.setTargetAtTime(settings?.eqEnabled ? settings.midGain : 0, time, 0.02);
     nodes.filters[3].gain.setTargetAtTime(settings?.eqEnabled ? settings.highGain : 0, time, 0.02);
-    nodes.deEsser.gain.setTargetAtTime(
-      settings?.deEsserEnabled ? -12 * (settings.deEsserAmount ?? 0) : 0,
-      time,
-      0.02
-    );
-    if (settings?.compEnabled || settings?.gateEnabled) {
-      nodes.compressor.threshold.setTargetAtTime(
-        settings.gateEnabled ? settings.gateThreshold : -40 * settings.compAmount,
-        time,
-        0.02
-      );
-      nodes.compressor.ratio.setTargetAtTime(settings.compEnabled ? 1 + settings.compAmount * 8 : 20, time, 0.02);
-      nodes.compressor.attack.value = settings.compAttack;
-      nodes.compressor.release.value = settings.compRelease;
-    } else {
-      nodes.compressor.ratio.setTargetAtTime(1, time, 0.02);
-    }
+    nodes.dynamics.apply(settings, true);
     const drive = track.ampEnabled && amp?.driveEnabled !== false ? (amp?.drive ?? 0) : 0;
     if (drive !== nodes.currentDrive) {
       const curve = new Float32Array(44100);
@@ -673,11 +657,8 @@ export class AudioEngine {
       filters[2].Q.value = 0.8;
       filters[3].type = "highshelf";
       filters[3].frequency.value = 8000;
-      const compressor = ctx.createDynamicsCompressor();
+      const dynamics = new TrackDynamics(ctx, this.workletReady);
       const ampDrive = ctx.createWaveShaper();
-      const deEsser = ctx.createBiquadFilter();
-      deEsser.type = "highshelf";
-      deEsser.frequency.value = 6500;
       ampDrive.oversample = "4x";
       const ampFilters = [
         ctx.createBiquadFilter(),
@@ -697,9 +678,8 @@ export class AudioEngine {
       filters[0].connect(filters[1]);
       filters[1].connect(filters[2]);
       filters[2].connect(filters[3]);
-      filters[3].connect(deEsser);
-      deEsser.connect(compressor);
-      compressor.connect(ampDrive);
+      filters[3].connect(dynamics.input);
+      dynamics.output.connect(ampDrive);
       ampDrive.connect(ampFilters[0]);
       ampFilters[0].connect(ampFilters[1]);
       ampFilters[1].connect(ampFilters[2]);
@@ -753,9 +733,8 @@ export class AudioEngine {
         routingNode,
         routedBusId: bus ? track.busId : undefined,
         filters,
-        compressor,
+        dynamics,
         ampDrive,
-        deEsser,
         ampFilters,
         chorusDelay,
         chorusWet,
@@ -789,7 +768,7 @@ export class AudioEngine {
           this.scheduleAutomation(reverbWet.gain, scaledPoints, Math.min(0.45, reverbSend * 0.25), startOffsetSec, scheduledTime, effectiveEndOffset);
         }
       }
-      this.activeNodes.push(input, trackGain, ampMaster, trackPan, routingNode, ...filters, compressor, ampDrive, deEsser, ...ampFilters, chorusDelay, chorusWet, chorusDepth);
+      this.activeNodes.push(input, trackGain, ampMaster, trackPan, routingNode, ...filters, ...dynamics.nodes, ampDrive, ...ampFilters, chorusDelay, chorusWet, chorusDepth);
       this.activeSources.push(chorusLfo);
 
       track.regions.forEach((region) => {
@@ -967,6 +946,7 @@ export class AudioEngine {
     }
     const length = Math.ceil(sampleRate * totalDurationSec);
     const offlineCtx = new OfflineAudioContext(2, length, sampleRate);
+    const useWorklet = await loadDynamicsWorklet(offlineCtx);
     const piano = PianoEngine.getInstance();
     if (tracks.some((track) => track.pianoPreset && piano.isSampledPreset(track.pianoPreset))) await piano.preload(offlineCtx);
     const offlineMaster = offlineCtx.createGain();
@@ -989,14 +969,12 @@ export class AudioEngine {
     high.gain.value = masterSettings?.eqEnabled ? masterSettings.highGain : 0;
     const compressor = offlineCtx.createDynamicsCompressor();
     if (masterSettings) {
-      if (masterSettings.compEnabled || masterSettings.gateEnabled) {
-        compressor.threshold.value = masterSettings.gateEnabled
-          ? masterSettings.gateThreshold
-          : -40 * masterSettings.compAmount;
-        compressor.ratio.value = masterSettings.compEnabled ? 1 + masterSettings.compAmount * 8 : 20;
-        compressor.attack.value = masterSettings.compAttack;
-        compressor.release.value = masterSettings.compRelease;
-      } else compressor.ratio.value = 1;
+      const masterComp = compressorParams(masterSettings);
+      compressor.threshold.value = masterComp.threshold;
+      compressor.ratio.value = masterComp.ratio;
+      compressor.knee.value = masterComp.knee;
+      compressor.attack.value = masterComp.attack;
+      compressor.release.value = masterComp.release;
     }
     const limiter = offlineCtx.createDynamicsCompressor();
     limiter.threshold.value = -1;
@@ -1079,24 +1057,13 @@ export class AudioEngine {
         high.type = "highshelf";
         high.frequency.value = 8000;
         high.gain.value = track.settings.eqEnabled ? track.settings.highGain : 0;
-        const deEsser = offlineCtx.createBiquadFilter();
-        deEsser.type = "highshelf";
-        deEsser.frequency.value = 6500;
-        deEsser.gain.value = track.settings.deEsserEnabled ? -12 * (track.settings.deEsserAmount ?? 0) : 0;
-        const comp = offlineCtx.createDynamicsCompressor();
-        if (track.settings.compEnabled || track.settings.gateEnabled) {
-          comp.threshold.value = -40 * track.settings.compAmount;
-          comp.ratio.value = track.settings.compEnabled ? 1 + track.settings.compAmount * 8 : 20;
-          comp.attack.value = track.settings.compAttack;
-          comp.release.value = track.settings.compRelease;
-        } else comp.ratio.value = 1;
-        if (track.settings.gateEnabled) comp.threshold.value = track.settings.gateThreshold;
+        const dyn = new TrackDynamics(offlineCtx, useWorklet);
+        dyn.apply(track.settings, false);
         input.connect(lowCut);
         lowCut.connect(low);
         low.connect(mid);
         mid.connect(high);
-        high.connect(deEsser);
-        deEsser.connect(comp);
+        high.connect(dyn.input);
         if (track.ampEnabled && track.ampSettings) {
           const drive = offlineCtx.createWaveShaper();
           const curve = new Float32Array(44100);
@@ -1124,7 +1091,7 @@ export class AudioEngine {
           const cab = offlineCtx.createBiquadFilter();
           cab.type = "lowpass";
           cab.frequency.value = track.ampSettings.cabSim ? 4500 : 20000;
-          comp.connect(drive);
+          dyn.output.connect(drive);
           drive.connect(bass);
           bass.connect(midTone);
           midTone.connect(treble);
@@ -1147,7 +1114,7 @@ export class AudioEngine {
             chorusLfo.start(0);
             chorusLfo.stop(totalDurationSec);
           }
-        } else comp.connect(tGain);
+        } else dyn.output.connect(tGain);
       } else {
         input.connect(tGain);
       }

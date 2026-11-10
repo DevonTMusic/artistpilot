@@ -336,6 +336,26 @@ export function TrackControlsPanel({
                 color="text-[#B6EEFF]"
                 indicatorColor="bg-cyan-400"
               />
+              <RotaryKnob
+                label={t("track.attack")}
+                value={Math.round(currentSettings.compAttack * 1000)}
+                min={1}
+                max={200}
+                step={1}
+                onChange={(val) => updateProp("compAttack", val / 1000)}
+                color="text-[#B6EEFF]"
+                indicatorColor="bg-cyan-400"
+              />
+              <RotaryKnob
+                label={t("track.release")}
+                value={Math.round(currentSettings.compRelease * 1000)}
+                min={10}
+                max={1000}
+                step={10}
+                onChange={(val) => updateProp("compRelease", val / 1000)}
+                color="text-[#B6EEFF]"
+                indicatorColor="bg-cyan-400"
+              />
 
               {/* Dynamic Gain Reduction LED Meter */}
               <div className="flex flex-col gap-1 p-1 bg-black/60 rounded border border-sky-900/40">
