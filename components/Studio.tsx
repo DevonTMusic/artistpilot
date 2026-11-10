@@ -729,7 +729,9 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeEl = document.activeElement;
-      if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "SELECT")) return;
+      if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "SELECT" || (activeEl as HTMLElement).isContentEditable || activeEl.getAttribute("role") === "slider")) return;
+      if ((e.code === "Space" || e.key === "Enter") && activeEl?.tagName === "BUTTON") (activeEl as HTMLElement).blur();
+      if (e.altKey) return;
       if (windowState.piano.open || pianoRollOpen || drumEditorOpen) return;
 
       if ((e.metaKey || e.ctrlKey) && (e.key === "z" || e.key === "Z")) {
@@ -743,6 +745,18 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
         e.preventDefault();
         if (isPlaying) handleStop();
         else handlePlay();
+        return;
+      }
+      if (e.key === "Home") {
+        e.preventDefault();
+        if (isPlaying) handleStop();
+        setPlayheadSec(0);
+        playheadAnchor.current = 0;
+        return;
+      }
+      if ((e.key === "m" || e.key === "M") && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setMetronomeActive((prev) => !prev);
         return;
       }
       if (e.key === "Enter") {

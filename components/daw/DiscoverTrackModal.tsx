@@ -27,7 +27,7 @@ export function DiscoverTrackModal({
         {/* Title Bar */}
         <div className="flex h-12 items-center justify-between border-b border-[#3B3155]/80 px-6">
           <h2 className="text-sm font-bold text-white tracking-wide">{t("discover.title")}</h2>
-          <button
+          <button aria-label="Close"
             onClick={onClose}
             className="h-7 w-7 rounded-full hover:bg-[#322849] text-zinc-400 hover:text-white flex items-center justify-center font-bold text-sm"
           >

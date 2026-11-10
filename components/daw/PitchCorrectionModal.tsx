@@ -69,7 +69,7 @@ export function PitchCorrectionModal({
           <span className="text-xs font-bold text-white">
             {t("pitch.title")} <span className="font-semibold text-[#75DEFF]">({clipName})</span>
           </span>
-          <button onClick={onClose} disabled={busy} className="text-xs font-bold text-zinc-400 hover:text-white disabled:opacity-40">✕</button>
+          <button aria-label="Close" onClick={onClose} disabled={busy} className="text-xs font-bold text-zinc-400 hover:text-white disabled:opacity-40">✕</button>
         </div>
         <div className="space-y-4 p-4 text-[11px] text-zinc-300">
           <p className="text-zinc-400">{t("pitch.hint")}</p>

@@ -119,7 +119,7 @@ export function ChannelEqModal({ isOpen, onClose, trackName, settings, onSetting
           />
           {t("eq.enabled")}
         </label>
-        <button onClick={onClose} className="text-xs text-zinc-400 hover:text-white font-bold">✕</button>
+        <button aria-label="Close" onClick={onClose} className="text-xs text-zinc-400 hover:text-white font-bold">✕</button>
       </div>
 
       {/* Visual EQ Screen */}

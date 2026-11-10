@@ -43,6 +43,25 @@ function RotaryKnob({
   const isDragging = useRef(false);
   const startY = useRef(0);
   const startVal = useRef(value);
+  const defaultVal = useRef(value);
+
+  const commit = (next: number) => {
+    const clamped = Math.max(min, Math.min(max, next));
+    onChange(Number((Math.round(clamped / step) * step).toFixed(2)));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    const big = Math.max(step, (max - min) / 10);
+    const delta = e.shiftKey ? step : big;
+    if (e.key === "ArrowUp" || e.key === "ArrowRight") commit(value + delta);
+    else if (e.key === "ArrowDown" || e.key === "ArrowLeft") commit(value - delta);
+    else if (e.key === "Home") commit(min);
+    else if (e.key === "End") commit(max);
+    else if (e.key === "Backspace" || e.key === "Delete") commit(defaultVal.current);
+    else return;
+    e.preventDefault();
+    e.stopPropagation();
+  };
 
   const angle = ((value - min) / (max - min)) * 270 - 135;
 
@@ -57,7 +76,7 @@ function RotaryKnob({
     if (!isDragging.current) return;
     const deltaY = startY.current - e.clientY;
     const range = max - min;
-    const stepVal = (deltaY / 120) * range;
+    const stepVal = (deltaY / (e.shiftKey ? 600 : 120)) * range;
     const newVal = Math.max(min, Math.min(max, startVal.current + stepVal));
     onChange(Number((Math.round(newVal / step) * step).toFixed(2)));
   };
@@ -75,7 +94,16 @@ function RotaryKnob({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className="h-12 w-12 rounded-full border-2 border-[#51456F] bg-[#241D3A] shadow-lg flex items-center justify-center relative cursor-ns-resize active:scale-95 transition-transform"
+        onDoubleClick={() => commit(defaultVal.current)}
+        onKeyDown={handleKeyDown}
+        role="slider"
+        tabIndex={0}
+        aria-label={label}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-valuenow={value}
+        title={`${label}: drag, arrow keys, or double-click to reset (Shift = fine)`}
+        className="h-12 w-12 rounded-full border-2 border-[#51456F] focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 bg-[#241D3A] shadow-lg flex items-center justify-center relative cursor-ns-resize active:scale-95 transition-transform"
       >
         <div
           style={{ transform: `rotate(${angle}deg)` }}
@@ -197,7 +225,7 @@ export function TrackControlsPanel({
           <span className="text-[11px] font-medium text-zinc-400">
             {isMasterMode ? t("track.masterBus") : trackName}
           </span>
-          <button onClick={onClosePanel} className="text-zinc-400 hover:text-white text-xs font-bold">
+          <button aria-label="Close" onClick={onClosePanel} className="text-zinc-400 hover:text-white text-xs font-bold">
             ✕
           </button>
         </div>
