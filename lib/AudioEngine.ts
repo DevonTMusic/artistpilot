@@ -889,8 +889,18 @@ export class AudioEngine {
     gain.connect(destination);
     osc.start(when);
     osc.stop(when + remaining + release + 0.02);
-    this.activeNodes.push(filter, gain);
-    this.activeSources.push(osc);
+    this.trackOneShot(osc, [filter, gain]);
+  }
+
+  private trackOneShot(source: AudioScheduledSourceNode, nodes: AudioNode[]): void {
+    this.activeSources.push(source);
+    this.activeNodes.push(...nodes);
+    source.onended = () => {
+      this.activeSources = this.activeSources.filter((item) => item !== source);
+      this.activeNodes = this.activeNodes.filter((node) => !nodes.includes(node));
+      try { source.disconnect(); } catch {}
+      nodes.forEach((node) => { try { node.disconnect(); } catch {} });
+    };
   }
 
   private scheduleDrum(destination: AudioNode, kind: "kick" | "snare" | "hat" | "openHat" | "clap" | "percussion", when: number): void {
@@ -919,16 +929,14 @@ export class AudioEngine {
       gain.connect(destination);
       noise.start(when);
       noise.stop(when + 0.2);
-      this.activeSources.push(noise);
-      this.activeNodes.push(filter, gain);
+      this.trackOneShot(noise, [filter, gain]);
       return;
     }
     osc.connect(gain);
     gain.connect(destination);
     osc.start(when);
     osc.stop(when + 0.3);
-    this.activeSources.push(osc);
-    this.activeNodes.push(gain);
+    this.trackOneShot(osc, [gain]);
   }
 
   public async exportMasterWav(

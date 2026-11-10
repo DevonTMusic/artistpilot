@@ -376,7 +376,10 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
     const midiNotesByTrack: Record<number, NonNullable<TrackData["midiNotes"]>> = {};
     const drumPatternsByTrack: Record<number, DrumPatternData> = {};
     projectTracks.forEach((track) => {
-      if (track.category === "audio" && track.regions[0]) regionIdsByTrack[track.id] = [track.regions[0].id];
+      if (track.category === "audio") {
+        const ids = track.regions.filter((region) => !region.muted).map((region) => region.id);
+        if (ids.length) regionIdsByTrack[track.id] = ids;
+      }
       if (track.category === "midi" && track.midiNotes?.length) midiNotesByTrack[track.id] = track.midiNotes;
       if (track.category === "drum" && track.drumPattern) drumPatternsByTrack[track.id] = track.drumPattern;
     });
@@ -823,7 +826,8 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaying, windowState.piano.open, pianoRollOpen, drumEditorOpen, selectedTrackId, playheadSec, copiedClip, copiedMidi, tracks]);
+    // Re-bound every render so shortcuts never see stale tempo, selection or transport state.
+  });
 
   // Live Oscilloscope Waveform while Recording
   const startLiveWaveform = (analyser: AnalyserNode) => {
@@ -959,16 +963,18 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
 
       armedAudioTracks.forEach((track) => {
         if (!recordingStream) return;
-        recChunks.current[track.id] = [];
+        const chunks: Blob[] = [];
+        const takeStart = recStartTime.current;
+        recChunks.current[track.id] = chunks;
         if (typeof MediaRecorder === "undefined") throw new Error("Audio recording is not supported by this browser.");
         const mr = new MediaRecorder(recordingStream);
 
         mr.ondataavailable = (e) => {
-          if (e.data.size > 0) recChunks.current[track.id].push(e.data);
+          if (e.data.size > 0) chunks.push(e.data);
         };
 
         mr.onstop = async () => {
-          const blob = new Blob(recChunks.current[track.id], { type: mr.mimeType || "audio/webm" });
+          const blob = new Blob(chunks, { type: mr.mimeType || "audio/webm" });
           try {
             if (blob.size === 0) throw new Error("The recording was empty.");
             const buffer = await ctx.decodeAudioData(await blob.arrayBuffer());
@@ -977,7 +983,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
               id: `rec-${track.id}-${Date.now()}`,
               name: `Recording`,
               buffer,
-              startTime: recStartTime.current,
+              startTime: takeStart,
               duration: buffer.duration,
               offset: 0,
               gain: 1.0,
@@ -1024,7 +1030,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
     setTracks((prev) => prev.map((track) => {
       if (track.id !== trackId) return track;
       const region = track.regions.find((item) => item.id === regionId);
-      if (!region) return track;
+      if (!region || region.duration <= 0.1) return track;
       const split = Math.max(region.startTime + 0.05, Math.min(region.startTime + region.duration - 0.05, splitTime));
       const firstDuration = split - region.startTime;
       const second: AudioRegion = {
@@ -1284,6 +1290,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
     history.redo.push(tracks);
     history.applying = true;
     setTracks(previous);
+    setTrackNotes(Object.fromEntries(previous.map((track) => [track.id, track.midiNotes ?? []])));
   };
 
   const redoTrackChanges = () => {
@@ -1293,6 +1300,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
     history.undo.push(tracks);
     history.applying = true;
     setTracks(next);
+    setTrackNotes(Object.fromEntries(next.map((track) => [track.id, track.midiNotes ?? []])));
   };
 
   const applyAutoMix = () => {
@@ -1821,7 +1829,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       return { ...prev, [trackId]: edit(base) };
     });
     setTracks((prev) => prev.map((track) => track.id === trackId
-      ? { ...track, midiNotes: edit(trackNotesRef.current[trackId] ?? track.midiNotes ?? []) }
+      ? { ...track, midiNotes: edit(track.midiNotes ?? trackNotesRef.current[trackId] ?? []) }
       : track));
   };
 

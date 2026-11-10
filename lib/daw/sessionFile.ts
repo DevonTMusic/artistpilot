@@ -530,7 +530,7 @@ export async function openSessionFile(file: File, ctx: AudioContext): Promise<{ 
             startTime,
             duration,
             offset,
-            gain: typeof rawRegion.gain === "number" ? rawRegion.gain : 1,
+            gain: typeof rawRegion.gain === "number" && Number.isFinite(rawRegion.gain) ? Math.min(2, Math.max(0, rawRegion.gain)) : 1,
             muted: typeof rawRegion.muted === "boolean" ? rawRegion.muted : false,
           };
         })
