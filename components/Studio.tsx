@@ -21,6 +21,10 @@ import { PianoRoll, MidiNote } from "@/components/daw/PianoRoll";
 import { GuitarAmpModal } from "@/components/daw/GuitarAmpModal";
 import { AiCoachModal } from "@/components/daw/AiCoachModal";
 import { ChannelEqModal } from "@/components/daw/ChannelEqModal";
+import { PitchCorrectionModal } from "@/components/daw/PitchCorrectionModal";
+import { TimeStretchModal } from "@/components/daw/TimeStretchModal";
+import { timeStretch } from "@/lib/daw/timeStretch";
+import { correctPitch, type PitchCorrectionOptions } from "@/lib/daw/pitchCorrect";
 import { AudioDeviceManager, DeviceInfo } from "@/lib/daw/AudioDeviceManager";
 import { AudioSettingsModal } from "@/components/daw/AudioSettingsModal";
 import { TrackControlsPanel } from "@/components/daw/TrackControlsPanel";
@@ -108,6 +112,9 @@ const DEFAULT_AMP_SETTINGS: GuitarAmpSettings = {
 };
 
 const FREE_TRACK_LIMIT = 3;
+
+// Audio is scheduled 50 ms ahead of the clock; the playhead waits the same amount.
+const AUDIO_START_LATENCY_MS = 50;
 
 export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?: number; isPro?: boolean }) {
   const { t, locale } = useLanguage();
@@ -374,7 +381,10 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
     const midiNotesByTrack: Record<number, NonNullable<TrackData["midiNotes"]>> = {};
     const drumPatternsByTrack: Record<number, DrumPatternData> = {};
     projectTracks.forEach((track) => {
-      if (track.category === "audio" && track.regions[0]) regionIdsByTrack[track.id] = [track.regions[0].id];
+      if (track.category === "audio") {
+        const ids = track.regions.filter((region) => !region.muted).map((region) => region.id);
+        if (ids.length) regionIdsByTrack[track.id] = ids;
+      }
       if (track.category === "midi" && track.midiNotes?.length) midiNotesByTrack[track.id] = track.midiNotes;
       if (track.category === "drum" && track.drumPattern) drumPatternsByTrack[track.id] = track.drumPattern;
     });
@@ -391,7 +401,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
   const launchScene = (scene: StudioScene) => {
     const remainder = playheadSec % secondsPerBar;
     const delay = isPlaying && remainder > 0.02 ? secondsPerBar - remainder : 0;
-    engine.current.launchScene(getProjectTracks(), scene, bpm, timeSignature, delay, buses);
+    engine.current.launchScene(getProjectTracks(), scene, bpm, timeSignature, delay, buses, masterVolume, masterSettings);
     setActiveSceneId(scene.id);
     setStatusMsg(t(delay > 0 ? "studio.statusSceneQueued" : "studio.statusSceneLaunched", { name: scene.name }));
   };
@@ -473,6 +483,32 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
     engine.current.updateMix(playbackState.current.tracks, masterVolume, masterSettings, buses);
   }, [tracks, trackNotes, bpm, timeSignature, masterVolume, isLooping, loopStartSec, loopEndSec, metronomeActive, isRecording, isPlaying, projectDuration, masterSettings, buses, masterAutomation]);
 
+  // Buses and mute/solo on automated tracks need a fresh schedule to take effect mid-playback.
+  const graphSignature = [
+    buses.map((bus) => bus.id).join(","),
+    tracks.map((track) => `${track.busId ?? ""}:${track.automation && (track.automation.volume?.length || track.automation.pan?.length || track.automation.reverbSend?.length) ? `${track.mute ? 1 : 0}${track.solo ? 1 : 0}` : ""}`).join("|"),
+  ].join("#");
+  const lastGraphSignature = useRef(graphSignature);
+  useEffect(() => {
+    if (lastGraphSignature.current === graphSignature) return;
+    lastGraphSignature.current = graphSignature;
+    const state = playbackState.current;
+    if (!state.isPlaying || state.isRecording) return;
+    const currentSec = playheadAnchor.current + Math.max(0, performance.now() - playStartTime.current) / 1000;
+    playStartTime.current = performance.now() + AUDIO_START_LATENCY_MS;
+    playheadAnchor.current = currentSec;
+    engine.current.schedulePlayback(
+      state.tracks,
+      currentSec,
+      state.bpm,
+      state.masterVolume,
+      state.masterSettings,
+      state.isLooping ? state.loopEndSec : state.projectDuration,
+      state.buses,
+      state.masterAutomation
+    );
+  }, [graphSignature]);
+
   // Scrubbing & Loop Range Listeners
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
@@ -484,7 +520,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       if (isScrubbing) {
         setPlayheadSec(currentMouseSec);
         playheadAnchor.current = currentMouseSec;
-        playStartTime.current = performance.now();
+        playStartTime.current = performance.now() + AUDIO_START_LATENCY_MS;
         scrubPosition.current = currentMouseSec;
       } else if (draggingLoopEdge === "start") {
         setLoopStartSec(Math.min(currentMouseSec, loopEndSec - 0.5));
@@ -497,7 +533,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       if (isScrubbing && playbackState.current.isPlaying) {
         const state = playbackState.current;
         playheadAnchor.current = scrubPosition.current;
-        playStartTime.current = performance.now();
+        playStartTime.current = performance.now() + AUDIO_START_LATENCY_MS;
         engine.current.schedulePlayback(
           state.tracks,
           scrubPosition.current,
@@ -525,17 +561,18 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
 
   // Master Clock & Loop Watcher
   const updatePlaybackPosition = () => {
-    const elapsed = (performance.now() - playStartTime.current) / 1000;
+    const elapsed = Math.max(0, performance.now() - playStartTime.current) / 1000;
     let currentSec = playheadAnchor.current + elapsed;
 
     const state = playbackState.current;
     if (state.isLooping && currentSec >= state.loopEndSec) {
-      currentSec = state.loopStartSec;
-      playStartTime.current = performance.now();
-      playheadAnchor.current = state.loopStartSec;
+      const loopLength = Math.max(0.1, state.loopEndSec - state.loopStartSec);
+      currentSec = state.loopStartSec + ((currentSec - state.loopEndSec) % loopLength);
+      playStartTime.current = performance.now() + AUDIO_START_LATENCY_MS;
+      playheadAnchor.current = currentSec;
       engine.current.schedulePlayback(
         state.tracks,
-        state.loopStartSec,
+        currentSec,
         state.bpm,
         state.masterVolume,
         state.masterSettings,
@@ -576,7 +613,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       setIsPlaying(false);
     } else {
       const pos = startAt !== undefined ? startAt : (isLooping && playheadSec >= loopEndSec ? loopStartSec : playheadSec);
-      playStartTime.current = performance.now();
+      playStartTime.current = performance.now() + AUDIO_START_LATENCY_MS;
       playheadAnchor.current = pos;
       lastMetronomeBeat.current = -1;
       engine.current.schedulePlayback(
@@ -694,7 +731,9 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeEl = document.activeElement;
-      if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "SELECT")) return;
+      if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "SELECT" || (activeEl as HTMLElement).isContentEditable || activeEl.getAttribute("role") === "slider")) return;
+      if ((e.code === "Space" || e.key === "Enter") && activeEl?.tagName === "BUTTON") (activeEl as HTMLElement).blur();
+      if (e.altKey) return;
       if (windowState.piano.open || pianoRollOpen || drumEditorOpen) return;
 
       if ((e.metaKey || e.ctrlKey) && (e.key === "z" || e.key === "Z")) {
@@ -708,6 +747,18 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
         e.preventDefault();
         if (isPlaying) handleStop();
         else handlePlay();
+        return;
+      }
+      if (e.key === "Home") {
+        e.preventDefault();
+        if (isPlaying) handleStop();
+        setPlayheadSec(0);
+        playheadAnchor.current = 0;
+        return;
+      }
+      if ((e.key === "m" || e.key === "M") && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setMetronomeActive((prev) => !prev);
         return;
       }
       if (e.key === "Enter") {
@@ -821,7 +872,8 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaying, windowState.piano.open, pianoRollOpen, drumEditorOpen, selectedTrackId, playheadSec, copiedClip, copiedMidi, tracks]);
+    // Re-bound every render so shortcuts never see stale tempo, selection or transport state.
+  });
 
   // Live Oscilloscope Waveform while Recording
   const startLiveWaveform = (analyser: AnalyserNode) => {
@@ -883,7 +935,11 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       return;
     }
 
-    const armedAudioTracks = tracks.filter((t) => t.armed && t.category === "audio");
+    const allArmedAudioTracks = tracks.filter((t) => t.armed && t.category === "audio");
+    // One input stream can only feed one track, so multi-armed sessions record to the selected track.
+    const armedAudioTracks = allArmedAudioTracks.length > 1
+      ? [allArmedAudioTracks.find((track) => track.id === selectedTrackId) ?? allArmedAudioTracks[0]]
+      : allArmedAudioTracks;
     const selectedMidiTrack = selectedTrack?.category === "midi" ? selectedTrack : null;
     if (armedAudioTracks.length === 0 && !selectedMidiTrack) {
       setStatusMsg(t("studio.statusArmAudio"));
@@ -957,16 +1013,18 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
 
       armedAudioTracks.forEach((track) => {
         if (!recordingStream) return;
-        recChunks.current[track.id] = [];
+        const chunks: Blob[] = [];
+        const takeStart = recStartTime.current;
+        recChunks.current[track.id] = chunks;
         if (typeof MediaRecorder === "undefined") throw new Error("Audio recording is not supported by this browser.");
         const mr = new MediaRecorder(recordingStream);
 
         mr.ondataavailable = (e) => {
-          if (e.data.size > 0) recChunks.current[track.id].push(e.data);
+          if (e.data.size > 0) chunks.push(e.data);
         };
 
         mr.onstop = async () => {
-          const blob = new Blob(recChunks.current[track.id], { type: mr.mimeType || "audio/webm" });
+          const blob = new Blob(chunks, { type: mr.mimeType || "audio/webm" });
           try {
             if (blob.size === 0) throw new Error("The recording was empty.");
             const buffer = await ctx.decodeAudioData(await blob.arrayBuffer());
@@ -975,7 +1033,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
               id: `rec-${track.id}-${Date.now()}`,
               name: `Recording`,
               buffer,
-              startTime: recStartTime.current,
+              startTime: takeStart,
               duration: buffer.duration,
               offset: 0,
               gain: 1.0,
@@ -996,7 +1054,9 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
 
       setIsRecording(true);
       if (!isPlaying) handlePlay();
-      setStatusMsg(t(armedAudioTracks.length > 0 ? "studio.statusRecordingLive" : "studio.statusMidiRecording"));
+      setStatusMsg(allArmedAudioTracks.length > 1
+        ? t("studio.statusRecordingOneTrack", { track: armedAudioTracks[0].name })
+        : t(armedAudioTracks.length > 0 ? "studio.statusRecordingLive" : "studio.statusMidiRecording"));
     } catch (error) {
       activeMediaRecorders.current.forEach((recorder) => {
         if (recorder.state !== "inactive") {
@@ -1022,7 +1082,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
     setTracks((prev) => prev.map((track) => {
       if (track.id !== trackId) return track;
       const region = track.regions.find((item) => item.id === regionId);
-      if (!region) return track;
+      if (!region || region.duration <= 0.1) return track;
       const split = Math.max(region.startTime + 0.05, Math.min(region.startTime + region.duration - 0.05, splitTime));
       const firstDuration = split - region.startTime;
       const second: AudioRegion = {
@@ -1068,6 +1128,98 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       ? { ...item, regions: [...item.regions, ...repeated] }
       : item));
     setStatusMsg(t(repeated.length === 1 ? "studio.statusRepeatedOne" : "studio.statusRepeated", { name: region.name, count: repeated.length }));
+  };
+
+  const [pitchTarget, setPitchTarget] = useState<{ trackId: number; regionId: string } | null>(null);
+  const [pitchBusy, setPitchBusy] = useState(false);
+
+  const pitchCorrectClip = (options: PitchCorrectionOptions) => {
+    if (!pitchTarget) return;
+    const { trackId, regionId } = pitchTarget;
+    const region = tracks.find((item) => item.id === trackId)?.regions.find((item) => item.id === regionId);
+    if (!region) {
+      setPitchTarget(null);
+      return;
+    }
+    setPitchBusy(true);
+    setStatusMsg(t("pitch.processing"));
+    // Yield so the busy state paints before the CPU-heavy analysis starts.
+    window.setTimeout(() => {
+      try {
+        const context = engine.current.init();
+        const sampleRate = region.buffer.sampleRate;
+        const sourceStart = Math.max(0, Math.floor(region.offset * sampleRate));
+        const frameCount = Math.min(
+          Math.floor(region.duration * sampleRate),
+          region.buffer.length - sourceStart
+        );
+        if (frameCount < 4096) throw new Error(t("pitch.tooShort"));
+        const slice = context.createBuffer(region.buffer.numberOfChannels, frameCount, sampleRate);
+        for (let channel = 0; channel < slice.numberOfChannels; channel++) {
+          slice.copyToChannel(region.buffer.getChannelData(channel).subarray(sourceStart, sourceStart + frameCount), channel);
+        }
+        const tuned = correctPitch(slice, context, options);
+        sourceBlobs.delete(tuned);
+        setTracks((current) => current.map((item) => item.id === trackId
+          ? {
+            ...item,
+            regions: item.regions.map((clip) => clip.id === regionId
+              ? { ...clip, buffer: tuned, offset: 0, duration: tuned.duration, name: `${clip.name.replace(/ \(Tuned\)$/, "")} (Tuned)` }
+              : clip),
+          }
+          : item));
+        setStatusMsg(t("pitch.done"));
+        setPitchTarget(null);
+      } catch (error) {
+        setStatusMsg(error instanceof Error ? error.message : t("pitch.failed"));
+      } finally {
+        setPitchBusy(false);
+      }
+    }, 30);
+  };
+
+  const [stretchTarget, setStretchTarget] = useState<{ trackId: number; regionId: string } | null>(null);
+  const [stretchBusy, setStretchBusy] = useState(false);
+
+  const stretchClip = (factor: number) => {
+    if (!stretchTarget) return;
+    const { trackId, regionId } = stretchTarget;
+    const region = tracks.find((item) => item.id === trackId)?.regions.find((item) => item.id === regionId);
+    if (!region) {
+      setStretchTarget(null);
+      return;
+    }
+    setStretchBusy(true);
+    setStatusMsg(t("stretch.processing"));
+    window.setTimeout(() => {
+      try {
+        const context = engine.current.init();
+        const sampleRate = region.buffer.sampleRate;
+        const sourceStart = Math.max(0, Math.floor(region.offset * sampleRate));
+        const frameCount = Math.min(Math.floor(region.duration * sampleRate), region.buffer.length - sourceStart);
+        if (frameCount < 4096) throw new Error(t("stretch.tooShort"));
+        const slice = context.createBuffer(region.buffer.numberOfChannels, frameCount, sampleRate);
+        for (let channel = 0; channel < slice.numberOfChannels; channel++) {
+          slice.copyToChannel(region.buffer.getChannelData(channel).subarray(sourceStart, sourceStart + frameCount), channel);
+        }
+        const stretched = timeStretch(slice, context, factor);
+        sourceBlobs.delete(stretched);
+        setTracks((current) => current.map((item) => item.id === trackId
+          ? {
+            ...item,
+            regions: item.regions.map((clip) => clip.id === regionId
+              ? { ...clip, buffer: stretched, offset: 0, duration: stretched.duration, name: `${clip.name.replace(/ \(Stretched\)$/, "")} (Stretched)` }
+              : clip),
+          }
+          : item));
+        setStatusMsg(t("stretch.done"));
+        setStretchTarget(null);
+      } catch (error) {
+        setStatusMsg(error instanceof Error ? error.message : t("stretch.failed"));
+      } finally {
+        setStretchBusy(false);
+      }
+    }, 30);
   };
 
   const reverseClip = (trackId: number, regionId: string) => {
@@ -1234,6 +1386,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
     history.redo.push(tracks);
     history.applying = true;
     setTracks(previous);
+    setTrackNotes(Object.fromEntries(previous.map((track) => [track.id, track.midiNotes ?? []])));
   };
 
   const redoTrackChanges = () => {
@@ -1243,6 +1396,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
     history.undo.push(tracks);
     history.applying = true;
     setTracks(next);
+    setTrackNotes(Object.fromEntries(next.map((track) => [track.id, track.midiNotes ?? []])));
   };
 
   const applyAutoMix = () => {
@@ -1771,7 +1925,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       return { ...prev, [trackId]: edit(base) };
     });
     setTracks((prev) => prev.map((track) => track.id === trackId
-      ? { ...track, midiNotes: edit(trackNotesRef.current[trackId] ?? track.midiNotes ?? []) }
+      ? { ...track, midiNotes: edit(track.midiNotes ?? trackNotesRef.current[trackId] ?? []) }
       : track));
   };
 
@@ -2807,6 +2961,8 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                     onCopy={(reg) => setCopiedClip(reg)}
                     onLoop={() => repeatClipToLoopEnd(track.id, region.id)}
                     onReverse={() => reverseClip(track.id, region.id)}
+                    onPitchCorrect={() => setPitchTarget({ trackId: track.id, regionId: region.id })}
+                    onTimeStretch={() => setStretchTarget({ trackId: track.id, regionId: region.id })}
                     onUpdate={(updated) => updateClip(track.id, region.id, updated)}
                     onSplit={(at) => splitClip(track.id, region.id, at)}
                     onDelete={() => setTracks((prev) => prev.map((item) => item.id === track.id
@@ -3297,6 +3453,25 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
         onToggleMonitoring={(enabled) => {
           void setInputMonitoring(enabled);
         }}
+      />
+
+      <PitchCorrectionModal
+        isOpen={pitchTarget !== null}
+        clipName={tracks.find((item) => item.id === pitchTarget?.trackId)?.regions.find((item) => item.id === pitchTarget?.regionId)?.name ?? ""}
+        defaultKeyIndex={Math.max(0, KEYS.indexOf(projectKey))}
+        defaultScale={projectScale === "min" ? "minor" : "major"}
+        busy={pitchBusy}
+        onClose={() => setPitchTarget(null)}
+        onApply={pitchCorrectClip}
+      />
+
+      <TimeStretchModal
+        isOpen={stretchTarget !== null}
+        clipName={tracks.find((item) => item.id === stretchTarget?.trackId)?.regions.find((item) => item.id === stretchTarget?.regionId)?.name ?? ""}
+        projectBpm={bpm}
+        busy={stretchBusy}
+        onClose={() => setStretchTarget(null)}
+        onApply={stretchClip}
       />
 
       <ChannelEqModal

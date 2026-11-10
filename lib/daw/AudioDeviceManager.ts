@@ -246,7 +246,8 @@ export class AudioDeviceManager {
     this.recordingDestination.channelCount = 2;
     this.recordingDestination.channelCountMode = "explicit";
     this.recordingDestination.channelInterpretation = "speakers";
-    outputBus.connect(this.recordingDestination);
+    // Record the dry signal; track processing is applied again at playback.
+    this.activeSourceNode.connect(this.recordingDestination);
     this.monitorGainNode = ctx.createGain();
     this.setMonitoring(ctx, enableMonitoring);
     outputBus.connect(this.monitorGainNode);

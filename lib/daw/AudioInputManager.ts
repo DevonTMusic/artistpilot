@@ -9,6 +9,7 @@ export class AudioInputManager {
   private static instance: AudioInputManager;
   private currentStream: MediaStream | null = null;
   private monitorGainNode: GainNode | null = null;
+  private sourceNode: MediaStreamAudioSourceNode | null = null;
   public analyserNode: AnalyserNode | null = null;
 
   private constructor() {}
@@ -44,9 +45,7 @@ export class AudioInputManager {
     deviceId?: string,
     enableMonitoring: boolean = false
   ): Promise<{ stream: MediaStream; analyser: AnalyserNode }> {
-    if (this.currentStream) {
-      this.currentStream.getTracks().forEach((t) => t.stop());
-    }
+    this.stopStream();
 
     const constraints: MediaStreamConstraints = {
       audio: {
@@ -59,6 +58,7 @@ export class AudioInputManager {
 
     this.currentStream = await navigator.mediaDevices.getUserMedia(constraints);
     const source = ctx.createMediaStreamSource(this.currentStream);
+    this.sourceNode = source;
 
     // Live wave analyser
     this.analyserNode = ctx.createAnalyser();
@@ -66,9 +66,7 @@ export class AudioInputManager {
     source.connect(this.analyserNode);
 
     // Hardware Monitoring node
-    if (!this.monitorGainNode) {
-      this.monitorGainNode = ctx.createGain();
-    }
+    this.monitorGainNode = ctx.createGain();
     this.monitorGainNode.gain.setValueAtTime(enableMonitoring ? 0.9 : 0.0, ctx.currentTime);
     source.connect(this.monitorGainNode);
     this.monitorGainNode.connect(ctx.destination);
@@ -83,6 +81,12 @@ export class AudioInputManager {
   }
 
   public stopStream() {
+    this.sourceNode?.disconnect();
+    this.sourceNode = null;
+    this.analyserNode?.disconnect();
+    this.analyserNode = null;
+    this.monitorGainNode?.disconnect();
+    this.monitorGainNode = null;
     if (this.currentStream) {
       this.currentStream.getTracks().forEach((t) => t.stop());
       this.currentStream = null;

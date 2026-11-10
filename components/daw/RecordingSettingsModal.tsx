@@ -95,7 +95,7 @@ export function RecordingSettingsModal({
         <span className="text-xs font-bold text-white flex items-center gap-1.5">
           {t("audio.recordingInput")}
         </span>
-        <button onClick={onClose} className="text-xs text-zinc-400 hover:text-white font-bold">✕</button>
+        <button aria-label="Close" onClick={onClose} className="text-xs text-zinc-400 hover:text-white font-bold">✕</button>
       </div>
 
       <div className="p-4 space-y-4">

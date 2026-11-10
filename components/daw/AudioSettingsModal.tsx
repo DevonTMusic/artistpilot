@@ -130,7 +130,7 @@ export function AudioSettingsModal({
               {t("audio.systemTitle")}
             </span>
           </div>
-          <button onClick={onClose} className="h-6 w-6 rounded hover:bg-red-500 text-zinc-400 hover:text-white flex items-center justify-center font-bold text-xs">
+          <button aria-label="Close" onClick={onClose} className="h-6 w-6 rounded hover:bg-red-500 text-zinc-400 hover:text-white flex items-center justify-center font-bold text-xs">
             ✕
           </button>
         </div>
