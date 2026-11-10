@@ -22,6 +22,8 @@ import { GuitarAmpModal } from "@/components/daw/GuitarAmpModal";
 import { AiCoachModal } from "@/components/daw/AiCoachModal";
 import { ChannelEqModal } from "@/components/daw/ChannelEqModal";
 import { PitchCorrectionModal } from "@/components/daw/PitchCorrectionModal";
+import { TimeStretchModal } from "@/components/daw/TimeStretchModal";
+import { timeStretch } from "@/lib/daw/timeStretch";
 import { correctPitch, type PitchCorrectionOptions } from "@/lib/daw/pitchCorrect";
 import { AudioDeviceManager, DeviceInfo } from "@/lib/daw/AudioDeviceManager";
 import { AudioSettingsModal } from "@/components/daw/AudioSettingsModal";
@@ -1172,6 +1174,50 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
         setStatusMsg(error instanceof Error ? error.message : t("pitch.failed"));
       } finally {
         setPitchBusy(false);
+      }
+    }, 30);
+  };
+
+  const [stretchTarget, setStretchTarget] = useState<{ trackId: number; regionId: string } | null>(null);
+  const [stretchBusy, setStretchBusy] = useState(false);
+
+  const stretchClip = (factor: number) => {
+    if (!stretchTarget) return;
+    const { trackId, regionId } = stretchTarget;
+    const region = tracks.find((item) => item.id === trackId)?.regions.find((item) => item.id === regionId);
+    if (!region) {
+      setStretchTarget(null);
+      return;
+    }
+    setStretchBusy(true);
+    setStatusMsg(t("stretch.processing"));
+    window.setTimeout(() => {
+      try {
+        const context = engine.current.init();
+        const sampleRate = region.buffer.sampleRate;
+        const sourceStart = Math.max(0, Math.floor(region.offset * sampleRate));
+        const frameCount = Math.min(Math.floor(region.duration * sampleRate), region.buffer.length - sourceStart);
+        if (frameCount < 4096) throw new Error(t("stretch.tooShort"));
+        const slice = context.createBuffer(region.buffer.numberOfChannels, frameCount, sampleRate);
+        for (let channel = 0; channel < slice.numberOfChannels; channel++) {
+          slice.copyToChannel(region.buffer.getChannelData(channel).subarray(sourceStart, sourceStart + frameCount), channel);
+        }
+        const stretched = timeStretch(slice, context, factor);
+        sourceBlobs.delete(stretched);
+        setTracks((current) => current.map((item) => item.id === trackId
+          ? {
+            ...item,
+            regions: item.regions.map((clip) => clip.id === regionId
+              ? { ...clip, buffer: stretched, offset: 0, duration: stretched.duration, name: `${clip.name.replace(/ \(Stretched\)$/, "")} (Stretched)` }
+              : clip),
+          }
+          : item));
+        setStatusMsg(t("stretch.done"));
+        setStretchTarget(null);
+      } catch (error) {
+        setStatusMsg(error instanceof Error ? error.message : t("stretch.failed"));
+      } finally {
+        setStretchBusy(false);
       }
     }, 30);
   };
@@ -2916,6 +2962,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                     onLoop={() => repeatClipToLoopEnd(track.id, region.id)}
                     onReverse={() => reverseClip(track.id, region.id)}
                     onPitchCorrect={() => setPitchTarget({ trackId: track.id, regionId: region.id })}
+                    onTimeStretch={() => setStretchTarget({ trackId: track.id, regionId: region.id })}
                     onUpdate={(updated) => updateClip(track.id, region.id, updated)}
                     onSplit={(at) => splitClip(track.id, region.id, at)}
                     onDelete={() => setTracks((prev) => prev.map((item) => item.id === track.id
@@ -3416,6 +3463,15 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
         busy={pitchBusy}
         onClose={() => setPitchTarget(null)}
         onApply={pitchCorrectClip}
+      />
+
+      <TimeStretchModal
+        isOpen={stretchTarget !== null}
+        clipName={tracks.find((item) => item.id === stretchTarget?.trackId)?.regions.find((item) => item.id === stretchTarget?.regionId)?.name ?? ""}
+        projectBpm={bpm}
+        busy={stretchBusy}
+        onClose={() => setStretchTarget(null)}
+        onApply={stretchClip}
       />
 
       <ChannelEqModal

@@ -16,6 +16,7 @@ interface ClipRegionProps {
   onLoop?: () => void;
   onReverse?: () => void;
   onPitchCorrect?: () => void;
+  onTimeStretch?: () => void;
   onCopy?: (region: AudioRegion) => void;
 }
 
@@ -31,6 +32,7 @@ export function ClipRegion({
   onLoop,
   onReverse,
   onPitchCorrect,
+  onTimeStretch,
   onCopy,
 }: ClipRegionProps) {
   const { t } = useLanguage();
@@ -175,6 +177,19 @@ export function ClipRegion({
               className="hover:text-[#D0BCFF] transition text-[10px]"
             >
               ⇄
+            </button>
+          )}
+          {onTimeStretch && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onTimeStretch();
+              }}
+              title={t("clip.timeStretch")}
+              aria-label={t("clip.timeStretch")}
+              className="hover:text-[#D0BCFF] transition text-[10px]"
+            >
+              ⏱
             </button>
           )}
           {onPitchCorrect && (
