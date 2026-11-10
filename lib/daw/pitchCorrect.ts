@@ -231,3 +231,113 @@ export function correctPitch(
   }
   return result;
 }
+
+export interface PitchNote {
+  id: number;
+  startFrame: number;        // inclusive
+  endFrame: number;          // exclusive
+  startTime: number;
+  endTime: number;
+  midi: number;              // detected pitch (median), fractional semitones
+  targetMidi: number;        // where the user wants it
+}
+
+export interface ManualEditOptions {
+  flatten: number;           // 0..1, how much natural drift/vibrato is removed in moved notes
+  transitionMs: number;      // glide between notes
+}
+
+const MIN_NOTE_FRAMES = 4;
+const NEW_NOTE_SEMITONES = 0.75;
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)];
+}
+
+/** Groups voiced frames into discrete notes the user can move. */
+export function segmentNotes(track: PitchFrame[]): PitchNote[] {
+  const mids = track.map((frame) => (frame.freq > 0 ? freqToMidi(frame.freq) : 0));
+  const hop = track.length > 1 ? track[1].time - track[0].time : HOP / 44100;
+  const notes: PitchNote[] = [];
+  let i = 0;
+  while (i < track.length) {
+    if (mids[i] <= 0) {
+      i++;
+      continue;
+    }
+    const start = i;
+    const members: number[] = [];
+    let lastVoiced = i;
+    let gap = 0;
+    while (i < track.length) {
+      if (mids[i] <= 0) {
+        gap++;
+        if (gap >= 3) break;
+        i++;
+        continue;
+      }
+      gap = 0;
+      if (members.length >= 4) {
+        const reference = median(members.slice(-8));
+        const deviates = (index: number) => mids[index] > 0 && Math.abs(mids[index] - reference) > NEW_NOTE_SEMITONES;
+        if (deviates(i) && i + 2 < track.length && deviates(i + 1) && deviates(i + 2)) break;
+      }
+      members.push(mids[i]);
+      lastVoiced = i;
+      i++;
+    }
+    const end = lastVoiced + 1;
+    if (members.length >= MIN_NOTE_FRAMES) {
+      const detected = median(members);
+      notes.push({
+        id: notes.length,
+        startFrame: start,
+        endFrame: end,
+        startTime: track[start].time - hop / 2,
+        endTime: track[end - 1].time + hop / 2,
+        midi: detected,
+        targetMidi: detected,
+      });
+    }
+  }
+  return notes;
+}
+
+/** Renders the clip with every note moved to its target pitch. Unedited notes are untouched. */
+export function applyManualEdits(
+  buffer: AudioBuffer,
+  ctx: BaseAudioContext,
+  track: PitchFrame[],
+  notes: PitchNote[],
+  options: ManualEditOptions
+): AudioBuffer {
+  const desired = new Float32Array(track.length);
+  notes.forEach((note) => {
+    const offset = note.targetMidi - note.midi;
+    if (Math.abs(offset) < 0.005) return;
+    for (let i = note.startFrame; i < note.endFrame; i++) {
+      if (track[i].freq <= 0) continue;
+      const toTarget = note.targetMidi - freqToMidi(track[i].freq);
+      desired[i] = offset * (1 - options.flatten) + toTarget * options.flatten;
+    }
+  });
+  const hopSec = track.length > 1 ? track[1].time - track[0].time : HOP / 44100;
+  const alpha = options.transitionMs <= 0 ? 1 : 1 - Math.exp(-hopSec / (options.transitionMs / 1000));
+  const ratios = new Float32Array(track.length).fill(1);
+  let current = 0;
+  for (let i = 0; i < track.length; i++) {
+    if (track[i].freq <= 0) {
+      current = 0;
+      continue;
+    }
+    current = i > 0 && track[i - 1].freq > 0 ? current + (desired[i] - current) * alpha : desired[i];
+    ratios[i] = Math.pow(2, current / 12);
+  }
+  const freqs = track.map((frame) => frame.freq);
+  const result = ctx.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+  for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+    result.copyToChannel(shiftChannel(buffer.getChannelData(ch), freqs, ratios, buffer.sampleRate), ch);
+  }
+  return result;
+}

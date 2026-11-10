@@ -22,6 +22,7 @@ import { GuitarAmpModal } from "@/components/daw/GuitarAmpModal";
 import { AiCoachModal } from "@/components/daw/AiCoachModal";
 import { ChannelEqModal } from "@/components/daw/ChannelEqModal";
 import { PitchCorrectionModal } from "@/components/daw/PitchCorrectionModal";
+import { PitchEditorModal } from "@/components/daw/PitchEditorModal";
 import { TimeStretchModal } from "@/components/daw/TimeStretchModal";
 import { timeStretch } from "@/lib/daw/timeStretch";
 import { correctPitch, type PitchCorrectionOptions } from "@/lib/daw/pitchCorrect";
@@ -735,6 +736,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       if ((e.code === "Space" || e.key === "Enter") && activeEl?.tagName === "BUTTON") (activeEl as HTMLElement).blur();
       if (e.altKey) return;
       if (windowState.piano.open || pianoRollOpen || drumEditorOpen) return;
+      if (document.querySelector('[role="dialog"]')) return;
 
       if ((e.metaKey || e.ctrlKey) && (e.key === "z" || e.key === "Z")) {
         e.preventDefault();
@@ -1132,6 +1134,49 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
 
   const [pitchTarget, setPitchTarget] = useState<{ trackId: number; regionId: string } | null>(null);
   const [pitchBusy, setPitchBusy] = useState(false);
+
+  const [manualPitch, setManualPitch] = useState<{ trackId: number; regionId: string; buffer: AudioBuffer } | null>(null);
+
+  const sliceRegionBuffer = (region: AudioRegion): AudioBuffer => {
+    const context = engine.current.init();
+    const sampleRate = region.buffer.sampleRate;
+    const sourceStart = Math.max(0, Math.floor(region.offset * sampleRate));
+    const frameCount = Math.min(Math.floor(region.duration * sampleRate), region.buffer.length - sourceStart);
+    if (frameCount < 4096) throw new Error(t("pitch.tooShort"));
+    const slice = context.createBuffer(region.buffer.numberOfChannels, frameCount, sampleRate);
+    for (let channel = 0; channel < slice.numberOfChannels; channel++) {
+      slice.copyToChannel(region.buffer.getChannelData(channel).subarray(sourceStart, sourceStart + frameCount), channel);
+    }
+    return slice;
+  };
+
+  const openManualPitchEditor = () => {
+    if (!pitchTarget) return;
+    const region = tracks.find((item) => item.id === pitchTarget.trackId)?.regions.find((item) => item.id === pitchTarget.regionId);
+    if (!region) return;
+    try {
+      setManualPitch({ trackId: pitchTarget.trackId, regionId: pitchTarget.regionId, buffer: sliceRegionBuffer(region) });
+      setPitchTarget(null);
+    } catch (error) {
+      setStatusMsg(error instanceof Error ? error.message : t("pitch.failed"));
+    }
+  };
+
+  const applyManualPitch = (tuned: AudioBuffer) => {
+    if (!manualPitch) return;
+    const { trackId, regionId } = manualPitch;
+    sourceBlobs.delete(tuned);
+    setTracks((current) => current.map((item) => item.id === trackId
+      ? {
+        ...item,
+        regions: item.regions.map((clip) => clip.id === regionId
+          ? { ...clip, buffer: tuned, offset: 0, duration: tuned.duration, name: `${clip.name.replace(/ \(Tuned\)$/, "")} (Tuned)` }
+          : clip),
+      }
+      : item));
+    setStatusMsg(t("pitch.done"));
+    setManualPitch(null);
+  };
 
   const pitchCorrectClip = (options: PitchCorrectionOptions) => {
     if (!pitchTarget) return;
@@ -3255,7 +3300,8 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
                 <dt>{t("studio.playPause")}</dt><dd className="font-mono text-[#75DEFF]">Space</dd>
                 <dt>{t("studio.record")}</dt><dd className="font-mono text-[#75DEFF]">R</dd>
                 <dt>{t("studio.toggleLoop")}</dt><dd className="font-mono text-[#75DEFF]">C</dd>
-                <dt>{t("studio.returnStart")}</dt><dd className="font-mono text-[#75DEFF]">Enter</dd>
+                <dt>{t("studio.returnStart")}</dt><dd className="font-mono text-[#75DEFF]">Enter, Home</dd>
+                <dt>{t("studio.toggleMetronome")}</dt><dd className="font-mono text-[#75DEFF]">M</dd>
                 <dt>{t("studio.copyPaste")}</dt><dd className="font-mono text-[#75DEFF]">⌘/Ctrl+C, ⌘/Ctrl+V</dd>
                 <dt>{t("studio.splitClip")}</dt><dd className="font-mono text-[#75DEFF]">⌘/Ctrl+T</dd>
                 <dt>{t("studio.deleteClip")}</dt><dd className="font-mono text-[#75DEFF]">Delete</dd>
@@ -3488,6 +3534,18 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
         busy={pitchBusy}
         onClose={() => setPitchTarget(null)}
         onApply={pitchCorrectClip}
+        onManual={openManualPitchEditor}
+      />
+
+      <PitchEditorModal
+        isOpen={manualPitch !== null}
+        clipName={tracks.find((item) => item.id === manualPitch?.trackId)?.regions.find((item) => item.id === manualPitch?.regionId)?.name ?? ""}
+        buffer={manualPitch?.buffer ?? null}
+        defaultKeyIndex={Math.max(0, KEYS.indexOf(projectKey))}
+        defaultScale={projectScale === "min" ? "minor" : "major"}
+        getContext={() => engine.current.init()}
+        onClose={() => setManualPitch(null)}
+        onApply={applyManualPitch}
       />
 
       <TimeStretchModal

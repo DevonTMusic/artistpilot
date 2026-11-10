@@ -14,6 +14,7 @@ interface PitchCorrectionModalProps {
   busy: boolean;
   onClose: () => void;
   onApply: (options: PitchCorrectionOptions) => void;
+  onManual?: () => void;
 }
 
 export function PitchCorrectionModal({
@@ -24,6 +25,7 @@ export function PitchCorrectionModal({
   busy,
   onClose,
   onApply,
+  onManual,
 }: PitchCorrectionModalProps) {
   const { t } = useLanguage();
   const [keyIndex, setKeyIndex] = useState(defaultKeyIndex);
@@ -122,6 +124,12 @@ export function PitchCorrectionModal({
             <input type="range" min={0} max={400} step={5} value={retuneMs}
               onChange={(event) => setRetuneMs(Number(event.target.value))} className="w-full accent-sky-500" />
           </label>
+          {onManual && (
+            <button onClick={onManual} disabled={busy}
+              className="w-full rounded border border-dashed border-[#75DEFF]/50 py-1.5 font-bold text-[#75DEFF] hover:bg-[#75DEFF]/10 disabled:opacity-40">
+              {t("pitch.manual")}
+            </button>
+          )}
           <div className="flex justify-end gap-2 pt-1">
             <button onClick={onClose} disabled={busy}
               className="rounded px-3 py-1.5 font-bold text-zinc-400 hover:text-white disabled:opacity-40">
