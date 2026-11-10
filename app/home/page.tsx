@@ -48,10 +48,10 @@ export default async function HomeHub() {
         <Tile href="/dashboard" title={t("home.ideaTitle")} text={t("home.ideaText")} art={<IdeaArt className={art} />} locked={!paid} />
         <Tile href="/academy" title={t("home.academyTitle")} text={t("home.lessonProgress", { done: Number(count ?? 0), total: LESSONS.length })} art={<PianoArt className={art} />} locked={false} />
       </div>
-      <div className="mt-5 grid items-center gap-5 rounded-2xl border border-[#3B3155] bg-[#241D3A] p-5 md:grid-cols-[1fr_220px]">
+      <Link href="/marketing" className="mt-5 grid items-center gap-5 rounded-2xl border border-[#3B3155] bg-[#241D3A] p-5 hover:border-[#B89CFF] md:grid-cols-[1fr_220px]">
         <div><h2 className="text-xl font-bold">{t("home.marketingTitle")}</h2><p className="mt-1 text-zinc-400">{t("home.marketingText")}</p></div>
         <StudioArt className="hidden h-24 w-full md:block" />
-      </div>
+      </Link>
       <FeedbackForm />
       {isAdminEmail(user.email) && <Link href="/admin/feedback" className="mt-4 inline-block font-bold text-[#D0BCFF] hover:underline">View submitted feedback</Link>}
     </main>
