@@ -20,6 +20,7 @@ export default function Nav({ signedIn }: { signedIn?: boolean }) {
             <Link className={link} href="/learn">{t("nav.learn")}</Link>
             <Link className={link} href="/studio">{t("nav.studio")}</Link>
             <Link className={link} href="/dashboard">{t("nav.ideas")}</Link>
+            <Link className={link} href="/marketing">{t("nav.marketing")}</Link>
             <Link className={link} href="/settings">{t("nav.settings")}</Link>
             <button className={link} onClick={() => void authClient.signOut().then(() => window.location.assign("/"))}>{t("nav.logout")}</button>
           </>) : (<>

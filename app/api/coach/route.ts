@@ -10,6 +10,8 @@ const GLOBAL_MONTHLY_REQUEST_LIMIT = 500;
 const SYSTEM = `You are ArtistPilot's music coach. Help the musician develop THEIR OWN idea.
 Never write a finished song, full lyrics, or a complete arrangement. Instead: ask 1-2 clarifying questions, explain relevant theory in plain language, offer 2-3 concrete options to try (chord substitutions, rhythm ideas, bassline approaches, groove variations), and give one small exercise. Keep answers under 250 words.`;
 const BIO_SYSTEM = `You write artist bios for independent musicians. Using only the facts the artist gives you, write three versions: a one-sentence social bio (under 150 characters), a short bio (about 60 words), and a full press bio (about 150 words). Write in third person, sound human and specific, avoid cliches and invented facts, awards or numbers. Label each version.`;
+const CAPTION_SYSTEM = `You write social media captions for independent musicians. Using only what the artist tells you, write 5 caption options for the chosen platform in different tones (casual, emotional, funny, direct call-to-action, storytelling). Keep each suited to the platform's length norms, add 3 to 5 relevant hashtags to each, and never invent facts, numbers, quotes or release details. Label each option.`;
+const RELEASE_SYSTEM = `You are a release strategist for independent musicians. Using only what the artist tells you, write a week-by-week release plan starting about 4 weeks before the release date (or from today if the date is sooner) through 2 weeks after. For each week give 3 to 4 concrete, low-budget actions covering the music, the artwork, pre-saves, content, outreach and community. Note what to do on release day. Do not invent facts, playlist placements or numbers. Keep it under 450 words.`;
 const CONTENT_SYSTEM = `You are a social media strategist for independent musicians. Give 8 specific, low-budget content ideas (hooks, short-form video concepts, behind-the-scenes, series ideas) tailored to the artist's genre, vibe and chosen platform. For each: a one-line hook and a one-line how-to. Do not invent facts about the artist. Keep it under 400 words.`;
 
 export async function POST(req: Request) {
@@ -25,7 +27,7 @@ export async function POST(req: Request) {
   }
   if (!body || typeof body !== "object") return NextResponse.json({ error: "Invalid coach request." }, { status: 400 });
   const { instrument, message, context, mode } = body as Record<string, unknown>;
-  const system = mode === "bio" ? BIO_SYSTEM : mode === "content" ? CONTENT_SYSTEM : SYSTEM;
+  const system = mode === "bio" ? BIO_SYSTEM : mode === "content" ? CONTENT_SYSTEM : mode === "caption" ? CAPTION_SYSTEM : mode === "release" ? RELEASE_SYSTEM : SYSTEM;
   if (typeof message !== "string" || !message.trim() || message.length > 1000) return NextResponse.json({ error: "Write a message under 1000 characters." }, { status: 400 });
   if (context !== undefined && (typeof context !== "string" || context.length > 300)) {
     return NextResponse.json({ error: "Studio context is invalid." }, { status: 400 });
@@ -112,7 +114,7 @@ export async function POST(req: Request) {
           role: "user",
           parts: [{ text: `Instrument: ${typeof instrument === "string" ? instrument.slice(0, 40) : "general"}\n${context ? `Studio context: ${context}\n` : ""}${message}` }],
         }],
-        generationConfig: { maxOutputTokens: mode === "bio" || mode === "content" ? 1200 : 700 },
+        generationConfig: { maxOutputTokens: mode === "bio" || mode === "content" || mode === "caption" || mode === "release" ? 1200 : 700 },
       }),
     });
     if (!r.ok) throw new Error(r.status + " " + (await r.text()));
