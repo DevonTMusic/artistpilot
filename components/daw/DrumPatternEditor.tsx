@@ -67,7 +67,7 @@ export function DrumPatternEditor({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
-      <section className="w-full max-w-3xl rounded-xl border border-[#51456F] bg-[#15161b] p-5 text-white shadow-2xl">
+      <section role="dialog" aria-modal="true" className="w-full max-w-3xl rounded-xl border border-[#51456F] bg-[#15161b] p-5 text-white shadow-2xl">
         <header className="mb-5 flex items-center justify-between">
           <div>
             <h2 className="font-bold">{t("drums.title")}</h2>

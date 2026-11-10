@@ -113,6 +113,7 @@ export function SamplerPadModal({ isOpen, track, audioContext, onChange, onClose
   return (
     <div className="fixed inset-0 z-[75] flex items-center justify-center bg-black/80 p-4">
       <section
+        role="dialog" aria-modal="true"
         onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={(event) => {

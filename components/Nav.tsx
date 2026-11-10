@@ -17,6 +17,7 @@ export default function Nav({ signedIn }: { signedIn?: boolean }) {
           {signedIn ? (<>
             <Link className={link} href="/home">{t("nav.home")}</Link>
             <Link className={link} href="/academy">{t("nav.academy")}</Link>
+            <Link className={link} href="/learn">{t("nav.learn")}</Link>
             <Link className={link} href="/studio">{t("nav.studio")}</Link>
             <Link className={link} href="/dashboard">{t("nav.ideas")}</Link>
             <Link className={link} href="/settings">{t("nav.settings")}</Link>

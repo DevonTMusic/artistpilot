@@ -50,6 +50,9 @@ import { SamplerPadModal } from "@/components/daw/SamplerPadModal";
 import { SceneLauncherModal } from "@/components/daw/SceneLauncherModal";
 import { CollaborationPanel } from "@/components/daw/CollaborationPanel";
 import { StudioWelcomeModal } from "@/components/daw/StudioWelcomeModal";
+import { StarterProjectsModal } from "@/components/daw/StarterProjectsModal";
+import { STARTER_BARS, STARTER_PROJECTS, buildChordNotes, type StarterProject } from "@/lib/daw/starters";
+import { markLearnDetected } from "@/lib/learn/progress";
 import { ChromaticTuner } from "@/components/daw/ChromaticTuner";
 import { SoundPreset } from "@/lib/daw/soundLibrary";
 import { parseMidiFile } from "@/lib/daw/midiFile";
@@ -139,6 +142,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
   const [projectName, setProjectName] = useState(t("studio.newProject"));
   const [bpm, setBpm] = useState(Math.min(300, Math.max(30, defaultBpm)));
   const [projectKey, setProjectKey] = useState("D♭");
+  const [starterOpen, setStarterOpen] = useState(false);
   const [projectScale, setProjectScale] = useState<"maj" | "min">("maj");
   const [sections, setSections] = useState<ArrangerSection[]>([]);
   const [buses, setBuses] = useState<MixerBus[]>([]);
@@ -209,7 +213,8 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
   const [aiFeature, setAiFeature] = useState<"coach" | "palette" | "songstarter">("coach");
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).has("invite")) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("invite") || params.has("starter")) return;
     try {
       if (window.localStorage.getItem("artistpilot-studio-guide-seen") !== "true") {
         setWelcomeOpen(true);
@@ -1654,6 +1659,59 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
     setPitchTarget({ trackId: target.id, regionId: target.regions[0].id });
   };
 
+  const applyStarter = (starter: StarterProject) => {
+    if (isRecording) {
+      setStatusMsg(t("studio.statusStopBeforeOpen"));
+      return;
+    }
+    handleStop();
+    const base = nextTrackId.current;
+    nextTrackId.current = base + 3;
+    const notes = buildChordNotes(starter.chords);
+    const common = {
+      volume: 0.8, pan: 0, mute: false, solo: false, monitoring: false,
+      settings: { ...DEFAULT_TRACK_SETTINGS }, ampSettings: { ...DEFAULT_AMP_SETTINGS }, ampEnabled: false, regions: [],
+    };
+    const starterTracks: ExtendedTrackData[] = [
+      { ...common, id: base, name: "Drums", category: "drum", trackType: "drum", instrument: "Drums", color: "bg-[#d69e2e]", armed: false, midiNotes: [], drumPattern: { ...starter.drums } },
+      { ...common, id: base + 1, name: "Chords", category: "midi", trackType: "midi", instrument: "Piano", color: "bg-[#38a169]", armed: false, midiNotes: notes, synthSettings: { ...DEFAULT_SYNTH_SETTINGS } },
+      { ...common, id: base + 2, name: "Voice", category: "audio", trackType: "vocal", instrument: "Voice", color: "bg-[#e53e3e]", armed: true, midiNotes: [] },
+    ];
+    setTracks(starterTracks);
+    setTrackNotes({ [base + 1]: notes });
+    setSelectedTrackId(base + 2);
+    setIsMasterMode(false);
+    setBpm(starter.bpm);
+    setProjectKey(starter.key);
+    setProjectScale(starter.scale);
+    setProjectName(starter.name.en);
+    setIsLooping(true);
+    setLoopStartSec(0);
+    setLoopEndSec((STARTER_BARS * 4 * 60) / starter.bpm);
+    setPlayheadSec(0);
+    setStarterOpen(false);
+    setStatusMsg(t("starter.status", { name: starter.name.en }));
+  };
+
+  useEffect(() => {
+    const audio = tracks.filter((track) => track.category === "audio");
+    const clips = audio.flatMap((track) => track.regions);
+    if (clips.length > 0) markLearnDetected("first-recording");
+    if (clips.some((clip) => / \(Tuned\)$/.test(clip.name))) markLearnDetected("tune-vocal");
+    if (audio.some((track) => track.regions.length > 0 && track.settings?.gateEnabled && track.settings?.compEnabled)) markLearnDetected("clean-vocal");
+    if (tracks.length >= 2 && tracks.some((track) => track.pan !== 0) && tracks.some((track) => track.volume !== 0.8)) markLearnDetected("mixing-basics");
+  }, [tracks]);
+
+  const starterFromUrl = useRef(false);
+  useEffect(() => {
+    if (starterFromUrl.current) return;
+    starterFromUrl.current = true;
+    const id = new URLSearchParams(window.location.search).get("starter");
+    const starter = STARTER_PROJECTS.find((item) => item.id === id);
+    if (starter && tracks.length === 0) applyStarter(starter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const getProjectTracks = (): ExtendedTrackData[] =>
     tracks.map((track) => ({ ...track, midiNotes: trackNotes[track.id] ?? track.midiNotes ?? [] }));
 
@@ -1939,6 +1997,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       anchor.download = `${projectName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "artistpilot-project"}.wav`;
       anchor.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+      markLearnDetected("finish-and-share");
       setStatusMsg(t("studio.statusExportedMix"));
     } catch (error) {
       console.error("Could not export studio mixdown:", error);
@@ -2203,6 +2262,37 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
   const timelineWidth = Math.max(3200, projectDuration * pixelsPerSecond + 200, barWidth * 64);
   const barCount = Math.ceil(timelineWidth / barWidth);
 
+  // Escape closes the top-most overlay for panels that don't handle it themselves.
+  useEffect(() => {
+    const onEscape = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (pitchTarget || manualPitch || stretchTarget || welcomeOpen || windowState.piano.open) return;
+      const closers: Array<[boolean, () => void]> = [
+        [activeUtility !== null, () => setActiveUtility(null)],
+        [windowState.amp.open, () => toggleModal("amp")],
+        [windowState.eq.open, () => toggleModal("eq")],
+        [windowState.ai.open, () => toggleModal("ai")],
+        [pianoRollOpen, () => setPianoRollOpen(false)],
+        [drumEditorOpen, () => setDrumEditorOpen(false)],
+        [samplerTrackId !== null, () => setSamplerTrackId(null)],
+        [sceneLauncherOpen, () => setSceneLauncherOpen(false)],
+        [tunerOpen, () => setTunerOpen(false)],
+        [soundLibraryOpen, () => setSoundLibraryOpen(false)],
+        [discoverModalOpen, () => setDiscoverModalOpen(false)],
+        [collaborationOpen, () => setCollaborationOpen(false)],
+        [audioSettingsOpen, () => setAudioSettingsOpen(false)],
+        [busPanelOpen, () => setBusPanelOpen(false)],
+      ];
+      const open = closers.find(([isOpen]) => isOpen);
+      if (open) {
+        e.preventDefault();
+        open[1]();
+      }
+    };
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  });
+
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#0c0d0f] text-[#c5c7d0] font-sans select-none">
       <input
@@ -2263,6 +2353,20 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
             title={t("studio.titleOpenGuide")}
           >
             {t("studio.openGuide")}
+          </button>
+          <a
+            href="/learn"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-7 items-center rounded bg-[#20222a] px-2 text-[10px] font-semibold text-zinc-300 hover:bg-zinc-700 hover:text-white"
+          >
+            {t("nav.learn")}
+          </a>
+          <button
+            onClick={() => setStarterOpen(true)}
+            className="h-7 rounded bg-[#20222a] px-2 text-[10px] font-semibold text-zinc-300 hover:bg-zinc-700 hover:text-white"
+          >
+            {t("starter.button")}
           </button>
 
           <input
@@ -3367,6 +3471,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
         onApply={applySoundPreset}
       />
 
+      {windowState.piano.open && (
       <PianoStudioModal
         isOpen={windowState.piano.open}
         onClose={() => toggleModal("piano")}
@@ -3387,9 +3492,10 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
         }}
         onRecordMidiNote={handlePianoMidiNote}
       />
+      )}
 
       {pianoRollOpen && selectedTrack && (
-        <div className="fixed inset-8 z-50 overflow-hidden rounded-xl border border-[#51456F] bg-[#14151a] shadow-2xl">
+        <div role="dialog" aria-modal="true" aria-label={t("pianoRoll.title")} className="fixed inset-8 z-50 overflow-hidden rounded-xl border border-[#51456F] bg-[#14151a] shadow-2xl">
           <PianoRoll
             notes={trackNotes[selectedTrack.id] ?? selectedTrack.midiNotes ?? []}
             instrumentName={selectedTrack.name}
@@ -3426,6 +3532,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
 
       <ChromaticTuner isOpen={tunerOpen} onClose={() => setTunerOpen(false)} />
 
+      {samplerTrackId !== null && (
       <SamplerPadModal
         isOpen={samplerTrackId !== null}
         track={tracks.find((track) => track.id === samplerTrackId) ?? null}
@@ -3436,6 +3543,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
         }}
         onClose={() => setSamplerTrackId(null)}
       />
+      )}
 
       {sceneLauncherOpen && (
         <SceneLauncherModal
@@ -3604,6 +3712,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
           : undefined}
       />
 
+      <StarterProjectsModal isOpen={starterOpen} hasWork={tracks.length > 0} onClose={() => setStarterOpen(false)} onPick={applyStarter} />
       <StudioWelcomeModal
         isOpen={welcomeOpen}
         onClose={closeWelcome}
