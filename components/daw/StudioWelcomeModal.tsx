@@ -2,15 +2,19 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useLanguage } from "@/components/LanguageProvider";
 
+const TOTAL_STEPS = 6;
+
 interface StudioWelcomeModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddTrack: () => void;
+  onRecordVocal: () => void;
+  onTuneVocal: () => void;
   onPlay: () => void;
   onSave: () => void;
 }
 
-export function StudioWelcomeModal({ isOpen, onClose, onAddTrack, onPlay, onSave }: StudioWelcomeModalProps) {
+export function StudioWelcomeModal({ isOpen, onClose, onAddTrack, onRecordVocal, onTuneVocal, onPlay, onSave }: StudioWelcomeModalProps) {
   const { t } = useLanguage();
   const [tab, setTab] = useState<"guide" | "first-song">("guide");
   const [step, setStep] = useState(0);
@@ -25,7 +29,7 @@ export function StudioWelcomeModal({ isOpen, onClose, onAddTrack, onPlay, onSave
   useEffect(() => {
     try {
       const saved = Number(window.localStorage.getItem("artistpilot-first-song-step"));
-      if (Number.isInteger(saved) && saved >= 0 && saved <= 4) setStep(saved);
+      if (Number.isInteger(saved) && saved >= 0 && saved <= TOTAL_STEPS) setStep(saved);
     } catch (error) {
       console.warn("Could not read first-song guide progress:", error);
     }
@@ -64,7 +68,7 @@ export function StudioWelcomeModal({ isOpen, onClose, onAddTrack, onPlay, onSave
   }, [isOpen]);
 
   const updateStep = (next: number) => {
-    const bounded = Math.max(0, Math.min(4, next));
+    const bounded = Math.max(0, Math.min(TOTAL_STEPS, next));
     setStep(bounded);
     try {
       window.localStorage.setItem("artistpilot-first-song-step", String(bounded));
@@ -84,6 +88,8 @@ export function StudioWelcomeModal({ isOpen, onClose, onAddTrack, onPlay, onSave
   const firstSongSteps = [
     { title: "studio.step1Title", text: "studio.step1Text", action: "studio.step1Action", run: onAddTrack },
     { title: "studio.step2Title", text: "studio.step2Text", action: "studio.step2Action", run: onAddTrack },
+    { title: "studio.stepVocalTitle", text: "studio.stepVocalText", action: "studio.stepVocalAction", run: onRecordVocal },
+    { title: "studio.stepTuneTitle", text: "studio.stepTuneText", action: "studio.stepTuneAction", run: onTuneVocal },
     { title: "studio.step3Title", text: "studio.step3Text", action: "studio.step3Action", run: onPlay },
     { title: "studio.step4Title", text: "studio.step4Text", action: "studio.step4Action", run: onSave },
   ];
@@ -143,24 +149,24 @@ export function StudioWelcomeModal({ isOpen, onClose, onAddTrack, onPlay, onSave
                 <h3 className="text-base font-bold text-white">{t("studio.beginnerPath")}</h3>
                 <p className="mt-1 text-sm leading-relaxed text-zinc-300">{t("studio.beginnerIntro")}</p>
               </div>
-              <span className="shrink-0 text-sm text-zinc-300">{t("studio.stepProgress", { current: Math.min(step + 1, 4), total: 4 })}</span>
+              <span className="shrink-0 text-sm text-zinc-300">{t("studio.stepProgress", { current: Math.min(step + 1, TOTAL_STEPS), total: TOTAL_STEPS })}</span>
             </div>
-            <div className="mb-5 flex gap-2" role="progressbar" aria-label={t("studio.beginnerPath")} aria-valuemin={1} aria-valuemax={4} aria-valuenow={Math.min(step + 1, 4)}>
+            <div className="mb-5 flex gap-2" role="progressbar" aria-label={t("studio.beginnerPath")} aria-valuemin={1} aria-valuemax={TOTAL_STEPS} aria-valuenow={Math.min(step + 1, TOTAL_STEPS)}>
               {firstSongSteps.map((item, index) => <span key={item.title} className={`h-2 flex-1 rounded-full ${index <= step ? "bg-sky-400" : "bg-zinc-700"}`} />)}
             </div>
-            <h4 className="text-base font-semibold text-white">{step >= 4 ? t("studio.finishedTitle") : t(current.title)}</h4>
-            <p className="mt-2 text-sm leading-relaxed text-zinc-300">{step >= 4 ? t("studio.finishedText") : t(current.text)}</p>
-            {step < 4 && (
+            <h4 className="text-base font-semibold text-white">{step >= TOTAL_STEPS ? t("studio.finishedTitle") : t(current.title)}</h4>
+            <p className="mt-2 text-sm leading-relaxed text-zinc-300">{step >= TOTAL_STEPS ? t("studio.finishedText") : t(current.text)}</p>
+            {step < TOTAL_STEPS && (
               <button type="button" onClick={current.run} className="mt-4 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-500">
                 {t(current.action)}
               </button>
             )}
             <div className="mt-5 flex justify-between gap-3 border-t border-[#3B3155] pt-4">
               <button type="button" disabled={step === 0} onClick={() => updateStep(step - 1)} className="rounded-lg border border-[#51456F] px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-[#322849] disabled:opacity-40">{t("studio.previous")}</button>
-              {step < 3 ? (
+              {step < TOTAL_STEPS - 1 ? (
                 <button type="button" onClick={() => updateStep(step + 1)} className="rounded-lg bg-[#986FEF] px-4 py-2 text-sm font-bold text-white hover:bg-[#B89CFF]">{t("studio.next")}</button>
               ) : (
-                <button type="button" onClick={() => updateStep(4)} className="rounded-lg bg-[#986FEF] px-4 py-2 text-sm font-bold text-white hover:bg-[#B89CFF]">{t("studio.finishGuide")}</button>
+                <button type="button" onClick={() => updateStep(TOTAL_STEPS)} className="rounded-lg bg-[#986FEF] px-4 py-2 text-sm font-bold text-white hover:bg-[#B89CFF]">{t("studio.finishGuide")}</button>
               )}
             </div>
           </div>

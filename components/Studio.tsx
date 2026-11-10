@@ -28,7 +28,7 @@ import { correctPitch, type PitchCorrectionOptions } from "@/lib/daw/pitchCorrec
 import { AudioDeviceManager, DeviceInfo } from "@/lib/daw/AudioDeviceManager";
 import { AudioSettingsModal } from "@/components/daw/AudioSettingsModal";
 import { TrackControlsPanel } from "@/components/daw/TrackControlsPanel";
-import { ProcessingSettings, DEFAULT_TRACK_SETTINGS } from "@/lib/daw/TrackProcessor";
+import { ProcessingSettings, DEFAULT_TRACK_SETTINGS, VOCAL_POLISH_SETTINGS } from "@/lib/daw/TrackProcessor";
 import {
   saveSessionFile,
   openSessionFile,
@@ -1517,7 +1517,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
   };
 
   // Add Track from Discover Modal (Screenshot 2 functionality)
-  const handleAddTrackType = (type: "vocal" | "guitar" | "bass" | "piano" | "drum", preset?: SoundPreset) => {
+  const handleAddTrackType = (type: "vocal" | "guitar" | "bass" | "piano" | "drum", preset?: SoundPreset): number | undefined => {
     if (!isPro && tracks.length >= FREE_TRACK_LIMIT) {
       setUpgradeFeature(t("studio.upgradeTracks", { count: FREE_TRACK_LIMIT }));
       return;
@@ -1582,6 +1582,31 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
     ]);
     if (category === "midi") setTrackNotes((prev) => ({ ...prev, [id]: [] }));
     setSelectedTrackId(id);
+    return id;
+  };
+
+  const guideRecordVocal = () => {
+    closeWelcome();
+    const existing = tracks.find((track) => track.category === "audio");
+    const targetId = existing ? existing.id : handleAddTrackType("vocal");
+    if (targetId === undefined) return;
+    setTracks((prev) => prev.map((track) => track.id === targetId ? { ...track, armed: true } : track));
+    setSelectedTrackId(targetId);
+    setStatusMsg(t("studio.statusGuideRecordReady"));
+  };
+
+  const guideTuneVocal = () => {
+    closeWelcome();
+    const withAudio = (track: ExtendedTrackData) => track.category === "audio" && track.regions.length > 0;
+    const selected = tracks.find((track) => track.id === selectedTrackId);
+    const target = selected && withAudio(selected) ? selected : tracks.find(withAudio);
+    if (!target) {
+      setStatusMsg(t("studio.statusGuideNoVocal"));
+      return;
+    }
+    setTracks((prev) => prev.map((track) => track.id === target.id ? { ...track, settings: { ...VOCAL_POLISH_SETTINGS, inputGain: track.settings?.inputGain ?? 1 } } : track));
+    setSelectedTrackId(target.id);
+    setPitchTarget({ trackId: target.id, regionId: target.regions[0].id });
   };
 
   const getProjectTracks = (): ExtendedTrackData[] =>
@@ -3528,6 +3553,8 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
           closeWelcome();
           setDiscoverModalOpen(true);
         }}
+        onRecordVocal={guideRecordVocal}
+        onTuneVocal={guideTuneVocal}
         onPlay={() => {
           closeWelcome();
           handlePlay();
