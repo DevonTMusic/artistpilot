@@ -57,8 +57,6 @@ export function AiCoachModal({
   const [usage, setUsage] = useState<CoachUsage | null>(null);
   const autoPrompt = useRef<string | null>(null);
 
-  if (!isOpen) return null;
-
   const currentChords = CHORD_LIBRARY[currentKey] || CHORD_LIBRARY["C"];
 
   const handleSendMessage = useCallback(async (message = inputText) => {
@@ -113,6 +111,8 @@ export function AiCoachModal({
       void handleSendMessage(initialQuestion);
     }
   }, [handleSendMessage, initialQuestion, initialTab, isOpen]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="absolute top-20 right-12 z-50 w-[580px] h-[480px] rounded-2xl border-2 border-[#493578]/60 bg-[#17181f] shadow-[0_20px_60px_rgba(0,0,0,0.85)] flex flex-col font-sans select-none overflow-hidden">

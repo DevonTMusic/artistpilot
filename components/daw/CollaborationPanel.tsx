@@ -145,7 +145,7 @@ export function CollaborationPanel({
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4">
-      <section className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-[#51456F] bg-[#15171d] p-4 shadow-2xl">
+      <section role="dialog" aria-modal="true" className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-[#51456F] bg-[#15171d] p-4 shadow-2xl">
         <header className="mb-4 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-bold text-white">{t("collab.title")}</h2>

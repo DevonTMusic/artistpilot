@@ -121,7 +121,7 @@ export function AudioSettingsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 font-sans select-none">
-      <div className="w-full max-w-lg rounded-2xl border-2 border-[#20222a] bg-[#14151b] shadow-2xl overflow-hidden flex flex-col text-zinc-300">
+      <div role="dialog" aria-modal="true" className="w-full max-w-lg rounded-2xl border-2 border-[#20222a] bg-[#14151b] shadow-2xl overflow-hidden flex flex-col text-zinc-300">
         
         {/* Title Bar */}
         <div className="flex h-11 items-center justify-between border-b border-[#3B3155] bg-[#2B2240] px-4">

@@ -157,7 +157,7 @@ export function StudioWelcomeModal({ isOpen, onClose, onAddTrack, onRecordVocal,
             <h4 className="text-base font-semibold text-white">{step >= TOTAL_STEPS ? t("studio.finishedTitle") : t(current.title)}</h4>
             <p className="mt-2 text-sm leading-relaxed text-zinc-300">{step >= TOTAL_STEPS ? t("studio.finishedText") : t(current.text)}</p>
             {step < TOTAL_STEPS && (
-              <button type="button" onClick={current.run} className="mt-4 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-500">
+              <button type="button" onClick={() => { updateStep(step + 1); current.run(); }} className="mt-4 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-500">
                 {t(current.action)}
               </button>
             )}

@@ -29,7 +29,7 @@ export function SceneLauncherModal({
   const { t } = useLanguage();
   return (
     <div className="fixed inset-0 z-[72] flex items-center justify-center bg-black/80 p-4">
-      <section className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-xl border border-[#51456F] bg-[#15171d] shadow-2xl">
+      <section role="dialog" aria-modal="true" className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-xl border border-[#51456F] bg-[#15171d] shadow-2xl">
         <header className="flex items-center justify-between gap-3 border-b border-[#3B3155] p-4">
           <div>
             <h2 className="text-sm font-bold text-white">{t("scene.title")}</h2>

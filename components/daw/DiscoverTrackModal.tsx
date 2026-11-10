@@ -22,7 +22,7 @@ export function DiscoverTrackModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 font-sans select-none">
-      <div className="w-full max-w-2xl rounded-2xl border border-[#3B3155] bg-[#121316] shadow-2xl overflow-hidden flex flex-col text-zinc-300">
+      <div role="dialog" aria-modal="true" className="w-full max-w-2xl rounded-2xl border border-[#3B3155] bg-[#121316] shadow-2xl overflow-hidden flex flex-col text-zinc-300">
         
         {/* Title Bar */}
         <div className="flex h-12 items-center justify-between border-b border-[#3B3155]/80 px-6">

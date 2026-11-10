@@ -1,6 +1,6 @@
 // components/daw/PianoRoll.tsx
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { SynthSettings } from "@/lib/AudioEngine";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -45,6 +45,7 @@ export function PianoRoll({
   onSynthSettingsChange,
 }: PianoRollProps) {
   const { t } = useLanguage();
+  const gridScrollRef = useRef<HTMLDivElement>(null);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [quantizeStep, setQuantizeStep] = useState(1);
   const [scaleLock, setScaleLock] = useState(false);
@@ -57,6 +58,16 @@ export function PianoRoll({
     y: number;
     note: MidiNote;
   } | null>(null);
+  // Open centred on the existing notes (or around middle C) instead of the top of the keyboard.
+  useEffect(() => {
+    const el = gridScrollRef.current;
+    if (!el) return;
+    const focusPitch = notes.length
+      ? Math.round(notes.reduce((sum, note) => sum + note.pitch, 0) / notes.length)
+      : 64;
+    el.scrollTop = Math.max(0, (108 - focusPitch) * 24 - el.clientHeight / 2);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const rootPitchClass = ({ C: 0, "D♭": 1, D: 2, "E♭": 3, E: 4, F: 5, "F#": 6, G: 7, "A♭": 8, A: 9, "B♭": 10, B: 11 } as Record<string, number>)[projectKey] ?? 0;
   const scaleIntervals = scale === "maj" ? [0, 2, 4, 5, 7, 9, 11] : [0, 2, 3, 5, 7, 8, 10];
   const scalePitchClasses = new Set(scaleIntervals.map((interval) => (rootPitchClass + interval) % 12));
@@ -166,7 +177,7 @@ export function PianoRoll({
     <div className="flex h-full w-full flex-col bg-[#14151a] text-zinc-300 select-none">
       
       {/* Header with Quantize & Transpose Toolbar */}
-      <div className="flex h-8 items-center justify-between border-b border-[#3B3155] bg-[#1c1d24] px-4 text-xs font-semibold">
+      <div className="flex h-8 items-center justify-between border-b border-[#3B3155] bg-[#1c1d24] pl-4 pr-24 text-xs font-semibold">
         <span className="text-zinc-200">
           {t("pianoRoll.title")} <span className="text-[#FF72B6]">{instrumentName}</span>
         </span>
@@ -256,8 +267,9 @@ export function PianoRoll({
       )}
 
       {/* Grid */}
-      <div className="flex-1 overflow-y-auto flex">
-        <div className="w-16 flex-none border-r border-[#3B3155] bg-[#17181f]">
+      <div ref={gridScrollRef} className="min-h-0 flex-1 overflow-auto">
+        <div className="flex w-max min-w-full">
+        <div className="sticky left-0 z-10 w-16 flex-none border-r border-[#3B3155] bg-[#17181f]">
           {PITCHES.map((p) => (
             <button
               key={p.pitch}
@@ -273,7 +285,7 @@ export function PianoRoll({
           ))}
         </div>
 
-        <div className="flex-1 overflow-x-auto bg-[#0f1013]">
+        <div className="flex-1 bg-[#0f1013]">
           {PITCHES.map((p) => (
             <div key={p.pitch} className="flex h-6 border-b border-[#3B3155]/40">
               {Array.from({ length: totalSteps }, (_, step) => {
@@ -320,6 +332,7 @@ export function PianoRoll({
               })}
             </div>
           ))}
+        </div>
         </div>
       </div>
 

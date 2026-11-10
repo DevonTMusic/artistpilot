@@ -2203,6 +2203,37 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
   const timelineWidth = Math.max(3200, projectDuration * pixelsPerSecond + 200, barWidth * 64);
   const barCount = Math.ceil(timelineWidth / barWidth);
 
+  // Escape closes the top-most overlay for panels that don't handle it themselves.
+  useEffect(() => {
+    const onEscape = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (pitchTarget || manualPitch || stretchTarget || welcomeOpen || windowState.piano.open) return;
+      const closers: Array<[boolean, () => void]> = [
+        [activeUtility !== null, () => setActiveUtility(null)],
+        [windowState.amp.open, () => toggleModal("amp")],
+        [windowState.eq.open, () => toggleModal("eq")],
+        [windowState.ai.open, () => toggleModal("ai")],
+        [pianoRollOpen, () => setPianoRollOpen(false)],
+        [drumEditorOpen, () => setDrumEditorOpen(false)],
+        [samplerTrackId !== null, () => setSamplerTrackId(null)],
+        [sceneLauncherOpen, () => setSceneLauncherOpen(false)],
+        [tunerOpen, () => setTunerOpen(false)],
+        [soundLibraryOpen, () => setSoundLibraryOpen(false)],
+        [discoverModalOpen, () => setDiscoverModalOpen(false)],
+        [collaborationOpen, () => setCollaborationOpen(false)],
+        [audioSettingsOpen, () => setAudioSettingsOpen(false)],
+        [busPanelOpen, () => setBusPanelOpen(false)],
+      ];
+      const open = closers.find(([isOpen]) => isOpen);
+      if (open) {
+        e.preventDefault();
+        open[1]();
+      }
+    };
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  });
+
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#0c0d0f] text-[#c5c7d0] font-sans select-none">
       <input
@@ -3367,6 +3398,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
         onApply={applySoundPreset}
       />
 
+      {windowState.piano.open && (
       <PianoStudioModal
         isOpen={windowState.piano.open}
         onClose={() => toggleModal("piano")}
@@ -3387,9 +3419,10 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
         }}
         onRecordMidiNote={handlePianoMidiNote}
       />
+      )}
 
       {pianoRollOpen && selectedTrack && (
-        <div className="fixed inset-8 z-50 overflow-hidden rounded-xl border border-[#51456F] bg-[#14151a] shadow-2xl">
+        <div role="dialog" aria-modal="true" aria-label={t("pianoRoll.title")} className="fixed inset-8 z-50 overflow-hidden rounded-xl border border-[#51456F] bg-[#14151a] shadow-2xl">
           <PianoRoll
             notes={trackNotes[selectedTrack.id] ?? selectedTrack.midiNotes ?? []}
             instrumentName={selectedTrack.name}
@@ -3426,6 +3459,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
 
       <ChromaticTuner isOpen={tunerOpen} onClose={() => setTunerOpen(false)} />
 
+      {samplerTrackId !== null && (
       <SamplerPadModal
         isOpen={samplerTrackId !== null}
         track={tracks.find((track) => track.id === samplerTrackId) ?? null}
@@ -3436,6 +3470,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
         }}
         onClose={() => setSamplerTrackId(null)}
       />
+      )}
 
       {sceneLauncherOpen && (
         <SceneLauncherModal
