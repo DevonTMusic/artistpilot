@@ -14,6 +14,8 @@ export type StudioLesson = {
   goal: Bilingual;
   steps: Bilingual[];
   concepts: string[];
+  starter?: string;
+  autoTick: Bilingual;
 };
 
 export const GLOSSARY: GlossaryEntry[] = [
@@ -140,6 +142,8 @@ export const STUDIO_LESSONS: StudioLesson[] = [
       { en: "Press Space to stop, then Space again to listen back.", es: "Pulsa Espacio para detener y de nuevo para escuchar." },
     ],
     concepts: ["daw", "track", "arm", "region"],
+    starter: "pop-vocal",
+    autoTick: { en: "Ticks automatically once you record or import audio.", es: "Se marca sola cuando grabas o importas audio." },
   },
   {
     id: "mixing-basics",
@@ -153,6 +157,8 @@ export const STUDIO_LESSONS: StudioLesson[] = [
       { en: "Check that the master meter does not hit red.", es: "Comprueba que el medidor master no llegue al rojo." },
     ],
     concepts: ["volume-pan", "bpm"],
+    starter: "pop-vocal",
+    autoTick: { en: "Ticks automatically once you change a volume and a pan on a project with two or more tracks.", es: "Se marca sola cuando cambias un volumen y un panorama con dos o más pistas." },
   },
   {
     id: "clean-vocal",
@@ -167,6 +173,7 @@ export const STUDIO_LESSONS: StudioLesson[] = [
       { en: "Add compression until loud and quiet words feel closer in volume.", es: "Añade compresión hasta que las palabras fuertes y suaves se sientan parejas." },
     ],
     concepts: ["gate", "eq", "compression"],
+    autoTick: { en: "Ticks automatically when a vocal track has its gate and compressor on.", es: "Se marca sola cuando una pista de voz tiene activadas la puerta y el compresor." },
   },
   {
     id: "tune-vocal",
@@ -180,6 +187,7 @@ export const STUDIO_LESSONS: StudioLesson[] = [
       { en: "For full control, open the manual pitch editor and drag individual notes to the pitch you want.", es: "Para control total, abre el editor manual y arrastra cada nota al tono que quieras." },
     ],
     concepts: ["pitch-correction"],
+    autoTick: { en: "Ticks automatically when you apply a pitch fix to a clip.", es: "Se marca sola cuando aplicas una corrección de tono a un clip." },
   },
   {
     id: "finish-and-share",
@@ -193,6 +201,7 @@ export const STUDIO_LESSONS: StudioLesson[] = [
       { en: "Export the mix as a WAV. Use stems if someone else will mix it.", es: "Exporta la mezcla como WAV. Usa stems si alguien más la va a mezclar." },
     ],
     concepts: ["reverb", "export"],
+    autoTick: { en: "Ticks automatically when you export a mix (Pro).", es: "Se marca sola cuando exportas una mezcla (Pro)." },
   },
 ];
 

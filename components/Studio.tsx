@@ -51,7 +51,8 @@ import { SceneLauncherModal } from "@/components/daw/SceneLauncherModal";
 import { CollaborationPanel } from "@/components/daw/CollaborationPanel";
 import { StudioWelcomeModal } from "@/components/daw/StudioWelcomeModal";
 import { StarterProjectsModal } from "@/components/daw/StarterProjectsModal";
-import { STARTER_BARS, buildChordNotes, type StarterProject } from "@/lib/daw/starters";
+import { STARTER_BARS, STARTER_PROJECTS, buildChordNotes, type StarterProject } from "@/lib/daw/starters";
+import { markLearnDetected } from "@/lib/learn/progress";
 import { ChromaticTuner } from "@/components/daw/ChromaticTuner";
 import { SoundPreset } from "@/lib/daw/soundLibrary";
 import { parseMidiFile } from "@/lib/daw/midiFile";
@@ -212,7 +213,8 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
   const [aiFeature, setAiFeature] = useState<"coach" | "palette" | "songstarter">("coach");
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).has("invite")) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("invite") || params.has("starter")) return;
     try {
       if (window.localStorage.getItem("artistpilot-studio-guide-seen") !== "true") {
         setWelcomeOpen(true);
@@ -1691,6 +1693,25 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
     setStatusMsg(t("starter.status", { name: starter.name.en }));
   };
 
+  useEffect(() => {
+    const audio = tracks.filter((track) => track.category === "audio");
+    const clips = audio.flatMap((track) => track.regions);
+    if (clips.length > 0) markLearnDetected("first-recording");
+    if (clips.some((clip) => / \(Tuned\)$/.test(clip.name))) markLearnDetected("tune-vocal");
+    if (audio.some((track) => track.regions.length > 0 && track.settings?.gateEnabled && track.settings?.compEnabled)) markLearnDetected("clean-vocal");
+    if (tracks.length >= 2 && tracks.some((track) => track.pan !== 0) && tracks.some((track) => track.volume !== 0.8)) markLearnDetected("mixing-basics");
+  }, [tracks]);
+
+  const starterFromUrl = useRef(false);
+  useEffect(() => {
+    if (starterFromUrl.current) return;
+    starterFromUrl.current = true;
+    const id = new URLSearchParams(window.location.search).get("starter");
+    const starter = STARTER_PROJECTS.find((item) => item.id === id);
+    if (starter && tracks.length === 0) applyStarter(starter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const getProjectTracks = (): ExtendedTrackData[] =>
     tracks.map((track) => ({ ...track, midiNotes: trackNotes[track.id] ?? track.midiNotes ?? [] }));
 
@@ -1976,6 +1997,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
       anchor.download = `${projectName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "artistpilot-project"}.wav`;
       anchor.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+      markLearnDetected("finish-and-share");
       setStatusMsg(t("studio.statusExportedMix"));
     } catch (error) {
       console.error("Could not export studio mixdown:", error);

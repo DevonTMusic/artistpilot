@@ -5,27 +5,32 @@ import Link from "next/link";
 import Nav from "@/components/Nav";
 import { useLanguage } from "@/components/LanguageProvider";
 import { GLOSSARY, GLOSSARY_BY_ID, STUDIO_LESSONS } from "@/lib/learn/content";
-
-const PROGRESS_KEY = "artistpilot-learn-progress";
+import { LEARN_AUTO_KEY, LEARN_MANUAL_KEY, readIds } from "@/lib/learn/progress";
 
 export default function LearnPage() {
   const { locale, t } = useLanguage();
   const [done, setDone] = useState<string[]>([]);
+  const [auto, setAuto] = useState<string[]>([]);
 
   useEffect(() => {
-    try {
-      const saved = JSON.parse(window.localStorage.getItem(PROGRESS_KEY) ?? "[]");
-      if (Array.isArray(saved)) setDone(saved.filter((id): id is string => typeof id === "string"));
-    } catch {
-      setDone([]);
-    }
+    const load = () => {
+      setDone(readIds(LEARN_MANUAL_KEY));
+      setAuto(readIds(LEARN_AUTO_KEY));
+    };
+    load();
+    window.addEventListener("storage", load);
+    window.addEventListener("focus", load);
+    return () => {
+      window.removeEventListener("storage", load);
+      window.removeEventListener("focus", load);
+    };
   }, []);
 
   const toggle = (id: string) => {
     setDone((current) => {
       const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
       try {
-        window.localStorage.setItem(PROGRESS_KEY, JSON.stringify(next));
+        window.localStorage.setItem(LEARN_MANUAL_KEY, JSON.stringify(next));
       } catch (error) {
         console.warn("Could not save lesson progress:", error);
       }
@@ -33,7 +38,8 @@ export default function LearnPage() {
     });
   };
 
-  const completed = STUDIO_LESSONS.filter((lesson) => done.includes(lesson.id)).length;
+  const isComplete = (id: string) => done.includes(id) || auto.includes(id);
+  const completed = STUDIO_LESSONS.filter((lesson) => isComplete(lesson.id)).length;
 
   return (
     <>
@@ -48,7 +54,8 @@ export default function LearnPage() {
 
         <div className="mt-8 grid gap-5 md:grid-cols-2">
           {STUDIO_LESSONS.map((lesson, index) => {
-            const isDone = done.includes(lesson.id);
+            const isDone = isComplete(lesson.id);
+            const detected = auto.includes(lesson.id);
             return (
               <section key={lesson.id} className="rounded-2xl border border-[#3B3155] bg-[#241D3A] p-6" aria-labelledby={`lesson-${lesson.id}`}>
                 <p className="text-xs font-semibold uppercase tracking-wide text-[#B89CFF]">{t("learn.lessonLabel", { n: index + 1, minutes: lesson.minutes })}</p>
@@ -63,12 +70,13 @@ export default function LearnPage() {
                   ))}
                 </p>
                 <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <Link href="/studio" className="rounded-lg bg-[#986FEF] px-3 py-2 text-xs font-bold text-white hover:bg-[#B89CFF]">{t("learn.tryInStudio")}</Link>
+                  <Link href={lesson.starter ? `/studio?starter=${lesson.starter}` : "/studio"} className="rounded-lg bg-[#986FEF] px-3 py-2 text-xs font-bold text-white hover:bg-[#B89CFF]">{t("learn.tryInStudio")}</Link>
                   <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-200">
-                    <input type="checkbox" checked={isDone} onChange={() => toggle(lesson.id)} className="h-4 w-4 accent-[#4FE3C1]" />
+                    <input type="checkbox" checked={isDone} disabled={detected && !done.includes(lesson.id)} onChange={() => toggle(lesson.id)} className="h-4 w-4 accent-[#4FE3C1]" />
                     {t("learn.markDone")}
                   </label>
                 </div>
+                <p className="mt-3 text-xs text-zinc-500">{detected ? t("learn.detected") : lesson.autoTick[locale]}</p>
               </section>
             );
           })}
