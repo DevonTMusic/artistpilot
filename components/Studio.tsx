@@ -50,6 +50,8 @@ import { SamplerPadModal } from "@/components/daw/SamplerPadModal";
 import { SceneLauncherModal } from "@/components/daw/SceneLauncherModal";
 import { CollaborationPanel } from "@/components/daw/CollaborationPanel";
 import { StudioWelcomeModal } from "@/components/daw/StudioWelcomeModal";
+import { StarterProjectsModal } from "@/components/daw/StarterProjectsModal";
+import { STARTER_BARS, buildChordNotes, type StarterProject } from "@/lib/daw/starters";
 import { ChromaticTuner } from "@/components/daw/ChromaticTuner";
 import { SoundPreset } from "@/lib/daw/soundLibrary";
 import { parseMidiFile } from "@/lib/daw/midiFile";
@@ -139,6 +141,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
   const [projectName, setProjectName] = useState(t("studio.newProject"));
   const [bpm, setBpm] = useState(Math.min(300, Math.max(30, defaultBpm)));
   const [projectKey, setProjectKey] = useState("D♭");
+  const [starterOpen, setStarterOpen] = useState(false);
   const [projectScale, setProjectScale] = useState<"maj" | "min">("maj");
   const [sections, setSections] = useState<ArrangerSection[]>([]);
   const [buses, setBuses] = useState<MixerBus[]>([]);
@@ -1654,6 +1657,40 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
     setPitchTarget({ trackId: target.id, regionId: target.regions[0].id });
   };
 
+  const applyStarter = (starter: StarterProject) => {
+    if (isRecording) {
+      setStatusMsg(t("studio.statusStopBeforeOpen"));
+      return;
+    }
+    handleStop();
+    const base = nextTrackId.current;
+    nextTrackId.current = base + 3;
+    const notes = buildChordNotes(starter.chords);
+    const common = {
+      volume: 0.8, pan: 0, mute: false, solo: false, monitoring: false,
+      settings: { ...DEFAULT_TRACK_SETTINGS }, ampSettings: { ...DEFAULT_AMP_SETTINGS }, ampEnabled: false, regions: [],
+    };
+    const starterTracks: ExtendedTrackData[] = [
+      { ...common, id: base, name: "Drums", category: "drum", trackType: "drum", instrument: "Drums", color: "bg-[#d69e2e]", armed: false, midiNotes: [], drumPattern: { ...starter.drums } },
+      { ...common, id: base + 1, name: "Chords", category: "midi", trackType: "midi", instrument: "Piano", color: "bg-[#38a169]", armed: false, midiNotes: notes, synthSettings: { ...DEFAULT_SYNTH_SETTINGS } },
+      { ...common, id: base + 2, name: "Voice", category: "audio", trackType: "vocal", instrument: "Voice", color: "bg-[#e53e3e]", armed: true, midiNotes: [] },
+    ];
+    setTracks(starterTracks);
+    setTrackNotes({ [base + 1]: notes });
+    setSelectedTrackId(base + 2);
+    setIsMasterMode(false);
+    setBpm(starter.bpm);
+    setProjectKey(starter.key);
+    setProjectScale(starter.scale);
+    setProjectName(starter.name.en);
+    setIsLooping(true);
+    setLoopStartSec(0);
+    setLoopEndSec((STARTER_BARS * 4 * 60) / starter.bpm);
+    setPlayheadSec(0);
+    setStarterOpen(false);
+    setStatusMsg(t("starter.status", { name: starter.name.en }));
+  };
+
   const getProjectTracks = (): ExtendedTrackData[] =>
     tracks.map((track) => ({ ...track, midiNotes: trackNotes[track.id] ?? track.midiNotes ?? [] }));
 
@@ -2303,6 +2340,12 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
           >
             {t("nav.learn")}
           </a>
+          <button
+            onClick={() => setStarterOpen(true)}
+            className="h-7 rounded bg-[#20222a] px-2 text-[10px] font-semibold text-zinc-300 hover:bg-zinc-700 hover:text-white"
+          >
+            {t("starter.button")}
+          </button>
 
           <input
             aria-label={t("studio.projectNameAria")}
@@ -3647,6 +3690,7 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
           : undefined}
       />
 
+      <StarterProjectsModal isOpen={starterOpen} hasWork={tracks.length > 0} onClose={() => setStarterOpen(false)} onPick={applyStarter} />
       <StudioWelcomeModal
         isOpen={welcomeOpen}
         onClose={closeWelcome}
