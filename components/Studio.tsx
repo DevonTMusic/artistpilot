@@ -478,6 +478,32 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
     engine.current.updateMix(playbackState.current.tracks, masterVolume, masterSettings, buses);
   }, [tracks, trackNotes, bpm, timeSignature, masterVolume, isLooping, loopStartSec, loopEndSec, metronomeActive, isRecording, isPlaying, projectDuration, masterSettings, buses, masterAutomation]);
 
+  // Buses and mute/solo on automated tracks need a fresh schedule to take effect mid-playback.
+  const graphSignature = [
+    buses.map((bus) => bus.id).join(","),
+    tracks.map((track) => `${track.busId ?? ""}:${track.automation && (track.automation.volume?.length || track.automation.pan?.length || track.automation.reverbSend?.length) ? `${track.mute ? 1 : 0}${track.solo ? 1 : 0}` : ""}`).join("|"),
+  ].join("#");
+  const lastGraphSignature = useRef(graphSignature);
+  useEffect(() => {
+    if (lastGraphSignature.current === graphSignature) return;
+    lastGraphSignature.current = graphSignature;
+    const state = playbackState.current;
+    if (!state.isPlaying || state.isRecording) return;
+    const currentSec = playheadAnchor.current + (performance.now() - playStartTime.current) / 1000;
+    playStartTime.current = performance.now();
+    playheadAnchor.current = currentSec;
+    engine.current.schedulePlayback(
+      state.tracks,
+      currentSec,
+      state.bpm,
+      state.masterVolume,
+      state.masterSettings,
+      state.isLooping ? state.loopEndSec : state.projectDuration,
+      state.buses,
+      state.masterAutomation
+    );
+  }, [graphSignature]);
+
   // Scrubbing & Loop Range Listeners
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
@@ -535,12 +561,13 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
 
     const state = playbackState.current;
     if (state.isLooping && currentSec >= state.loopEndSec) {
-      currentSec = state.loopStartSec;
+      const loopLength = Math.max(0.1, state.loopEndSec - state.loopStartSec);
+      currentSec = state.loopStartSec + ((currentSec - state.loopEndSec) % loopLength);
       playStartTime.current = performance.now();
-      playheadAnchor.current = state.loopStartSec;
+      playheadAnchor.current = currentSec;
       engine.current.schedulePlayback(
         state.tracks,
-        state.loopStartSec,
+        currentSec,
         state.bpm,
         state.masterVolume,
         state.masterSettings,
