@@ -2,6 +2,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useLanguage } from "@/components/LanguageProvider";
+import ConceptHint from "@/components/ConceptHint";
 import type { PitchCorrectionOptions, PitchScale } from "@/lib/daw/pitchCorrect";
 
 const NOTE_NAMES = ["C", "D♭", "D", "E♭", "E", "F", "F#", "G", "A♭", "A", "B♭", "B"];
@@ -69,7 +70,8 @@ export function PitchCorrectionModal({
       >
         <div className="flex h-10 items-center justify-between border-b border-[#3B3155] bg-[#1a1c24] px-4">
           <span className="text-xs font-bold text-white">
-            {t("pitch.title")} <span className="font-semibold text-[#75DEFF]">({clipName})</span>
+            {t("pitch.title")} <span className="font-semibold text-[#75DEFF]">({clipName})</span>{" "}
+            <ConceptHint id="pitch-correction" />
           </span>
           <button aria-label="Close" onClick={onClose} disabled={busy} className="text-xs font-bold text-zinc-400 hover:text-white disabled:opacity-40">✕</button>
         </div>

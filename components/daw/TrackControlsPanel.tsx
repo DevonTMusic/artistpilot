@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { ProcessingSettings, VOCAL_POLISH_SETTINGS } from "@/lib/daw/TrackProcessor";
 import { DeviceInfo } from "@/lib/daw/AudioDeviceManager";
 import { useLanguage } from "@/components/LanguageProvider";
+import ConceptHint from "@/components/ConceptHint";
 
 interface TrackControlsPanelProps {
   trackName: string;
@@ -321,6 +322,7 @@ export function TrackControlsPanel({
                   />
                   <span className="font-bold">{t("track.noiseGate")}</span>
                 </label>
+                <ConceptHint id="gate" />
                 <span className="font-mono text-zinc-400">{currentSettings.gateThreshold} dB</span>
               </div>
               <input
@@ -366,7 +368,7 @@ export function TrackControlsPanel({
           
           {/* COMPRESSOR */}
           <div className="flex flex-col items-center border-r border-sky-400/20 pr-6 flex-none">
-            <span className="text-[10px] font-black tracking-wider text-[#B6EEFF] mb-1.5">{t("track.compressor")}</span>
+            <span className="mb-1.5 flex items-center gap-1 text-[10px] font-black tracking-wider text-[#B6EEFF]">{t("track.compressor")}<ConceptHint id="compression" /></span>
             <div className="flex items-center gap-3">
               <RotaryKnob
                 label={t("track.amount")}

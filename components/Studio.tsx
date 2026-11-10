@@ -2295,6 +2295,14 @@ export default function Studio({ defaultBpm = 120, isPro = true }: { defaultBpm?
           >
             {t("studio.openGuide")}
           </button>
+          <a
+            href="/learn"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-7 items-center rounded bg-[#20222a] px-2 text-[10px] font-semibold text-zinc-300 hover:bg-zinc-700 hover:text-white"
+          >
+            {t("nav.learn")}
+          </a>
 
           <input
             aria-label={t("studio.projectNameAria")}
