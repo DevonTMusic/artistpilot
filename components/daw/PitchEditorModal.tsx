@@ -228,41 +228,41 @@ export function PitchEditorModal({
         className="flex max-h-[94vh] w-[960px] max-w-full flex-col rounded-2xl border-2 border-[#20232c] bg-[#12141a] font-sans shadow-[0_25px_60px_rgba(0,0,0,0.9)]"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex h-10 flex-none items-center justify-between border-b border-[#3B3155] bg-[#1a1c24] px-4">
+        <div className="flex h-10 flex-none items-center justify-between border-b border-[#504436] bg-[#1a1c24] px-4">
           <span className="text-xs font-bold text-white">
             {t("pitchEdit.title")} <span className="font-semibold text-[#75DEFF]">({clipName})</span>
           </span>
           <button aria-label="Close" onClick={onClose} disabled={busy} className="text-xs font-bold text-zinc-400 hover:text-white disabled:opacity-40">✕</button>
         </div>
 
-        <div className="flex flex-none flex-wrap items-end gap-3 border-b border-[#2a2540] px-4 py-3 text-[11px] text-zinc-300">
+        <div className="flex flex-none flex-wrap items-end gap-3 border-b border-[#3C3329] px-4 py-3 text-[11px] text-zinc-300">
           <p className="basis-full text-zinc-400">{t("pitchEdit.hint")}</p>
           <label>
             <span className="mb-1 block font-bold">{t("pitch.key")}</span>
             <select value={keyIndex} onChange={(event) => setKeyIndex(Number(event.target.value))}
-              className="rounded border border-[#3B3155] bg-[#201933] px-2 py-1 text-white">
+              className="rounded border border-[#504436] bg-[#2F271D] px-2 py-1 text-white">
               {KEY_NAMES.map((name, index) => <option key={name} value={index}>{name}</option>)}
             </select>
           </label>
           <label>
             <span className="mb-1 block font-bold">{t("pitch.scale")}</span>
             <select value={scale} onChange={(event) => setScale(event.target.value as PitchScale)}
-              className="rounded border border-[#3B3155] bg-[#201933] px-2 py-1 text-white">
+              className="rounded border border-[#504436] bg-[#2F271D] px-2 py-1 text-white">
               <option value="major">{t("pitch.major")}</option>
               <option value="minor">{t("pitch.minor")}</option>
               <option value="chromatic">{t("pitch.chromatic")}</option>
             </select>
           </label>
           <button onClick={snapSelected} disabled={selectedId === null}
-            className="rounded border border-[#3B3155] bg-[#201933] px-3 py-1 font-bold hover:border-[#75DEFF] hover:text-white disabled:opacity-40">
+            className="rounded border border-[#504436] bg-[#2F271D] px-3 py-1 font-bold hover:border-[#75DEFF] hover:text-white disabled:opacity-40">
             {t("pitchEdit.snapSelected")}
           </button>
           <button onClick={snapAll} disabled={notes.length === 0}
-            className="rounded border border-[#3B3155] bg-[#201933] px-3 py-1 font-bold hover:border-[#75DEFF] hover:text-white disabled:opacity-40">
+            className="rounded border border-[#504436] bg-[#2F271D] px-3 py-1 font-bold hover:border-[#75DEFF] hover:text-white disabled:opacity-40">
             {t("pitchEdit.snapAll")}
           </button>
           <button onClick={resetAll} disabled={editedCount === 0}
-            className="rounded border border-[#3B3155] bg-[#201933] px-3 py-1 font-bold hover:border-[#75DEFF] hover:text-white disabled:opacity-40">
+            className="rounded border border-[#504436] bg-[#2F271D] px-3 py-1 font-bold hover:border-[#75DEFF] hover:text-white disabled:opacity-40">
             {t("pitchEdit.resetAll")}
           </button>
           <label title={t("pitchEdit.flattenHint")}>
@@ -340,7 +340,7 @@ export function PitchEditorModal({
                             try { (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId); } catch {}
                           }}
                           className={`absolute z-10 flex cursor-ns-resize touch-none items-center overflow-hidden rounded px-1 text-[9px] font-bold leading-none outline-none focus-visible:ring-2 focus-visible:ring-white ${
-                            note.id === selectedId ? "bg-sky-400 text-black" : edited ? "bg-violet-500 text-white" : "bg-sky-700/80 text-white"
+                            note.id === selectedId ? "bg-sky-400 text-black" : edited ? "bg-amber-500 text-white" : "bg-sky-700/80 text-white"
                           }`}
                           style={{ left, width: noteWidth, top: yFor(note.targetMidi) - ROW / 2 + 1, height: ROW - 2 }}
                         >
@@ -355,7 +355,7 @@ export function PitchEditorModal({
           )}
         </div>
 
-        <div className="flex flex-none items-center justify-between gap-3 border-t border-[#3B3155] px-4 py-3 text-[11px]">
+        <div className="flex flex-none items-center justify-between gap-3 border-t border-[#504436] px-4 py-3 text-[11px]">
           <span className="text-zinc-400" aria-live="polite">
             {error && notes.length > 0 ? error : t("pitchEdit.summary", { count: notes.length, edited: editedCount })}
           </span>
@@ -363,7 +363,7 @@ export function PitchEditorModal({
             <button onClick={onClose} disabled={busy}
               className="rounded px-3 py-1.5 font-bold text-zinc-400 hover:text-white disabled:opacity-40">{t("pitch.cancel")}</button>
             <button onClick={preview} disabled={busy || analyzing || notes.length === 0}
-              className="rounded border border-[#3B3155] bg-[#201933] px-3 py-1.5 font-bold text-white hover:border-[#75DEFF] disabled:opacity-40">
+              className="rounded border border-[#504436] bg-[#2F271D] px-3 py-1.5 font-bold text-white hover:border-[#75DEFF] disabled:opacity-40">
               {previewing ? t("pitchEdit.stop") : t("pitchEdit.preview")}
             </button>
             <button onClick={apply} disabled={busy || analyzing || editedCount === 0}

@@ -38,23 +38,23 @@ export function SoundLibraryModal({ isOpen, onClose, onApply }: SoundLibraryModa
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">
-      <section role="dialog" aria-modal="true" aria-label={t("sound.title")} className="flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-[#51456F] bg-[#13151a] text-white shadow-2xl">
-        <header className="flex items-center justify-between border-b border-[#3B3155] px-5 py-4">
+      <section role="dialog" aria-modal="true" aria-label={t("sound.title")} className="flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-[#695B4B] bg-[#13151a] text-white shadow-2xl">
+        <header className="flex items-center justify-between border-b border-[#504436] px-5 py-4">
           <div>
             <h2 className="text-base font-bold">{t("sound.title")}</h2>
             <p className="mt-1 text-xs text-zinc-400">{t("sound.description", { count: SOUND_LIBRARY.length })}</p>
           </div>
-          <button onClick={onClose} aria-label={t("sound.close")} className="rounded px-2 py-1 text-zinc-400 hover:bg-[#322849] hover:text-white">✕</button>
+          <button onClick={onClose} aria-label={t("sound.close")} className="rounded px-2 py-1 text-zinc-400 hover:bg-[#44392D] hover:text-white">✕</button>
         </header>
 
-        <div className="space-y-3 border-b border-[#3B3155] p-4">
+        <div className="space-y-3 border-b border-[#504436] p-4">
           <input
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t("sound.search")}
             aria-label={t("sound.searchLabel")}
-            className="w-full rounded-lg border border-[#51456F] bg-[#0c0d10] px-3 py-2 text-sm outline-none focus:border-[#75DEFF]"
+            className="w-full rounded-lg border border-[#695B4B] bg-[#0c0d10] px-3 py-2 text-sm outline-none focus:border-[#75DEFF]"
           />
           <div className="flex gap-2 overflow-x-auto pb-1">
             {categories.map((item) => (
@@ -62,7 +62,7 @@ export function SoundLibraryModal({ isOpen, onClose, onApply }: SoundLibraryModa
                 key={item.id}
                 onClick={() => setCategory(item.id)}
                 aria-pressed={category === item.id}
-                className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${category === item.id ? "bg-sky-500 text-[#19152B]" : "bg-[#322849] text-zinc-300 hover:bg-zinc-700"}`}
+                className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${category === item.id ? "bg-sky-500 text-[#282118]" : "bg-[#44392D] text-zinc-300 hover:bg-zinc-700"}`}
               >
                 {t(item.label)}
               </button>
@@ -72,11 +72,11 @@ export function SoundLibraryModal({ isOpen, onClose, onApply }: SoundLibraryModa
 
         <div className="grid flex-1 grid-cols-1 gap-2 overflow-y-auto p-4 sm:grid-cols-2 lg:grid-cols-3">
           {results.map((preset) => (
-            <article key={preset.id} className="flex min-h-28 flex-col justify-between rounded-xl border border-[#3B3155] bg-[#1a1c22] p-3">
+            <article key={preset.id} className="flex min-h-28 flex-col justify-between rounded-xl border border-[#504436] bg-[#1a1c22] p-3">
               <div>
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="text-sm font-semibold text-white">{preset.name}</h3>
-                  <span className="rounded bg-[#322849] px-2 py-0.5 text-[9px] tracking-wide text-zinc-400">{preset.category}</span>
+                  <span className="rounded bg-[#44392D] px-2 py-0.5 text-[9px] tracking-wide text-zinc-400">{preset.category}</span>
                 </div>
                 <p className="mt-1 text-xs text-zinc-400">{preset.description}</p>
                 <p className="mt-2 text-[10px] text-zinc-500">{soundPresetSummary(preset)}</p>

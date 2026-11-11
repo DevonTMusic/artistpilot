@@ -56,14 +56,14 @@ export function DraggableWindow({
   return (
     <div
       style={{ left: `${pos.x}px`, top: `${pos.y}px` }}
-      className={`fixed z-50 ${width} ${height} rounded-2xl border-2 border-[#20222a] bg-[#14151b] shadow-[0_30px_70px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden font-sans select-none backdrop-blur-md`}
+      className={`fixed z-50 ${width} ${height} rounded-2xl border-2 border-[#20222a] bg-[#1A1815] shadow-[0_30px_70px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden font-sans select-none backdrop-blur-md`}
     >
       {/* Draggable Title Bar */}
       <div
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className="flex h-10 flex-none items-center justify-between border-b border-[#3B3155] bg-[#1c1e26] px-4 cursor-grab active:cursor-grabbing hover:bg-[#22242e] transition"
+        className="flex h-10 flex-none items-center justify-between border-b border-[#504436] bg-[#1c1e26] px-4 cursor-grab active:cursor-grabbing hover:bg-[#22242e] transition"
       >
         <span className="text-xs font-bold text-white flex items-center gap-2">
           {icon && <span className="flex items-center">{icon}</span>} {title}

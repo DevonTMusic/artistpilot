@@ -104,7 +104,7 @@ function RotaryKnob({
         aria-valuemax={max}
         aria-valuenow={value}
         title={`${label}: drag, arrow keys, or double-click to reset (Shift = fine)`}
-        className="h-12 w-12 rounded-full border-2 border-[#51456F] focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 bg-[#241D3A] shadow-lg flex items-center justify-center relative cursor-ns-resize active:scale-95 transition-transform"
+        className="h-12 w-12 rounded-full border-2 border-[#695B4B] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 bg-[#362C21] shadow-lg flex items-center justify-center relative cursor-ns-resize active:scale-95 transition-transform"
       >
         <div
           style={{ transform: `rotate(${angle}deg)` }}
@@ -167,7 +167,7 @@ export function TrackControlsPanel({
     <div className="flex h-[clamp(9rem,20vh,13rem)] w-full flex-none flex-col border-t border-[#1a1c22] bg-[#22242a] font-sans select-none shadow-2xl z-20">
       
       {/* 1. TOP TOOLBAR */}
-      <div className="flex h-7 flex-none items-center justify-between border-b border-[#18191f] bg-[#2d3038] px-2 text-xs">
+      <div className="flex h-7 flex-none items-center justify-between border-b border-[#1E1C19] bg-[#2d3038] px-2 text-xs">
         <div className="flex items-center gap-1.5">
           <div className="flex rounded bg-black/40 p-0.5">
             <button
@@ -206,8 +206,8 @@ export function TrackControlsPanel({
             onClick={handleToggleCompare}
             className={`px-2.5 py-0.5 rounded text-[10px] font-bold border transition ${
               activeSnapshot === "B"
-                ? "bg-[#B89CFF]/20 border-[#B89CFF]/60 text-[#D0BCFF]"
-                : "bg-black/20 border-[#51456F] text-zinc-300 hover:bg-zinc-700/50"
+                ? "bg-[#E0D0BB]/20 border-[#E0D0BB]/60 text-[#EADFD1]"
+                : "bg-black/20 border-[#695B4B] text-zinc-300 hover:bg-zinc-700/50"
             }`}
           >
             {t("track.compare", { snapshot: activeSnapshot })}
@@ -250,7 +250,7 @@ export function TrackControlsPanel({
       <div className="flex-1 flex overflow-hidden">
         
         {/* LEFT: Recording Settings (NOW FULLY SCROLLABLE) */}
-        <div className="w-56 flex-none border-r border-[#1a1b22] p-2 flex flex-col bg-[#262830] overflow-y-auto">
+        <div className="w-56 flex-none border-r border-[#211E1B] p-2 flex flex-col bg-[#262830] overflow-y-auto">
           <div className="space-y-2 pb-3">
             <span className="text-[10px] font-black tracking-wider text-zinc-400 block">
               {t("track.recordingSettings")}
@@ -269,7 +269,7 @@ export function TrackControlsPanel({
                 step={0.05}
                 value={currentSettings.inputGain}
                 onChange={(e) => updateProp("inputGain", Number(e.target.value))}
-                className="w-full accent-[#3572b0] h-1 bg-[#322849] rounded cursor-pointer"
+                className="w-full accent-[#3572b0] h-1 bg-[#44392D] rounded cursor-pointer"
               />
             </div>
 
@@ -279,7 +279,7 @@ export function TrackControlsPanel({
               <select
                 value={activeDeviceId}
                 onChange={(e) => onSelectDevice(e.target.value)}
-                className="w-full bg-[#241D3A] border border-[#51456F] text-[11px] text-white rounded p-1 focus:outline-none"
+                className="w-full bg-[#362C21] border border-[#695B4B] text-[11px] text-white rounded p-1 focus:outline-none"
               >
                 <option value="default">{t("track.defaultInput")}</option>
                 {devices.map((d) => (
@@ -294,7 +294,7 @@ export function TrackControlsPanel({
               <button
                 onClick={onToggleMonitoring}
                 className={`px-3 py-1 rounded text-xs font-bold transition ${
-                  isMonitoring ? "bg-sky-500 text-[#19152B] shadow-sky-500/50" : "bg-[#322849] text-zinc-400"
+                  isMonitoring ? "bg-sky-500 text-[#282118] shadow-sky-500/50" : "bg-[#44392D] text-zinc-400"
                 }`}
               >
                 {isMonitoring ? t("track.on") : t("track.off")}
@@ -302,7 +302,7 @@ export function TrackControlsPanel({
             </div>
 
             {/* Noise Gate section */}
-            <div className="pt-2 border-t border-[#3B3155]">
+            <div className="pt-2 border-t border-[#504436]">
               <label className="mb-2 flex items-center gap-1.5 text-[10px] text-zinc-300">
                 <input
                   type="checkbox"
@@ -332,10 +332,10 @@ export function TrackControlsPanel({
                 value={currentSettings.gateThreshold}
                 onChange={(e) => updateProp("gateThreshold", Number(e.target.value))}
                 disabled={!currentSettings.gateEnabled}
-                className="w-full accent-[#3572b0] h-1 bg-[#322849] rounded cursor-pointer disabled:opacity-40"
+                className="w-full accent-[#3572b0] h-1 bg-[#44392D] rounded cursor-pointer disabled:opacity-40"
               />
             </div>
-            <div className="border-t border-[#3B3155] pt-2">
+            <div className="border-t border-[#504436] pt-2">
               <label className="mb-2 flex items-center gap-1.5 text-[10px] text-zinc-300">
                 <input
                   type="checkbox"
@@ -364,7 +364,7 @@ export function TrackControlsPanel({
         </div>
 
         {/* CENTER & RIGHT: Blue Hardware Console with Rotating Circular Dials */}
-        <div className="min-w-0 flex-1 bg-gradient-to-b from-[#493578] via-[#342653] to-[#231a3a] p-2 flex items-center justify-around border-l border-[#1B1430] shadow-inner overflow-x-auto">
+        <div className="min-w-0 flex-1 bg-gradient-to-b from-[#6E583F] via-[#4C3E2D] to-[#352B1F] p-2 flex items-center justify-around border-l border-[#2C2318] shadow-inner overflow-x-auto">
           
           {/* COMPRESSOR */}
           <div className="flex flex-col items-center border-r border-sky-400/20 pr-6 flex-none">
@@ -408,8 +408,8 @@ export function TrackControlsPanel({
                     key={i}
                     className={`h-1.5 w-1.5 rounded-full ${
                       currentSettings.compEnabled && currentSettings.compAmount * 6 >= i
-                        ? i > 4 ? "bg-[#D0BCFF] shadow-sm" : "bg-[#4FE3C1]"
-                        : "bg-[#322849]"
+                        ? i > 4 ? "bg-[#EADFD1] shadow-sm" : "bg-[#4FE3C1]"
+                        : "bg-[#44392D]"
                     }`}
                   />
                 ))}
@@ -455,7 +455,7 @@ export function TrackControlsPanel({
                 <button
                   onClick={() => updateProp("lowCut", !currentSettings.lowCut)}
                   className={`h-7 w-7 rounded-full border border-sky-400/40 text-[9px] font-bold transition flex items-center justify-center ${
-                    currentSettings.lowCut ? "bg-sky-400 text-[#19152B] shadow-sm" : "bg-black/40 text-zinc-400"
+                    currentSettings.lowCut ? "bg-sky-400 text-[#282118] shadow-sm" : "bg-black/40 text-zinc-400"
                   }`}
                   title="80Hz HPF"
                 >

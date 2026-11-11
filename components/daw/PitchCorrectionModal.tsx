@@ -68,7 +68,7 @@ export function PitchCorrectionModal({
         className="w-[420px] max-w-[92vw] rounded-2xl border-2 border-[#20232c] bg-[#12141a] font-sans shadow-[0_25px_60px_rgba(0,0,0,0.9)]"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex h-10 items-center justify-between border-b border-[#3B3155] bg-[#1a1c24] px-4">
+        <div className="flex h-10 items-center justify-between border-b border-[#504436] bg-[#1a1c24] px-4">
           <span className="text-xs font-bold text-white">
             {t("pitch.title")} <span className="font-semibold text-[#75DEFF]">({clipName})</span>{" "}
             <ConceptHint id="pitch-correction" />
@@ -83,7 +83,7 @@ export function PitchCorrectionModal({
               <select
                 value={keyIndex}
                 onChange={(event) => setKeyIndex(Number(event.target.value))}
-                className="w-full rounded border border-[#3B3155] bg-[#201933] px-2 py-1.5 text-white"
+                className="w-full rounded border border-[#504436] bg-[#2F271D] px-2 py-1.5 text-white"
               >
                 {NOTE_NAMES.map((name, index) => <option key={name} value={index}>{name}</option>)}
               </select>
@@ -93,7 +93,7 @@ export function PitchCorrectionModal({
               <select
                 value={scale}
                 onChange={(event) => setScale(event.target.value as PitchScale)}
-                className="w-full rounded border border-[#3B3155] bg-[#201933] px-2 py-1.5 text-white"
+                className="w-full rounded border border-[#504436] bg-[#2F271D] px-2 py-1.5 text-white"
               >
                 <option value="major">{t("pitch.major")}</option>
                 <option value="minor">{t("pitch.minor")}</option>
@@ -106,7 +106,7 @@ export function PitchCorrectionModal({
               <button
                 key={preset.label}
                 onClick={() => { setStrength(preset.strength); setRetuneMs(preset.retune); }}
-                className="flex-1 rounded border border-[#3B3155] bg-[#201933] py-1 font-bold hover:border-[#75DEFF] hover:text-white"
+                className="flex-1 rounded border border-[#504436] bg-[#2F271D] py-1 font-bold hover:border-[#75DEFF] hover:text-white"
               >
                 {preset.label}
               </button>

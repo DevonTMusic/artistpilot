@@ -150,7 +150,7 @@ export function ClipRegion({
                 onCopy(region);
               }}
               title={t("clip.copy")}
-              className="hover:text-[#D0BCFF] transition text-[10px]"
+              className="hover:text-[#EADFD1] transition text-[10px]"
             >
               📋
             </button>
@@ -162,7 +162,7 @@ export function ClipRegion({
                 onLoop();
               }}
               title={t("clip.repeat")}
-              className="hover:text-[#D0BCFF] transition text-[10px]"
+              className="hover:text-[#EADFD1] transition text-[10px]"
             >
               ↻
             </button>
@@ -174,7 +174,7 @@ export function ClipRegion({
                 onReverse();
               }}
               title={t("clip.reverse")}
-              className="hover:text-[#D0BCFF] transition text-[10px]"
+              className="hover:text-[#EADFD1] transition text-[10px]"
             >
               ⇄
             </button>
@@ -187,7 +187,7 @@ export function ClipRegion({
               }}
               title={t("clip.timeStretch")}
               aria-label={t("clip.timeStretch")}
-              className="hover:text-[#D0BCFF] transition text-[10px]"
+              className="hover:text-[#EADFD1] transition text-[10px]"
             >
               ⏱
             </button>
@@ -199,7 +199,7 @@ export function ClipRegion({
                 onPitchCorrect();
               }}
               title={t("clip.pitchCorrect")}
-              className="hover:text-[#D0BCFF] transition text-[10px]"
+              className="hover:text-[#EADFD1] transition text-[10px]"
             >
               🎤
             </button>
@@ -210,7 +210,7 @@ export function ClipRegion({
               onSplit(region.startTime + region.duration / 2);
             }}
             title={t("clip.split")}
-            className="hover:text-[#D0BCFF] transition text-[10px]"
+            className="hover:text-[#EADFD1] transition text-[10px]"
           >
             ✂
           </button>

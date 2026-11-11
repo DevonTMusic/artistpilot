@@ -121,10 +121,10 @@ export function AudioSettingsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 font-sans select-none">
-      <div role="dialog" aria-modal="true" className="w-full max-w-lg rounded-2xl border-2 border-[#20222a] bg-[#14151b] shadow-2xl overflow-hidden flex flex-col text-zinc-300">
+      <div role="dialog" aria-modal="true" className="w-full max-w-lg rounded-2xl border-2 border-[#20222a] bg-[#1A1815] shadow-2xl overflow-hidden flex flex-col text-zinc-300">
         
         {/* Title Bar */}
-        <div className="flex h-11 items-center justify-between border-b border-[#3B3155] bg-[#2B2240] px-4">
+        <div className="flex h-11 items-center justify-between border-b border-[#504436] bg-[#3B3227] px-4">
           <div className="flex items-center gap-2">
             <span className="text-sm font-bold text-white flex items-center gap-1.5">
               {t("audio.systemTitle")}
@@ -139,7 +139,7 @@ export function AudioSettingsModal({
           
           {/* Permission Alert if labels are hidden */}
           {!permissionGranted && (
-            <div className="p-3 bg-[#34204D]/40 border border-[#493578]/60 rounded-xl text-xs text-[#b9f6d0]">
+            <div className="p-3 bg-[#463827]/40 border border-[#6E583F]/60 rounded-xl text-xs text-[#b9f6d0]">
               <span className="font-bold block mb-0.5">{t("audio.permissionTitle")}</span>
               {t("audio.permissionHelp")}
             </div>
@@ -160,7 +160,7 @@ export function AudioSettingsModal({
                 const found = inputs.find((d) => d.deviceId === devId);
                 onSelectInputDevice(devId, found?.label ?? t("audio.inputLabel"));
               }}
-              className="w-full rounded-lg bg-[#19142B] border border-[#51456F]/80 p-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+              className="w-full rounded-lg bg-[#282017] border border-[#695B4B]/80 p-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-sky-500"
             >
               <option value="default">{t("audio.defaultInput")}</option>
               {inputs.map((d) => (
@@ -180,15 +180,15 @@ export function AudioSettingsModal({
               </span>
             </div>
             
-            <div className="h-3 w-full bg-[#19142B] rounded border border-[#3B3155] p-0.5 overflow-hidden flex items-center">
+            <div className="h-3 w-full bg-[#282017] rounded border border-[#504436] p-0.5 overflow-hidden flex items-center">
               <div
                 style={{ width: `${inputLevel}%` }}
                 className={`h-full rounded-sm transition-all duration-75 ${
-                  inputLevel > 85 ? "bg-red-500 shadow-[0_0_8px_#ef4444]" : inputLevel > 65 ? "bg-[#D0BCFF]" : "bg-[#4FE3C1]"
+                  inputLevel > 85 ? "bg-red-500 shadow-[0_0_8px_#ef4444]" : inputLevel > 65 ? "bg-[#EADFD1]" : "bg-[#4FE3C1]"
                 }`}
               />
             </div>
-            {meterError && <p role="alert" className="mt-1 text-[10px] text-[#D0BCFF]">{meterError}</p>}
+            {meterError && <p role="alert" className="mt-1 text-[10px] text-[#EADFD1]">{meterError}</p>}
           </div>
 
           {/* 3. Output Device Selector */}
@@ -209,7 +209,7 @@ export function AudioSettingsModal({
                   }
                 })();
               }}
-              className="w-full rounded-lg bg-[#19142B] border border-[#51456F]/80 p-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+              className="w-full rounded-lg bg-[#282017] border border-[#695B4B]/80 p-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-sky-500"
             >
               <option value="default">{t("audio.defaultOutput")}</option>
               {outputs.map((d) => (
@@ -219,11 +219,11 @@ export function AudioSettingsModal({
               ))}
             </select>
             <span className="text-[9px] text-zinc-500 mt-1 block">{t("audio.routingNote")}</span>
-            {outputError && <p role="alert" className="mt-1 text-[10px] text-[#D0BCFF]">{outputError}</p>}
+            {outputError && <p role="alert" className="mt-1 text-[10px] text-[#EADFD1]">{outputError}</p>}
           </div>
 
           {/* 4. Direct Monitoring Switch */}
-          <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#181a22] border border-[#3B3155]">
+          <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#181a22] border border-[#504436]">
             <div>
               <span className="text-xs font-bold text-white block">{t("audio.directLatency")}</span>
               <span className="text-[10px] text-zinc-400">{t("audio.routeHelp")}</span>
@@ -231,7 +231,7 @@ export function AudioSettingsModal({
             <button
               onClick={() => onToggleMonitoring(!isMonitoring)}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow ${
-                isMonitoring ? "bg-sky-500 text-[#19152B] shadow-sky-500/50" : "bg-[#322849] text-zinc-400 hover:text-white"
+                isMonitoring ? "bg-sky-500 text-[#282118] shadow-sky-500/50" : "bg-[#44392D] text-zinc-400 hover:text-white"
               }`}
             >
               {isMonitoring ? t("audio.monitoringOn") : t("audio.muted")}
@@ -246,7 +246,7 @@ export function AudioSettingsModal({
 
         </div>
 
-        <div className="p-4 border-t border-[#3B3155] bg-[#171920] flex justify-between items-center">
+        <div className="p-4 border-t border-[#504436] bg-[#171920] flex justify-between items-center">
           <button
             onClick={() => manager.current.refreshDevices()}
             className="text-xs text-[#75DEFF] hover:text-[#75DEFF] font-semibold"

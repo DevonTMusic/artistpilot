@@ -145,16 +145,16 @@ export function CollaborationPanel({
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4">
-      <section role="dialog" aria-modal="true" className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-[#51456F] bg-[#15171d] p-4 shadow-2xl">
+      <section role="dialog" aria-modal="true" className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-[#695B4B] bg-[#15171d] p-4 shadow-2xl">
         <header className="mb-4 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-bold text-white">{t("collab.title")}</h2>
             <p className="mt-1 text-[10px] text-zinc-400">{t("collab.help")}</p>
           </div>
-          <button onClick={onClose} className="rounded bg-[#322849] px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-700">{t("collab.close")}</button>
+          <button onClick={onClose} className="rounded bg-[#44392D] px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-700">{t("collab.close")}</button>
         </header>
 
-        <div className="mb-4 rounded-lg border border-[#3B3155] bg-[#101116] p-3">
+        <div className="mb-4 rounded-lg border border-[#504436] bg-[#101116] p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="truncate text-xs font-semibold text-white">{projectId ? projectName : t("collab.localOnly")}</p>
@@ -175,23 +175,23 @@ export function CollaborationPanel({
                   <button disabled={busy} onClick={() => void run(onSaveShared, t("collab.saved"))} className="rounded bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-600 disabled:opacity-50">{hasEditLease ? t("collab.saveRevision") : t("collab.saveUnavailable")}</button>
                   {currentOwnerId && <button disabled={busy} onClick={() => void run(createInvite, t("collab.inviteReady"))} className="rounded bg-[#238C72] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#23AD8D] disabled:opacity-50">{t("collab.invite")}</button>}
                   {hasEditLease
-                    ? <button disabled={busy} onClick={() => void run(onRelease, t("collab.lockReleased"))} className="rounded bg-[#322849] px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50">{t("collab.releaseLock")}</button>
-                    : <button disabled={busy} onClick={() => void run(onClaim, t("collab.lockAcquired"))} className="rounded bg-[#7751D0] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#986FEF] disabled:opacity-50">{t("collab.takeLock")}</button>}
+                    ? <button disabled={busy} onClick={() => void run(onRelease, t("collab.lockReleased"))} className="rounded bg-[#44392D] px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50">{t("collab.releaseLock")}</button>
+                    : <button disabled={busy} onClick={() => void run(onClaim, t("collab.lockAcquired"))} className="rounded bg-[#BA9667] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#CDB391] disabled:opacity-50">{t("collab.takeLock")}</button>}
                 </>
               )}
             </div>
           </div>
           {inviteUrl && (
             <div className="mt-3 flex gap-2">
-              <input aria-label={t("collab.inviteLabel")} readOnly value={inviteUrl} className="min-w-0 flex-1 rounded border border-[#51456F] bg-black px-2 py-1.5 text-[10px] text-zinc-300" />
-              <button onClick={() => void navigator.clipboard.writeText(inviteUrl)} className="rounded bg-[#322849] px-2 text-[10px] text-zinc-200 hover:bg-zinc-700">{t("collab.copy")}</button>
+              <input aria-label={t("collab.inviteLabel")} readOnly value={inviteUrl} className="min-w-0 flex-1 rounded border border-[#695B4B] bg-black px-2 py-1.5 text-[10px] text-zinc-300" />
+              <button onClick={() => void navigator.clipboard.writeText(inviteUrl)} className="rounded bg-[#44392D] px-2 text-[10px] text-zinc-200 hover:bg-zinc-700">{t("collab.copy")}</button>
             </div>
           )}
         </div>
 
         {projectId && isOwner && (
           <div className="mb-4 grid gap-3 sm:grid-cols-2">
-            <section className="rounded-lg border border-[#3B3155] bg-[#101116] p-3">
+            <section className="rounded-lg border border-[#504436] bg-[#101116] p-3">
               <h3 className="mb-2 text-[10px] font-bold tracking-wide text-zinc-400">{t("collab.collaborators")}</h3>
               <div className="space-y-2">
                 {members.map((member) => (
@@ -203,7 +203,7 @@ export function CollaborationPanel({
                 {members.length === 0 && <p className="text-[10px] text-zinc-500">{t("collab.noCollaborators")}</p>}
               </div>
             </section>
-            <section className="rounded-lg border border-[#3B3155] bg-[#101116] p-3">
+            <section className="rounded-lg border border-[#504436] bg-[#101116] p-3">
               <h3 className="mb-2 text-[10px] font-bold tracking-wide text-zinc-400">{t("collab.invites")}</h3>
               <div className="space-y-2">
                 {invites.map((invite) => {
@@ -228,15 +228,15 @@ export function CollaborationPanel({
         </div>
         <div className="space-y-2">
           {projects.map((project) => (
-            <div key={project.id} className={`flex items-center justify-between gap-3 rounded-lg border p-3 ${project.id === projectId ? "border-sky-800 bg-[#1D2D4A]/20" : "border-[#3B3155] bg-[#101116]"}`}>
+            <div key={project.id} className={`flex items-center justify-between gap-3 rounded-lg border p-3 ${project.id === projectId ? "border-sky-800 bg-[#1D2D4A]/20" : "border-[#504436] bg-[#101116]"}`}>
               <div className="min-w-0">
                 <p className="truncate text-xs font-semibold text-zinc-200">{project.name}</p>
                 <p className="mt-1 text-[9px] text-zinc-500">{t("collab.revision", { revision: project.revision })} · {project.isOwner ? t("collab.owner") : t("collab.member")} · {project.lock_user_id ? t("collab.editor", { user: project.lock_user_id.slice(0, 8) }) : t("collab.noEditor")}</p>
               </div>
-              <button disabled={busy || project.id === projectId} onClick={() => void run(() => onLoadProject(project.id), t("collab.opened"))} className="rounded bg-[#322849] px-3 py-1.5 text-[10px] text-zinc-200 hover:bg-zinc-700 disabled:opacity-40">{t("collab.open")}</button>
+              <button disabled={busy || project.id === projectId} onClick={() => void run(() => onLoadProject(project.id), t("collab.opened"))} className="rounded bg-[#44392D] px-3 py-1.5 text-[10px] text-zinc-200 hover:bg-zinc-700 disabled:opacity-40">{t("collab.open")}</button>
             </div>
           ))}
-          {projects.length === 0 && <p className="rounded-lg border border-dashed border-[#51456F] p-4 text-center text-[10px] text-zinc-500">{t("collab.none")}</p>}
+          {projects.length === 0 && <p className="rounded-lg border border-dashed border-[#695B4B] p-4 text-center text-[10px] text-zinc-500">{t("collab.none")}</p>}
         </div>
         {(status || error) && <p role={error ? "alert" : "status"} className={`mt-3 rounded p-2 text-[10px] ${error ? "bg-rose-950/60 text-rose-300" : "bg-[#1C3A45]/40 text-[#75EBD0]"}`}>{error || status}</p>}
       </section>

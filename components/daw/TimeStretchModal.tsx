@@ -50,7 +50,7 @@ export function TimeStretchModal({ isOpen, clipName, projectBpm, busy, onClose, 
         className="w-[420px] max-w-[92vw] rounded-2xl border-2 border-[#20232c] bg-[#12141a] font-sans shadow-[0_25px_60px_rgba(0,0,0,0.9)]"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex h-10 items-center justify-between border-b border-[#3B3155] bg-[#1a1c24] px-4">
+        <div className="flex h-10 items-center justify-between border-b border-[#504436] bg-[#1a1c24] px-4">
           <span className="text-xs font-bold text-white">
             {t("stretch.title")} <span className="font-semibold text-[#75DEFF]">({clipName})</span>
           </span>
@@ -70,11 +70,11 @@ export function TimeStretchModal({ isOpen, clipName, projectBpm, busy, onClose, 
               <span className="mb-1 block font-bold">{t("stretch.sourceBpm")}</span>
               <input type="number" min={30} max={300} value={sourceBpm}
                 onChange={(event) => setSourceBpm(Number(event.target.value))}
-                className="w-full rounded border border-[#3B3155] bg-[#201933] px-2 py-1.5 text-white" />
+                className="w-full rounded border border-[#504436] bg-[#2F271D] px-2 py-1.5 text-white" />
             </label>
             <button
               onClick={() => setPercent(Math.round(Math.min(MAX_STRETCH, Math.max(MIN_STRETCH, matchFactor)) * 100))}
-              className="flex-1 rounded border border-[#3B3155] bg-[#201933] py-1.5 font-bold hover:border-[#75DEFF] hover:text-white"
+              className="flex-1 rounded border border-[#504436] bg-[#2F271D] py-1.5 font-bold hover:border-[#75DEFF] hover:text-white"
             >
               {t("stretch.matchProject", { bpm: projectBpm })}
             </button>
