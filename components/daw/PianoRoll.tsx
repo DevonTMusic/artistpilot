@@ -177,16 +177,16 @@ export function PianoRoll({
     <div className="flex h-full w-full flex-col bg-[#14151a] text-zinc-300 select-none">
       
       {/* Header with Quantize & Transpose Toolbar */}
-      <div className="flex h-8 items-center justify-between border-b border-[#3B3155] bg-[#1c1d24] pl-4 pr-24 text-xs font-semibold">
+      <div className="flex h-8 items-center justify-between border-b border-[#504436] bg-[#23201D] pl-4 pr-24 text-xs font-semibold">
         <span className="text-zinc-200">
-          {t("pianoRoll.title")} <span className="text-[#FF72B6]">{instrumentName}</span>
+          {t("pianoRoll.title")} <span className="text-[#D3BC9E]">{instrumentName}</span>
         </span>
 
         <div className="flex items-center gap-2">
           {/* Quantize */}
           <button
             onClick={() => quantizeNotes(quantizeStep)}
-            className="px-2 py-0.5 rounded bg-[#322849] hover:bg-zinc-700 text-[10px] text-white"
+            className="px-2 py-0.5 rounded bg-[#44392D] hover:bg-zinc-700 text-[10px] text-white"
             title={t("pianoRoll.align", { grid: quantizeStep === 1 ? "1/16" : "1/8" })}
           >
             {t("pianoRoll.quantize")} ({quantizeStep === 1 ? "1/16" : "1/8"})
@@ -195,7 +195,7 @@ export function PianoRoll({
             aria-label={t("pianoRoll.quantize")}
             value={quantizeStep}
             onChange={(event) => setQuantizeStep(Number(event.target.value))}
-            className="rounded border border-[#51456F] bg-[#241D3A] px-1 py-0.5 text-[10px]"
+            className="rounded border border-[#695B4B] bg-[#362C21] px-1 py-0.5 text-[10px]"
           >
             <option value={1}>1/16</option>
             <option value={2}>1/8</option>
@@ -203,7 +203,7 @@ export function PianoRoll({
           <button
             onClick={() => setScaleLock((enabled) => !enabled)}
             aria-pressed={scaleLock}
-            className={`rounded px-2 py-0.5 text-[10px] ${scaleLock ? "bg-sky-700 text-white" : "bg-[#322849] text-zinc-300 hover:bg-zinc-700"}`}
+            className={`rounded px-2 py-0.5 text-[10px] ${scaleLock ? "bg-sky-700 text-white" : "bg-[#44392D] text-zinc-300 hover:bg-zinc-700"}`}
             title={t("pianoRoll.scaleTitle", { key: projectKey, scale: t(scale === "maj" ? "music.major" : "music.minor") })}
           >
             {t("pianoRoll.scale")} {scaleLock ? t("pianoRoll.on") : t("pianoRoll.off")}
@@ -219,7 +219,7 @@ export function PianoRoll({
           <button
             onClick={() => setChordMode((enabled) => !enabled)}
             aria-pressed={chordMode}
-            className={`rounded px-2 py-0.5 text-[10px] ${chordMode ? "bg-[#7751D0] text-white" : "bg-[#322849] text-zinc-300 hover:bg-zinc-700"}`}
+            className={`rounded px-2 py-0.5 text-[10px] ${chordMode ? "bg-[#BA9667] text-white" : "bg-[#44392D] text-zinc-300 hover:bg-zinc-700"}`}
             title={t("pianoRoll.chordTitle")}
           >
             {t("pianoRoll.chord")} {chordMode ? t("pianoRoll.on") : t("pianoRoll.off")}
@@ -228,26 +228,26 @@ export function PianoRoll({
             <button
               onClick={() => setSynthControlsOpen((open) => !open)}
               aria-expanded={synthControlsOpen}
-              className={`rounded px-2 py-0.5 text-[10px] ${synthControlsOpen ? "bg-[#238C72] text-white" : "bg-[#322849] text-zinc-300 hover:bg-zinc-700"}`}
+              className={`rounded px-2 py-0.5 text-[10px] ${synthControlsOpen ? "bg-[#238C72] text-white" : "bg-[#44392D] text-zinc-300 hover:bg-zinc-700"}`}
             >
               {t("pianoRoll.synth")} {synthControlsOpen ? t("pianoRoll.hide") : t("track.controls")}
             </button>
           )}
 
           {/* Transpose */}
-          <div className="flex items-center gap-1 border-l border-[#51456F] pl-2 text-[10px]">
+          <div className="flex items-center gap-1 border-l border-[#695B4B] pl-2 text-[10px]">
             <span>{t("pianoRoll.transpose")}</span>
-            <button onClick={() => transposeNotes(-1)} className="px-1.5 py-0.5 rounded bg-[#322849] hover:bg-zinc-700">-1</button>
-            <button onClick={() => transposeNotes(1)} className="px-1.5 py-0.5 rounded bg-[#322849] hover:bg-zinc-700">+1</button>
-            <button onClick={() => transposeNotes(12)} className="px-1.5 py-0.5 rounded bg-[#322849] hover:bg-zinc-700">+Oct</button>
+            <button onClick={() => transposeNotes(-1)} className="px-1.5 py-0.5 rounded bg-[#44392D] hover:bg-zinc-700">-1</button>
+            <button onClick={() => transposeNotes(1)} className="px-1.5 py-0.5 rounded bg-[#44392D] hover:bg-zinc-700">+1</button>
+            <button onClick={() => transposeNotes(12)} className="px-1.5 py-0.5 rounded bg-[#44392D] hover:bg-zinc-700">+Oct</button>
           </div>
         </div>
       </div>
 
       {synthControlsOpen && synthSettings && onSynthSettingsChange && (
-        <div className="grid grid-cols-2 gap-3 border-b border-[#3B3155] bg-[#191a21] px-4 py-3 text-[10px] sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 border-b border-[#504436] bg-[#201D1A] px-4 py-3 text-[10px] sm:grid-cols-4">
           <label className="text-zinc-400">{t("pianoRoll.waveform")}
-            <select value={synthSettings.waveform} onChange={(event) => onSynthSettingsChange({ ...synthSettings, waveform: event.target.value as OscillatorType })} className="mt-1 block w-full rounded border border-[#51456F] bg-[#241D3A] px-2 py-1 text-white">
+            <select value={synthSettings.waveform} onChange={(event) => onSynthSettingsChange({ ...synthSettings, waveform: event.target.value as OscillatorType })} className="mt-1 block w-full rounded border border-[#695B4B] bg-[#362C21] px-2 py-1 text-white">
               {["sine", "square", "sawtooth", "triangle"].map((wave) => <option key={wave} value={wave}>{wave}</option>)}
             </select>
           </label>
@@ -269,14 +269,14 @@ export function PianoRoll({
       {/* Grid */}
       <div ref={gridScrollRef} className="min-h-0 flex-1 overflow-auto">
         <div className="flex w-max min-w-full">
-        <div className="sticky left-0 z-10 w-16 flex-none border-r border-[#3B3155] bg-[#17181f]">
+        <div className="sticky left-0 z-10 w-16 flex-none border-r border-[#504436] bg-[#1E1B18]">
           {PITCHES.map((p) => (
             <button
               key={p.pitch}
               onClick={() => onPreviewNote(p.pitch)}
               className={`h-6 w-full border-b text-[10px] font-bold flex items-center justify-end pr-2 transition ${
                 p.isBlack
-                  ? "bg-[#1f2029] text-zinc-400 border-zinc-900 hover:bg-[#322849]"
+                  ? "bg-[#282420] text-zinc-400 border-zinc-900 hover:bg-[#44392D]"
                   : "bg-zinc-200 text-zinc-900 border-zinc-300 hover:bg-white"
               }`}
             >
@@ -287,7 +287,7 @@ export function PianoRoll({
 
         <div className="flex-1 bg-[#0f1013]">
           {PITCHES.map((p) => (
-            <div key={p.pitch} className="flex h-6 border-b border-[#3B3155]/40">
+            <div key={p.pitch} className="flex h-6 border-b border-[#504436]/40">
               {Array.from({ length: totalSteps }, (_, step) => {
                 const noteHere = notes.find((n) => n.pitch === p.pitch && n.startStep === step);
                 const isBarStart = step % 16 === 0;
@@ -298,8 +298,8 @@ export function PianoRoll({
                     key={step}
                     onClick={() => handleCellClick(p.pitch, step)}
                     className={`relative h-full w-8 flex-none border-r cursor-pointer transition ${
-                      isBarStart ? "border-zinc-600" : isBeatStart ? "border-[#51456F]/60" : "border-[#3B3155]/40"
-                    } ${p.isBlack ? "bg-[#241D3A]/40" : "bg-transparent"} hover:bg-[#B89CFF]/20 flex items-center p-0.5`}
+                      isBarStart ? "border-zinc-600" : isBeatStart ? "border-[#695B4B]/60" : "border-[#504436]/40"
+                    } ${p.isBlack ? "bg-[#362C21]/40" : "bg-transparent"} hover:bg-[#E0D0BB]/20 flex items-center p-0.5`}
                   >
                     {noteHere && (
                       <div
@@ -321,7 +321,7 @@ export function PianoRoll({
                         onClick={(event) => event.stopPropagation()}
                         style={{ width: `${Math.max(1, noteHere.length) * 32}px` }}
                         className={`absolute left-0 top-0 z-10 h-full rounded-sm border shadow-sm ${
-                          selectedNoteId === noteHere.id ? "border-white bg-[#D0BCFF]" : "border-[#D0BCFF] bg-gradient-to-r from-[#D0BCFF] to-[#FF72B6]"
+                          selectedNoteId === noteHere.id ? "border-white bg-[#EADFD1]" : "border-[#EADFD1] bg-gradient-to-r from-[#EADFD1] to-[#D3BC9E]"
                         }`}
                       >
                         <span className="absolute right-0 top-0 h-full w-2 cursor-ew-resize bg-black/20" aria-hidden="true" />
@@ -337,14 +337,14 @@ export function PianoRoll({
       </div>
 
       {/* Velocity Lane */}
-      <div className="h-16 flex-none border-t border-[#3B3155] bg-[#111217] flex items-center px-4">
+      <div className="h-16 flex-none border-t border-[#504436] bg-[#111217] flex items-center px-4">
         <span className="text-[9px] font-bold text-zinc-500 mr-3">{t("pianoRoll.velocity")}</span>
         <div className="flex-1 flex gap-1 h-10 items-end">
           {notes.map((n) => (
             <div key={n.id} className="flex flex-col items-center flex-1">
               <div
                 style={{ height: `${Math.round(((n.velocity || 100) / 127) * 36)}px` }}
-                className="w-2 bg-gradient-to-t from-[#39CBA8] to-[#FF72B6] rounded-t-sm"
+                className="w-2 bg-gradient-to-t from-[#39CBA8] to-[#D3BC9E] rounded-t-sm"
               />
               <span className="text-[7px] font-mono text-zinc-400 mt-0.5">{n.velocity || 100}</span>
             </div>

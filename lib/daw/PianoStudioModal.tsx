@@ -118,7 +118,7 @@ export function PianoStudioModal({ isOpen, onClose, ctx, trackName }: PianoStudi
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 font-sans select-none">
-      <div className="w-full max-w-4xl rounded-2xl border-2 border-[#20222a] bg-[#14151b] shadow-2xl overflow-hidden flex flex-col text-zinc-300">
+      <div className="w-full max-w-4xl rounded-2xl border-2 border-[#20222a] bg-[#1A1815] shadow-2xl overflow-hidden flex flex-col text-zinc-300">
         
         {/* HEADER */}
         <div className="flex h-11 items-center justify-between border-b border-zinc-800 bg-[#1c1e26] px-4">
